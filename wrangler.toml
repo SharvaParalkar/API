@@ -1,0 +1,4 @@
+name = "random100-api"                   # the name of your Worker
+main = "index.js"                        # entry‑point
+type = "javascript"                      # or "webpack"/"rust" etc.
+compatibility_date = "2025-05-09"        # today’s date in YYYY-MM-DD
