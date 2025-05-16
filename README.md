@@ -6,3 +6,6 @@ PC <- Request form
 PC <-> Database
 PC -> Dashboard
 PC <-> Print Estimate Feature
+
+FEATURE LOG 
+05/16/2025 - Got the upload stl feature working. Current state allows a user to access api.filamentbros.com/stl, upload an stl which is viewable in the stl-uploader/uploads file. 
