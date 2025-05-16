@@ -30,11 +30,6 @@ app.get('/', (req, res) => {
   res.redirect('/stl');
 });
 
-// Optional: random number API
-app.get('/random', (req, res) => {
-  res.json({ value: Math.floor(Math.random() * 100) });
-});
-
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
