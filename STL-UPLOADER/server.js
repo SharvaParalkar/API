@@ -16,16 +16,26 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Only serve index.html on /stl
+// Serve /stl static folder (e.g. index.html)
 app.use('/stl', express.static(path.join(__dirname, 'public')));
 
-// Only accept uploads on /stl/upload
+// Handle uploads to /stl/upload
 app.post('/stl/upload', upload.single('stl'), (req, res) => {
   if (!req.file) return res.status(400).send('No file uploaded.');
   res.send('STL file uploaded successfully.');
 });
 
+// Optional: redirect root to /stl
+app.get('/', (req, res) => {
+  res.redirect('/stl');
+});
+
+// Optional: random number API
+app.get('/random', (req, res) => {
+  res.json({ value: Math.floor(Math.random() * 100) });
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`✅ Server running at http://localhost:${PORT}`);
 });
