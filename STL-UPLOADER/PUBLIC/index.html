@@ -1,14 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Upload STL</title>
+  <meta charset="UTF-8" />
+  <title>FilamentBros STL Upload</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f4f4f4;
+      border-radius: 8px;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    input[type="file"] {
+      margin: 20px 0;
+    }
+    #status {
+      margin-top: 30px;
+      font-size: 1.1em;
+      color: #333;
+    }
+  </style>
 </head>
 <body>
   <h1>Upload Your STL File</h1>
-  <form id="uploadForm" enctype="multipart/form-data" method="post" action="/stl/upload">
-  <input type="file" name="stl" accept=".stl" required />
-  <button type="submit">Upload</button>
-</form>
+  <form id="uploadForm">
+    <input type="file" name="stl" accept=".stl" required />
+    <br>
+    <button type="submit">Upload & Slice</button>
+  </form>
+
+  <div id="status"></div>
+
+  <script>
+    document.querySelector('#uploadForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const form = e.target;
+      const fileInput = form.querySelector('input[type="file"]');
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('stl', file);
+
+      const statusDiv = document.getElementById('status');
+      statusDiv.innerHTML = `⏳ Slicing your file...<br>Estimated time: ~5–15 sec`;
+
+      try {
+        const response = await fetch('/stl/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'success') {
+          statusDiv.innerHTML = `
+            ✅ Slicing complete!<br>
+            <strong>Estimated Price:</strong> ${result.price}<br>
+            <strong>G-code file:</strong> <code>${result.gcode}</code>
+          `;
+        } else {
+          statusDiv.innerHTML = `❌ Error: ${result.message}`;
+        }
+      } catch (err) {
+        statusDiv.innerHTML = `❌ Upload failed: ${err.message}`;
+      }
+    });
+  </script>
 </body>
 </html>
