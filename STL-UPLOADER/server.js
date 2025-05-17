@@ -2,7 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const { exec } = require("child_process");
+const { spawn } = require("child_process");
 
 const app = express();
 
@@ -34,10 +34,9 @@ function parseGcodeCost(gcodePath) {
   });
 }
 
-
-// Slice STL using PrusaSlicer CLI
+// Slice STL using PrusaSlicer CLI (spawn version)
 async function sliceAndEstimate(stlPath) {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const fileName = path.basename(stlPath, ".stl");
     const outputPath = `C:\\Users\\admin\\Downloads\\test_output\\${fileName}.gcode`;
     const outputDir = path.dirname(outputPath);
@@ -49,13 +48,27 @@ async function sliceAndEstimate(stlPath) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    const cmd = `"${slicerPath}" --load "${configPath}" --center 500,500 --output "${outputPath}" --slice --info "${stlPath}"`;
-    const start = Date.now();
+    const args = [
+      "--load", configPath,
+      "--center", "500,500",
+      "--output", outputPath,
+      "--slice",
+      stlPath
+    ];
 
-    exec(cmd, async (error, stdout, stderr) => {
+    const start = Date.now();
+    const slicer = spawn(slicerPath, args);
+
+    let stdout = "";
+    let stderr = "";
+
+    slicer.stdout.on("data", data => stdout += data.toString());
+    slicer.stderr.on("data", data => stderr += data.toString());
+
+    slicer.on("close", async (code) => {
       const durationMs = Date.now() - start;
 
-      if (error || !fs.existsSync(outputPath)) {
+      if (code !== 0 || !fs.existsSync(outputPath)) {
         console.error("❌ Slicing failed:");
         console.error(stderr || "No G-code generated.");
         return reject(`Slicing failed. Time taken: ${durationMs}ms`);
