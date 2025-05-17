@@ -88,7 +88,7 @@ async function sliceAndEstimate(stlPath) {
     const outputDir = path.dirname(outputPath);
 
     const slicerPath = `C:\\Program Files\\Prusa3D\\PrusaSlicer\\prusa-slicer-console.exe`;
-    const configPath = `C:\\Users\\sharv\\Downloads\\config.ini`;
+    const configPath = `C:\\Users\\sharv\\Downloads\\Filabros\\API\\STL-UPLOADER\\config.ini`;
 
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
