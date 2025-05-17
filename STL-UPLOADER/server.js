@@ -83,23 +83,35 @@ async function sliceAndEstimate(stlPath) {
 app.use("/stl", express.static(path.join(__dirname, "public")));
 
 // Handle STL upload and slicing
-app.post("/stl/upload", upload.single("stl"), async (req, res) => {
-  if (!req.file) return res.status(400).send("No file uploaded.");
+app.post('/stl/upload', upload.single('stl'), async (req, res) => {
+  if (!req.file) return res.status(400).send('No file uploaded.');
+
+  const stlPath = path.join(__dirname, 'uploads', req.file.filename);
 
   try {
-    const filePath = path.join(__dirname, "uploads", req.file.filename);
-    const result = await sliceAndEstimate(filePath);
+    const result = await sliceAndEstimate(stlPath);
 
     res.json({
-      status: "success",
+      status: 'success',
       file: req.file.filename,
       gcode: result.outputPath,
       price: result.cost,
-      timeMs: result.durationMs, // ✅ send timing info to frontend
+      timeMs: result.durationMs,
+    });
+
+    // 🔁 After response is sent, delete files
+    res.on('finish', () => {
+      try {
+        if (fs.existsSync(stlPath)) fs.unlinkSync(stlPath);
+        if (fs.existsSync(result.outputPath)) fs.unlinkSync(result.outputPath);
+        console.log(`🗑️ Deleted: ${req.file.filename} and its G-code`);
+      } catch (err) {
+        console.error('⚠️ File deletion failed:', err);
+      }
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ status: "error", message: err.toString() });
+    res.status(500).json({ status: 'error', message: err.toString() });
   }
 });
 
