@@ -34,70 +34,19 @@ function parseGcodeCost(gcodePath) {
   });
 }
 
-// Auto-center STL (ASCII or binary)
-function centerSTL(filePath) {
-  return new Promise((resolve, reject) => {
-    fs.readFile(filePath, (err, buffer) => {
-      if (err) return reject("Failed to read STL");
-
-      const isASCII = buffer.toString("utf8", 0, 256).includes("solid");
-      if (isASCII) {
-        const data = buffer.toString("utf8");
-        const vertexRegex = /^vertex\s+([-\.\d]+)\s+([-\.\d]+)\s+([-\.\d]+)/gm;
-        let match;
-        const vertices = [];
-
-        while ((match = vertexRegex.exec(data)) !== null) {
-          vertices.push([parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3])]);
-        }
-
-        if (vertices.length === 0) return reject("No vertices found in STL");
-
-        const avg = [0, 0, 0];
-        for (const v of vertices) {
-          avg[0] += v[0];
-          avg[1] += v[1];
-          avg[2] += v[2];
-        }
-        avg[0] /= vertices.length;
-        avg[1] /= vertices.length;
-        avg[2] /= vertices.length;
-
-        const centeredSTL = data.replace(vertexRegex, (_, x, y, z) => {
-          return `vertex ${(parseFloat(x) - avg[0]).toFixed(6)} ${(parseFloat(y) - avg[1]).toFixed(6)} ${(parseFloat(z) - avg[2]).toFixed(6)}`;
-        });
-
-        return fs.writeFile(filePath, centeredSTL, "utf8", (err) => {
-          if (err) return reject("Failed to write centered STL");
-          resolve();
-        });
-      } else {
-        console.warn(`⚠️ Binary STL detected: ${filePath}`);
-        // Optional: Add binary STL recentering here if needed
-        resolve();
-      }
-    });
-  });
-}
 
 // Slice STL using PrusaSlicer CLI
 async function sliceAndEstimate(stlPath) {
   return new Promise(async (resolve, reject) => {
     const fileName = path.basename(stlPath, ".stl");
-    const outputPath = `C:\\Users\\sharv\\Downloads\\test_output\\${fileName}.gcode`;
+    const outputPath = `C:\\Users\\admin\\Downloads\\test_output\\${fileName}.gcode`;
     const outputDir = path.dirname(outputPath);
 
     const slicerPath = `C:\\Program Files\\Prusa3D\\PrusaSlicer\\prusa-slicer-console.exe`;
-    const configPath = `C:\\Users\\sharv\\Downloads\\Filabros\\API\\STL-UPLOADER\\config.ini`;
+    const configPath = `C:\\Users\\admin\\Downloads\\API\\STL-UPLOADER\\config.ini`;
 
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
-    }
-
-    try {
-      await centerSTL(stlPath);
-    } catch (err) {
-      return reject("❌ STL centering failed: " + err);
     }
 
     const cmd = `"${slicerPath}" --load "${configPath}" --center 500,500 --output "${outputPath}" --slice --info "${stlPath}"`;
