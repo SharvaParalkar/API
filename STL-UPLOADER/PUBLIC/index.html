@@ -36,41 +36,45 @@
 
   <div id="status"></div>
 
-  <script>
-    document.querySelector('#uploadForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      const form = e.target;
-      const fileInput = form.querySelector('input[type="file"]');
-      const file = fileInput.files[0];
-      if (!file) return;
+<script>
+document.querySelector('#uploadForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
 
-      const formData = new FormData();
-      formData.append('stl', file);
+  const form = e.target;
+  const fileInput = form.querySelector('input[type="file"]');
+  const file = fileInput.files[0];
+  if (!file) return;
 
-      const statusDiv = document.getElementById('status');
-      statusDiv.innerHTML = `⏳ Slicing your file...<br>Estimated time: ~5–15 sec`;
+  const formData = new FormData();
+  formData.append('stl', file);
 
-      try {
-        const response = await fetch('/stl/upload', {
-          method: 'POST',
-          body: formData
-        });
+  const statusDiv = document.getElementById('status');
+  statusDiv.innerHTML = `⏳ Slicing your file...<br>Estimated time: ~5–15 sec`;
 
-        const result = await response.json();
-
-        if (result.status === 'success') {
-          statusDiv.innerHTML = `
-            ✅ Slicing complete!<br>
-            <strong>Estimated Price:</strong> ${result.price}<br>
-            <strong>G-code file:</strong> <code>${result.gcode}</code>
-          `;
-        } else {
-          statusDiv.innerHTML = `❌ Error: ${result.message}`;
-        }
-      } catch (err) {
-        statusDiv.innerHTML = `❌ Upload failed: ${err.message}`;
-      }
+  try {
+    const response = await fetch('/stl/upload', {
+      method: 'POST',
+      body: formData
     });
-  </script>
+
+    const result = await response.json();
+
+    if (result.status === 'success') {
+      const seconds = (result.timeMs / 1000).toFixed(2);
+      statusDiv.innerHTML = `
+        ✅ Slicing complete!<br>
+        <strong>Estimated Price:</strong> ${result.price}<br>
+        <strong>Time to slice:</strong> ${seconds} seconds<br>
+        <strong>G-code file:</strong> <code>${result.gcode}</code>
+      `;
+    } else {
+      statusDiv.innerHTML = `❌ Error: ${result.message}`;
+    }
+  } catch (err) {
+    statusDiv.innerHTML = `❌ Upload failed: ${err.message}`;
+  }
+});
+</script>
+
 </body>
 </html>
