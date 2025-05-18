@@ -1,0 +1,155 @@
+id,name,email,phone,submitted_at,status,assigned_staff,est_price,assigned_price,payment_status,notes
+order_0001,Sharva,arc_aggie1207@tamu.edu,,2025-02-19 18:09:35,Completed,Sharva,0.0,0.0,paid,Ready to print
+order_0002,Evan,onoliagarcia05@gmail.com,9565158260,2025-02-20 18:14:33,Completed,Evan,0.0,0.0,paid,nan
+order_0003,Nathan,j.kriel06@tamu.edu,9799856254,2025-02-21 10:49:13,Completed,Nathan,0.0,0.0,paid,Reprinted
+order_0004,Pablo,kamrynphillips@tamu.edu,,2025-02-21 17:16:51,Completed,Pablo,0.0,0.0,paid,nan
+order_0005,Pablo,kamrynphillips@tamu.edu,,2025-02-22 18:59:57,Completed,Pablo,0.0,0.0,paid,nan
+order_0006,Sharva,bright70@tamu.edu,,2025-02-24 09:50:08,Completed,Sharva,0.0,0.0,paid,Issue with windows
+order_0007,Evan,landon_burkett@tamu.edu,9034402694,2025-02-24 12:06:11,Completed,Evan,0.0,0.0,paid,nan
+order_0008,Evan,landon_burkett@tamu.edu,9034402694,2025-02-24 12:50:04,Completed,Evan,0.0,0.0,paid,Printing w Pablo
+order_0009,Pablo,madison_white@tamu.edu,,2025-02-24 16:34:43,Completed,Pablo,0.0,0.0,paid,nan
+order_0010,Evan,kailyncisneros_11@tamu.edu,5127341720,2025-02-24 18:30:21,Completed,Evan,0.0,0.0,paid,ready to go but has several build plates  due tomorrow
+order_0011,Nathan,landon_burkett@tamu.edu,9034402694,2025-02-25 01:25:28,Completed,Nathan,0.0,0.0,paid,Evan can you check this one out - not an error on our end but text him
+order_0012,Evan,madison_white@tamu.edu,,2025-02-25 18:01:40,Completed,Evan,0.0,0.0,paid,nan
+order_0013,Nathan,ifrausto006@tamu.edu,,2025-02-25 22:03:11,Completed,Nathan,0.0,0.0,paid,nan
+order_0014,Nathan,kj.sellers66@tamu.edu,,2025-02-25 23:13:49,Completed,Nathan,0.0,0.0,paid,nan
+order_0015,Nathan,ifrausto006@tamu.edu,2814602237,2025-02-26 16:50:56,Completed,Nathan,0.0,0.0,paid,nan
+order_0016,Nathan,ifrausto006@tamu.edu,2814602237,2025-02-26 16:55:36,Completed,Nathan,0.0,0.0,paid,nan
+order_0017,Sharva,vytang@tamu.edu,8325619066,2025-02-27 15:11:57,Completed,Sharva,0.0,0.0,paid,7 cent print im doing it for free
+order_0018,Sharva,avillarino@tamu.edu,9033489530,2025-02-27 15:18:06,Completed,Sharva,0.0,6.45,paid,$6.45
+order_0019,Evan,landon_burkett@tamu.edu,9034402694,2025-02-27 17:11:05,Completed,Evan,0.0,0.0,paid,nan
+order_0020,Nathan,avillarino@tamu.edu,9033489530,2025-03-01 16:19:09,Completed,Nathan,0.0,0.0,paid,".10 cent print, would do it for free if you have time, charging like a $1 for this doesnt seem right"
+order_0021,Pablo,tj-b_0.6@tamu.edu,,2025-03-03 13:39:39,Completed,Pablo,0.0,0.0,paid,nan
+order_0022,Evan,hjrosenstrauch@tamu.edu,7193443883,2025-03-04 16:02:05,Completed,Evan,0.0,0.0,paid,use 15-20% infill for this
+order_0023,Pablo,mmccurdy2003@tamu.edu,,2025-03-05 00:10:59,Completed,Pablo,0.0,0.0,paid,Has been Emailed about issues
+order_0024,Pablo,pd12047671@tamu.edu,9402795723,2025-03-06 16:17:36,Completed,Pablo,0.0,0.0,paid,Has been Texted about issues
+order_0025,Sharva,marisaalvarez06@tamu.edu,,2025-03-05 08:39:38,Completed,Sharva,0.0,0.0,paid,wrong file type
+order_0026,Evan,tj-b_0.6@tamu.edu,,2025-03-05 12:33:12,Completed,Evan,0.0,0.0,paid,nan
+order_0027,Nathan,adarewoodall@tamu.edu,,2025-03-05 13:37:14,Completed,Nathan,0.0,0.0,paid,nan
+order_0028,Nathan,torihannah@tamu.edu,,2025-03-06 12:26:25,Completed,Nathan,0.0,0.0,paid,nan
+order_0029,Pablo,amore_05@tamu.edu,,2025-03-06 15:12:20,Completed,Pablo,0.0,0.0,paid,nan
+order_0030,Pablo,ryen.morris@tamu.edu,,2025-03-06 18:44:12,Completed,Pablo,0.0,0.0,paid,Lots of small pieces that need to be fixed- Emailed
+order_0031,Sharva,e835002359@tamu.edu,,2025-03-07 14:38:50,Completed,Sharva,0.0,0.0,paid,easy print $3.5 (w/ 10% infil)
+order_0032,Pablo,c.juarez07@tamu.edu,9566846717,2025-03-07 16:30:42,Completed,Pablo,0.0,0.0,paid,nan
+order_0033,Pablo,c.juarez07@tamu.edu,9566846717,2025-03-07 18:13:32,Completed,Pablo,0.0,0.0,paid,Texted
+order_0034,Pablo,c.juarez07@tamu.edu,9566846717,2025-03-07 21:25:42,Completed,Pablo,0.0,0.0,paid,nan
+order_0035,Pablo,c.juarez07@tamu.edu,9566846717,2025-03-08 16:11:55,Completed,Pablo,0.0,0.0,paid,nan
+order_0036,Pablo,r.burns_06-@tamu.edu,9366488177,2025-03-10 13:08:32,Completed,Pablo,0.0,0.0,paid,nan
+order_0037,Pablo,vybui2004@tamu.edu,3463326648,2025-03-16 12:19:38,Completed,Pablo,0.0,0.0,paid,nan
+order_0038,Evan,lulouis@tamu.edu,,2025-03-16 16:06:33,Completed,Evan,0.0,0.0,paid,nan
+order_0039,Sharva,susana_lazcano@tamu.edu,,2025-03-17 08:09:50,Completed,Sharva,0.0,0.0,paid,Texted
+order_0040,Nathan,daniel.reddic@tamu.edu,8172354560,2025-03-17 13:56:18,Completed,Nathan,0.0,0.0,paid,nan
+order_0041,Evan,jaydengiles@tamu.edu,,2025-03-17 14:07:14,Completed,Evan,0.0,0.0,paid,texting and making sure it is correct. update soon
+order_0042,Evan,jaydengiles@tamu.edu,3135399914,2025-03-17 14:11:13,Completed,Evan,0.0,0.0,paid,texting and making sure it is correct. update soon
+order_0043,Pablo,jasmine.sto@tamu.edu,,2025-03-17 15:03:05,Completed,Pablo,0.0,0.0,paid,nan
+order_0044,Evan,isa._.no@tamu.edu,,2025-03-18 00:48:23,Completed,Evan,0.0,0.0,paid,nan
+order_0045,Evan,alyssamarie.hudson@tamu.edu,6197882809,2025-03-18 16:30:54,Completed,Evan,0.0,0.0,paid,nan
+order_0046,Pablo,jjstevenson@tamu.edu,,2025-03-20 13:31:25,Completed,Pablo,0.0,0.0,paid,nan
+order_0047,Group,dpatel07@tamu.edu,8327250845,2025-03-20 14:09:02,Completed,Group,0.0,0.0,paid,"Sharva, Pablo, Evan"
+order_0048,Evan,mayela_28@tamu.edu,,2025-03-20 16:30:15,Completed,Evan,0.0,0.0,paid,nan
+order_0049,Nathan,mmccurdy2003@tamu.edu,8322089922,2025-03-26 19:02:41,Completed,Nathan,0.0,0.0,paid,nan
+order_0050,Sharva,landon_burkett@tamu.edu,9034402694,2025-03-27 11:10:05,Completed,Sharva,0.0,0.0,paid,free print for logo
+order_0051,Sharva,dpatel07@tamu.edu,,2025-03-28 21:25:13,Completed,Sharva,0.0,0.0,paid,nan
+order_0052,Pablo,jjstevenson@tamu.edu,,2025-03-30 15:08:44,Completed,Pablo,0.0,0.0,paid,nan
+order_0053,Pablo,jjstevenson@tamu.edu,,2025-03-30 15:13:00,Completed,Pablo,0.0,0.0,paid,nan
+order_0054,Sharva,dpatel07@tamu.edu,,2025-03-30 19:26:30,Completed,Sharva,0.0,0.0,paid,part of the other set
+order_0055,Pablo,jjstevenson@tamu.edu,,2025-03-31 16:18:23,Completed,Pablo,0.0,0.0,paid,nan
+order_0056,Pablo,jjstevenson@tamu.edu,,2025-03-31 16:19:38,Completed,Pablo,0.0,0.0,paid,nan
+order_0057,Pablo,jjstevenson@tamu.edu,,2025-03-31 16:21:52,Completed,Pablo,0.0,0.0,paid,nan
+order_0058,Pablo,jjstevenson@tamu.edu,,2025-03-31 16:24:25,Completed,Pablo,0.0,0.0,paid,nan
+order_0059,Pablo,mudkipsewoong@tamu.edu,8324930853,2025-04-01 13:17:24,Completed,Pablo,0.0,0.0,paid,nan
+order_0060,Sharva,mayela_28@tamu.edu,9566427347,2025-04-10 19:11:20,Completed,Sharva,0.0,0.0,paid,nan
+order_0061,Evan,grant_caraway@tamu.edu,,2025-04-11 11:14:07,Completed,Evan,0.0,0.0,paid,
+order_0062,Evan,grant_caraway@tamu.edu,,2025-04-11 11:15:14,Completed,Evan,0.0,0.0,paid,nan
+order_0063,Evan,grant_caraway@tamu.edu,,2025-04-11 11:16:19,Completed,Evan,0.0,0.0,paid,added to a file - will add more in class
+order_0064,Evan,grant_caraway@tamu.edu,,2025-04-11 11:17:04,Completed,Evan,0.0,0.0,paid,added to a file working on slicing
+order_0065,Sharva,kamrynphillips@tamu.edu,,2025-04-12 21:23:00,Completed,Sharva,0.0,0.0,paid,nan
+order_0066,Evan,angel_caldera@tamu.edu,3463904485,2025-04-12 22:06:10,Completed,Evan,0.0,0.0,paid,nan
+order_0067,Nathan,dieps05@tamu.edu,2144307186,2025-04-14 08:50:06,Completed,Nathan,0.0,0.0,paid,nan
+order_0068,Nathan,j.kriel06@tamu.edu,9799856254,2025-04-14 11:12:44,Completed,Nathan,0.0,0.0,paid,601 grams
+order_0069,Evan,kailyncisneros_11@tamu.edu,5127341720,2025-04-14 11:22:33,Completed,Evan,0.0,0.0,paid,nan
+order_0070,Pablo,a.regitz@tamu.edu,3462875868,2025-04-14 11:52:07,Completed,Pablo,0.0,0.0,paid,nan
+order_0071,Sharva,chloep06@tamu.edu,,2025-04-15 10:40:19,Completed,Sharva,0.0,0.0,paid,couple pieces wrong / columns need to be seperated
+order_0072,Nathan,vgonz_270@tamu.edu,,2025-04-15 11:14:39,Completed,Nathan,0.0,0.0,paid,609 grams
+order_0073,Peter,landon_burkett@tamu.edu,9034402694,2025-04-15 14:39:47,Completed,Peter,0.0,0.0,paid,nan
+order_0074,Evan,angel_caldera@tamu.edu,3463904485,2025-04-16 09:53:51,Completed,Evan,0.0,0.0,paid,nan
+order_0075,Sharva,taylorstubbs0215@gmail.com,9793248964,2025-04-16 14:54:02,Completed,Sharva,0.0,0.0,paid,nan
+order_0076,Evan,jackienguyenx@tamu.edu,3463326483,2025-04-16 15:11:28,Completed,Evan,0.0,0.0,paid,nan
+order_0077,Sharva,grant@caraways.net,,2025-04-17 15:58:58,Completed,Sharva,0.0,0.0,paid,nan
+order_0078,Evan,tj-b_0.6@tamu.edu,,2025-04-18 01:24:34,Completed,Evan,0.0,0.0,paid,nan
+order_0079,Sharva,patricio_ramirez@tamu.edu,8325647338,2025-04-18 14:22:23,Completed,Sharva,0.0,0.0,paid,nan
+order_0080,Peter,arc_aggie1207@tamu.edu,9726584491,2025-04-19 11:18:25,Completed,Peter,0.0,0.0,paid,nan
+order_0081,Peter,madison_white@tamu.edu,,2025-04-21 06:22:04,Completed,Peter,0.0,0.0,paid,nan
+order_0082,Pablo,2024kenny.lopez@gmail.com,,2025-04-21 11:39:44,Completed,Pablo,0.0,0.0,paid,Drive
+order_0083,Evan,tj-b_0.6@tamu.edu,2146098925,2025-04-21 13:04:04,Completed,Evan,0.0,0.0,paid,Ill take care oif this since I printed her stuff like last weekend
+order_0084,Nathan,zgj05@tamu.edu,,2025-04-21 13:05:59,Completed,Nathan,0.0,0.0,paid,nan
+order_0085,Evan,anapr@tamu.edu,3468574164,2025-04-21 13:10:42,Completed,Evan,0.0,0.0,paid,nan
+order_0086,Sharva,atklein@tamu.edu,8306601110,2025-04-21 15:26:45,Completed,Sharva,0.0,0.0,paid,nan
+order_0087,Pablo,yerisnchz@tamu.edu,,2025-04-21 13:36:09,Completed,Pablo,0.0,0.0,paid,nan
+order_0088,Pablo,yerisnchz@tamu.edu,,2025-04-21 14:31:21,Completed,Pablo,0.0,0.0,paid,nan
+order_0089,Evan,anapr@tamu.edu,3463838750,2025-04-21 15:22:34,Completed,Evan,0.0,0.0,paid,more furniture use a .4
+order_0090,Nathan,dpatel07@tamu.edu,8327250845,2025-04-21 16:03:45,Completed,Nathan,0.0,18.78,paid,626 grams $18.78
+order_0091,Evan,miahelenabush@tamu.edu,9787644234,2025-04-21 16:54:25,Completed,Evan,0.0,0.0,paid,Furniture
+order_0092,Evan,karsen.council3526@tamu.edu,8329172233,2025-04-21 22:58:52,Printing,Evan,0.0,0.0,unpaid,this is the re submit
+order_0093,Evan,yerisnchz@tamu.edu,,2025-04-22 14:30:49,Completed,Evan,0.0,0.0,paid,Probably 0.4
+order_0094,Peter,amyanderson12@tamu.edu,2147245745,2025-04-22 15:49:12,Completed,Peter,0.0,0.0,paid,small print
+order_0095,Nathan,isabellazanetti@tamu.edu,3463864947,2025-04-22 16:13:54,Printing,Nathan,7.0,7.0,unpaid,"Texted, waiting on response"
+order_0096,Evan,kz191094@tamu.edu,6824010161,2025-04-23 16:35:51,Printing,Evan,18.3,18.3,unpaid,nan
+order_0097,nan,kj.sellers66@tamu.edu,,2025-04-23 16:43:14,Error,nan,0.0,0.0,unpaid,Wrong File
+order_0098,Sharva,jimenarobles@tamu.edu,3463701415,2025-04-23 20:12:04,Pre Print,Sharva,19.0,19.0,unpaid,nan
+order_0099,Pablo,yerisnchz@tamu.edu,,2025-04-23 23:39:31,Pre Print,Pablo,0.0,0.0,unpaid,nan
+order_0100,Evan,hripp14@tamu.edu,,2025-04-24 09:02:49,Printing,Evan,0.0,0.0,unpaid,nan
+order_0101,Nathan,cliffordm123-@tamu.edu,3463838750,2025-04-24 16:08:32,Printing,Nathan,3.0,3.0,unpaid,nan
+order_0102,Sharva,gee.hey.gee@gmail.com,6097215084,2025-04-24 17:41:12,nan,Sharva,3.0,3.0,unpaid,nan
+order_0103,Pablo,mudkipsewoong@tamu.edu,8324930853,2025-04-01 13:17:24,Completed,Pablo,0.0,0.0,paid,nan
+order_0104,Sharva,mayela_28@tamu.edu,9566427347,2025-04-10 19:11:20,Completed,Sharva,0.0,0.0,paid,nan
+order_0105,Evan,grant_caraway@tamu.edu,,2025-04-11 11:14:07,Completed,Evan,0.0,0.0,paid,
+order_0106,Evan,grant_caraway@tamu.edu,,2025-04-11 11:15:14,Completed,Evan,0.0,0.0,paid,nan
+order_0107,Evan,grant_caraway@tamu.edu,,2025-04-11 11:16:19,Completed,Evan,0.0,0.0,paid,added to a file - will add more in class
+order_0108,Evan,grant_caraway@tamu.edu,,2025-04-11 11:17:04,Completed,Evan,0.0,0.0,paid,added to a file working on slicing
+order_0109,Sharva,kamrynphillips@tamu.edu,,2025-04-12 21:23:00,Completed,Sharva,0.0,0.0,paid,nan
+order_0110,Evan,angel_caldera@tamu.edu,3463904485,2025-04-12 22:06:10,Completed,Evan,0.0,0.0,paid,nan
+order_0111,Nathan,dieps05@tamu.edu,2144307186,2025-04-14 08:50:06,Completed,Nathan,0.0,0.0,paid,nan
+order_0112,Nathan,j.kriel06@tamu.edu,9799856254,2025-04-14 11:12:44,Completed,Nathan,0.0,0.0,paid,601 grams
+order_0113,Evan,kailyncisneros_11@tamu.edu,5127341720,2025-04-14 11:22:33,Completed,Evan,0.0,0.0,paid,nan
+order_0114,Pablo,a.regitz@tamu.edu,3462875868,2025-04-14 11:52:07,Completed,Pablo,0.0,0.0,paid,nan
+order_0115,Sharva,chloep06@tamu.edu,,2025-04-15 10:40:19,Completed,Sharva,0.0,0.0,paid,couple pieces wrong / columns need to be seperated
+order_0116,Nathan,vgonz_270@tamu.edu,,2025-04-15 11:14:39,Completed,Nathan,0.0,0.0,paid,609 grams
+order_0117,Peter,landon_burkett@tamu.edu,9034402694,2025-04-15 14:39:47,Completed,Peter,0.0,0.0,paid,nan
+order_0118,Evan,angel_caldera@tamu.edu,3463904485,2025-04-16 09:53:51,Completed,Evan,0.0,0.0,paid,nan
+order_0119,Sharva,taylorstubbs0215@gmail.com,9793248964,2025-04-16 14:54:02,Completed,Sharva,0.0,0.0,paid,nan
+order_0120,Evan,jackienguyenx@tamu.edu,3463326483,2025-04-16 15:11:28,Completed,Evan,0.0,0.0,paid,nan
+order_0121,Sharva,grant@caraways.net,,2025-04-17 15:58:58,Completed,Sharva,0.0,0.0,paid,nan
+order_0122,Evan,tj-b_0.6@tamu.edu,,2025-04-18 01:24:34,Completed,Evan,0.0,0.0,paid,nan
+order_0123,Sharva,patricio_ramirez@tamu.edu,8325647338,2025-04-18 14:22:23,Completed,Sharva,0.0,0.0,paid,nan
+order_0124,Peter,arc_aggie1207@tamu.edu,9726584491,2025-04-19 11:18:25,Completed,Peter,0.0,0.0,paid,nan
+order_0125,Peter,madison_white@tamu.edu,,2025-04-21 06:22:04,Completed,Peter,0.0,0.0,paid,nan
+order_0126,Pablo,2024kenny.lopez@gmail.com,,2025-04-21 11:39:44,Completed,Pablo,0.0,0.0,paid,Drive
+order_0127,Evan,tj-b_0.6@tamu.edu,2146098925,2025-04-21 13:04:04,Completed,Evan,0.0,0.0,paid,Ill take care oif this since I printed her stuff like last weekend
+order_0128,Nathan,zgj05@tamu.edu,,2025-04-21 13:05:59,Completed,Nathan,0.0,0.0,paid,nan
+order_0129,Evan,anapr@tamu.edu,3468574164,2025-04-21 13:10:42,Completed,Evan,0.0,0.0,paid,nan
+order_0130,Sharva,atklein@tamu.edu,8306601110,2025-04-21 15:26:45,Completed,Sharva,0.0,0.0,paid,nan
+order_0131,Pablo,yerisnchz@tamu.edu,,2025-04-21 13:36:09,Completed,Pablo,0.0,0.0,paid,nan
+order_0132,Pablo,yerisnchz@tamu.edu,,2025-04-21 14:31:21,Completed,Pablo,0.0,0.0,paid,nan
+order_0133,Evan,anapr@tamu.edu,3463838750,2025-04-21 15:22:34,Completed,Evan,0.0,0.0,paid,more furniture use a .4
+order_0134,Nathan,dpatel07@tamu.edu,8327250845,2025-04-21 16:03:45,Completed,Nathan,0.0,18.78,paid,626 grams $18.78
+order_0135,Evan,miahelenabush@tamu.edu,9787644234,2025-04-21 16:54:25,Completed,Evan,0.0,0.0,paid,Furniture
+order_0136,Evan,karsen.council3526@tamu.edu,8329172233,2025-04-21 22:58:52,Completed,Evan,0.0,0.0,paid,this is the re submit
+order_0137,Evan,yerisnchz@tamu.edu,,2025-04-22 14:30:49,Completed,Evan,0.0,0.0,paid,Probably 0.4
+order_0138,Peter,amyanderson12@tamu.edu,2147245745,2025-04-22 15:49:12,Completed,Peter,4.0,4.0,paid,small print
+order_0139,Nathan,isabellazanetti@tamu.edu,3463864947,2025-04-22 16:13:54,Completed,Nathan,7.0,7.0,paid,"Texted, waiting on response"
+order_0140,Evan,kz191094@tamu.edu,6824010161,2025-04-23 16:35:51,Completed,Evan,18.3,18.3,paid,nan
+order_0141,Nathan,kj.sellers66@tamu.edu,,2025-04-23 16:43:14,Completed,Nathan,0.0,0.0,paid,Wrong File
+order_0142,Sharva,jimenarobles@tamu.edu,3463701415,2025-04-23 20:12:04,Completed,Sharva,19.0,19.0,paid,nan
+order_0143,Pablo,yerisnchz@tamu.edu,,2025-04-23 23:39:31,Completed,Pablo,0.0,0.0,paid,nan
+order_0144,Evan,hripp14@tamu.edu,,2025-04-24 09:02:49,Completed,Evan,3.3,3.3,paid,nan
+order_0145,Nathan,cliffordm123-@tamu.edu,3463838750,2025-04-24 16:08:32,Completed,Nathan,3.0,3.0,paid,nan
+order_0146,Sharva,gee.hey.gee@gmail.com,6097215084,2025-04-24 17:41:12,Completed,Sharva,0.01,0.01,paid,nan
+order_0147,Nathan,kj.sellers66@tamu.edu,,2025-04-24 19:41:18,Completed,Nathan,17.0,17.0,paid,nan
+order_0148,Nathan,cliffordm123-@tamu.edu,3463838750,2025-04-24 21:12:04,Completed,Nathan,3.0,3.0,paid,nan
+order_0149,Peter,evancommeau23@tamu.edu,3039008082,2025-04-25 15:17:12,Completed,Peter,0.0,0.0,paid,nan
+order_0150,Sharva,emanuel11@tamu.edu,5129459489,2025-04-26 02:53:33,Completed,Sharva,3.0,3.0,paid,"Print as is, including a sheet of plastic for small details"
+order_0151,Evan,jime@tamu.edu,8175059203,2025-04-26 18:24:21,Completed,Evan,7.08,7.08,paid,nan
+order_0152,Sharva,sharvaparalkar@tamu.edu,4087189246,2025-04-28 18:51:48,Completed,Sharva,2.0,2.0,paid,test notes
+order_0153,nan,mpinar@tamu.edu,9729556098,2025-05-01 21:32:46,nan,nan,0.0,0.0,unpaid,can't fulfill
+order_0154,nan,karsen.council3526@tamu.edu,8329172233,2025-05-01 23:15:37,nan,nan,0.0,0.0,unpaid,can't fulfill
