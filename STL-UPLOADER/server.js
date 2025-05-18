@@ -97,12 +97,21 @@ app.use("/stl", express.static(path.join(__dirname, "public")));
 
 // Handle STL upload and slicing
 app.post("/stl/upload", upload.single("stl"), async (req, res) => {
-  if (!req.file) return res.status(400).send("No file uploaded.");
+  if (!req.file) return res.status(400).json({ status: "error", message: "No file uploaded." });
 
   const stlPath = path.join(__dirname, "uploads", req.file.filename);
 
   try {
     const result = await sliceAndEstimate(stlPath);
+
+    // Check if cost is 0
+    if (parseFloat(result.cost) === 0) {
+      return res.status(422).json({
+        status: "error",
+        message: "Filament cost was calculated as $0. There may be an issue with the file (e.g. non-manifold geometry or empty model).",
+        logPath: result.logPath,
+      });
+    }
 
     res.json({
       status: "success",
@@ -112,7 +121,7 @@ app.post("/stl/upload", upload.single("stl"), async (req, res) => {
       timeMs: result.durationMs,
     });
 
-    // 🔁 After response is sent, delete files
+    // 🔁 Cleanup
     res.on("finish", () => {
       try {
         if (fs.existsSync(stlPath)) fs.unlinkSync(stlPath);
@@ -123,18 +132,14 @@ app.post("/stl/upload", upload.single("stl"), async (req, res) => {
       }
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ status: "error", message: err.toString() });
+    const logContent = fs.existsSync(path.join(__dirname, "logs", `${path.basename(stlPath, ".stl")}-log.txt`))
+      ? fs.readFileSync(path.join(__dirname, "logs", `${path.basename(stlPath, ".stl")}-log.txt`), "utf8")
+      : "No log available.";
+
+    res.status(500).json({
+      status: "error",
+      message: err.toString(),
+      log: logContent,
+    });
   }
-});
-
-// Redirect root to /stl
-app.get("/", (req, res) => {
-  res.redirect("/stl");
-});
-
-// Start server
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
 });

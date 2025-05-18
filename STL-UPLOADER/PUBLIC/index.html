@@ -22,7 +22,30 @@
     #status {
       margin-top: 30px;
       font-size: 1.1em;
-      color: #333;
+    }
+    .success {
+      color: #228B22;
+    }
+    .error {
+      color: #B22222;
+    }
+    pre {
+      text-align: left;
+      max-height: 300px;
+      overflow-y: auto;
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-top: 15px;
+      display: none;
+    }
+    #showLogBtn {
+      margin-top: 10px;
+      cursor: pointer;
+      color: #007BFF;
+      text-decoration: underline;
+      display: none;
     }
   </style>
 </head>
@@ -35,45 +58,64 @@
   </form>
 
   <div id="status"></div>
+  <button id="showLogBtn">Show full error log</button>
+  <pre id="errorLog"></pre>
 
-<script>
-document.querySelector('#uploadForm').addEventListener('submit', async function (e) {
-  e.preventDefault();
+  <script>
+    document.querySelector('#uploadForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
 
-  const form = e.target;
-  const fileInput = form.querySelector('input[type="file"]');
-  const file = fileInput.files[0];
-  if (!file) return;
+      const fileInput = e.target.querySelector('input[type="file"]');
+      const file = fileInput.files[0];
+      const statusDiv = document.getElementById('status');
+      const logBtn = document.getElementById('showLogBtn');
+      const errorLog = document.getElementById('errorLog');
 
-  const formData = new FormData();
-  formData.append('stl', file);
+      if (!file) return;
 
-  const statusDiv = document.getElementById('status');
-  statusDiv.innerHTML = `⏳ Slicing your file...<br>Estimated time: ~ 5–15 sec`;
+      const formData = new FormData();
+      formData.append('stl', file);
 
-  try {
-    const response = await fetch('/stl/upload', {
-      method: 'POST',
-      body: formData
+      statusDiv.className = '';
+      statusDiv.innerHTML = `⏳ Slicing your file...<br>Estimated time: ~5–15 sec`;
+      logBtn.style.display = 'none';
+      errorLog.style.display = 'none';
+
+      try {
+        const response = await fetch('/stl/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'success') {
+          const seconds = (result.timeMs / 1000).toFixed(2);
+          statusDiv.className = 'success';
+          statusDiv.innerHTML = `
+            ✅ Slicing complete!<br>
+            <strong>Estimated Price:</strong> ${result.price}<br>
+            <strong>Time to slice:</strong> ${seconds} seconds<br>
+          `;
+        } else {
+          statusDiv.className = 'error';
+          statusDiv.innerHTML = `❌ Error: ${result.message}`;
+          if (result.log) {
+            errorLog.textContent = result.log;
+            logBtn.style.display = 'inline-block';
+          }
+        }
+      } catch (err) {
+        statusDiv.className = 'error';
+        statusDiv.innerHTML = `❌ Upload failed: ${err.message}`;
+      }
     });
 
-    const result = await response.json();
-
-    if (result.status === 'success') {
-      const seconds = (result.timeMs / 1000).toFixed(2);
-      statusDiv.innerHTML = `
-        ✅ Slicing complete!<br>
-        <strong>Estimated Price:</strong> ${result.price}<br>
-        <strong>Time to slice:</strong> ${seconds} seconds<br>
-      `;
-    } else {
-      statusDiv.innerHTML = `❌ Error: ${result.message}`;
-    }
-  } catch (err) {
-    statusDiv.innerHTML = `❌ Upload failed: ${err.message}`;
-  }
-});
-</script>
-
+    // Toggle log display
+    document.getElementById('showLogBtn').addEventListener('click', () => {
+      const log = document.getElementById('errorLog');
+      log.style.display = log.style.display === 'none' ? 'block' : 'none';
+    });
+  </script>
 </body>
 </html>
