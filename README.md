@@ -9,3 +9,5 @@ PC <-> Print Estimate Feature
 
 FEATURE LOG 
 05/16/2025 - Got the upload stl feature working. Current state allows a user to access api.filamentbros.com/stl, upload an stl which is viewable in the stl-uploader/uploads file. 
+
+05/17/2025 - got the prusa cli connected, files are uploaded, processed, and then sent back to the browser. added multiple files (up to five, 100mb each). Real time updates for when files are finished processing. 
