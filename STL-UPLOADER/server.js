@@ -39,20 +39,21 @@ async function sliceAndEstimate(stlPath) {
   return new Promise((resolve, reject) => {
     const fileName = path.basename(stlPath, ".stl");
     const outputPath = `C:\\Users\\admin\\Downloads\\test_output\\${fileName}.gcode`;
+    const logPath = path.join(__dirname, "logs", `${fileName}-log.txt`);
     const outputDir = path.dirname(outputPath);
 
     const slicerPath = `C:\\Program Files\\Prusa3D\\PrusaSlicer\\prusa-slicer-console.exe`;
     const configPath = `C:\\Users\\admin\\Downloads\\API\\STL-UPLOADER\\config.ini`;
 
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    if (!fs.existsSync(path.join(__dirname, "logs"))) fs.mkdirSync(path.join(__dirname, "logs"));
 
     const args = [
       "--load", configPath,
       "--center", "500,500",
       "--output", outputPath,
       "--slice",
+      "--loglevel=5",
       stlPath
     ];
 
@@ -68,6 +69,10 @@ async function sliceAndEstimate(stlPath) {
     slicer.on("close", async (code) => {
       const durationMs = Date.now() - start;
 
+      // Write logs to file
+      const fullLog = `--- STDOUT ---\n${stdout}\n\n--- STDERR ---\n${stderr}`;
+      fs.writeFileSync(logPath, fullLog, "utf8");
+
       if (code !== 0 || !fs.existsSync(outputPath)) {
         console.error("❌ Slicing failed:");
         console.error(stderr || "No G-code generated.");
@@ -79,7 +84,7 @@ async function sliceAndEstimate(stlPath) {
 
       try {
         const cost = await parseGcodeCost(outputPath);
-        resolve({ outputPath, cost, durationMs });
+        resolve({ outputPath, cost, durationMs, logPath });
       } catch (err) {
         reject("Slicing succeeded, but filament cost not found.");
       }
