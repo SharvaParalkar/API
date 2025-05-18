@@ -10,12 +10,19 @@ const app = express();
 const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-// Configure Multer for STL uploads
+// Configure Multer for up to 5 STL uploads, 100MB max per file
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
+  filename: (req, file, cb) =>
+    cb(null, Date.now() + "-" + file.originalname),
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: {
+    files: 5,
+    fileSize: 100 * 1024 * 1024, // 100MB per file
+  },
+});
 
 // Parse filament cost from .gcode
 function parseGcodeCost(gcodePath) {
@@ -34,7 +41,7 @@ function parseGcodeCost(gcodePath) {
   });
 }
 
-// Slice STL using PrusaSlicer CLI (spawn version)
+// Slice STL using PrusaSlicer CLI
 async function sliceAndEstimate(stlPath) {
   return new Promise((resolve, reject) => {
     const fileName = path.basename(stlPath, ".stl");
@@ -73,11 +80,10 @@ async function sliceAndEstimate(stlPath) {
     slicer.on("close", async (code) => {
       const durationMs = Date.now() - start;
 
-      // Write logs to file
       const fullLog = `--- STDOUT ---\n${stdout}\n\n--- STDERR ---\n${stderr}`;
       fs.writeFileSync(logPath, fullLog, "utf8");
 
-      // Limit to 20 logs by deleting the oldest
+      // Keep max 20 logs
       const logsDir = path.join(__dirname, "logs");
       const allLogs = fs
         .readdirSync(logsDir)
@@ -86,14 +92,13 @@ async function sliceAndEstimate(stlPath) {
           file: f,
           time: fs.statSync(path.join(logsDir, f)).mtime,
         }))
-        .sort((a, b) => a.time - b.time); // Oldest first
+        .sort((a, b) => a.time - b.time);
 
       if (allLogs.length > 20) {
         const toDelete = allLogs.slice(0, allLogs.length - 20);
         for (const log of toDelete) {
-          const fullPath = path.join(logsDir, log.file);
           try {
-            fs.unlinkSync(fullPath);
+            fs.unlinkSync(path.join(logsDir, log.file));
             console.log(`🗑️ Removed old log: ${log.file}`);
           } catch (err) {
             console.error("⚠️ Failed to remove old log:", err);
@@ -102,13 +107,9 @@ async function sliceAndEstimate(stlPath) {
       }
 
       if (code !== 0 || !fs.existsSync(outputPath)) {
-        console.error("❌ Slicing failed:");
-        console.error(stderr || "No G-code generated.");
+        console.error("❌ Slicing failed:", stderr || "No G-code generated.");
         return reject(`Slicing failed. Time taken: ${durationMs}ms`);
       }
-
-      console.log(`✅ Slicing complete in ${durationMs}ms`);
-      console.log(stdout);
 
       try {
         const cost = await parseGcodeCost(outputPath);
@@ -123,58 +124,51 @@ async function sliceAndEstimate(stlPath) {
 // Serve /stl frontend (HTML form)
 app.use("/stl", express.static(path.join(__dirname, "public")));
 
-// Handle STL upload and slicing
-app.post("/stl/upload", upload.single("stl"), async (req, res) => {
-  if (!req.file) return res.status(400).send("No file uploaded.");
-
-  const stlPath = path.join(__dirname, "uploads", req.file.filename);
-  let gcodePath = null;
-
-  const scheduleDeletion = () => {
-    setTimeout(() => {
-      try {
-        if (fs.existsSync(stlPath)) fs.unlinkSync(stlPath);
-        if (gcodePath && fs.existsSync(gcodePath)) fs.unlinkSync(gcodePath);
-        console.log(`⏲️ Timed delete: ${req.file.filename} and G-code`);
-      } catch (err) {
-        console.error("⚠️ Timed deletion failed:", err);
-      }
-    }, 2 * 60 * 1000); // 2 minutes
-  };
-
-  try {
-    const result = await sliceAndEstimate(stlPath);
-    gcodePath = result.outputPath;
-
-    if (parseFloat(result.cost) === 0) {
-      throw new Error("Estimated price is $0 — error slicing file.");
-    }
-
-    res.json({
-      status: "success",
-      file: req.file.filename,
-      gcode: result.outputPath,
-      price: result.cost,
-      timeMs: result.durationMs,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ status: "error", message: err.toString() });
-  } finally {
-    // Always try to delete after response finishes
-    res.on("finish", () => {
-      try {
-        if (fs.existsSync(stlPath)) fs.unlinkSync(stlPath);
-        if (gcodePath && fs.existsSync(gcodePath)) fs.unlinkSync(gcodePath);
-        console.log(`🗑️ Deleted: ${req.file.filename} and G-code`);
-      } catch (err) {
-        console.error("⚠️ Cleanup after finish failed:", err);
-      }
-    });
-
-    // Schedule fallback deletion in case finish doesn't trigger
-    scheduleDeletion();
+// Handle multiple STL uploads
+app.post("/stl/upload", upload.array("stl", 5), async (req, res) => {
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).send("No files uploaded.");
   }
+
+  const responses = [];
+
+  for (const file of req.files) {
+    const stlPath = path.join(__dirname, "uploads", file.filename);
+    let gcodePath = null;
+
+    try {
+      const result = await sliceAndEstimate(stlPath);
+      gcodePath = result.outputPath;
+
+      if (parseFloat(result.cost) === 0) {
+        throw new Error("Estimated price is $0 — error slicing file.");
+      }
+
+      responses.push({
+        file: file.originalname,
+        gcode: result.outputPath,
+        price: result.cost,
+        timeMs: result.durationMs,
+        status: "success",
+      });
+    } catch (err) {
+      responses.push({
+        file: file.originalname,
+        error: err.toString(),
+        status: "error",
+      });
+    } finally {
+      try {
+        if (fs.existsSync(stlPath)) fs.unlinkSync(stlPath);
+        if (gcodePath && fs.existsSync(gcodePath)) fs.unlinkSync(gcodePath);
+        console.log(`🗑️ Deleted: ${file.filename} and G-code`);
+      } catch (err) {
+        console.error("⚠️ Cleanup failed:", err);
+      }
+    }
+  }
+
+  res.json({ results: responses });
 });
 
 // Redirect root to /stl

@@ -50,9 +50,9 @@
   </style>
 </head>
 <body>
-  <h1>Upload Your STL File</h1>
+  <h1>Upload Your STL Files</h1>
   <form id="uploadForm">
-    <input type="file" name="stl" accept=".stl" required />
+    <input type="file" name="stl" accept=".stl" multiple required />
     <br>
     <button type="submit">Upload & Slice</button>
   </form>
@@ -66,18 +66,38 @@
       e.preventDefault();
 
       const fileInput = e.target.querySelector('input[type="file"]');
-      const file = fileInput.files[0];
+      const files = fileInput.files;
       const statusDiv = document.getElementById('status');
       const logBtn = document.getElementById('showLogBtn');
       const errorLog = document.getElementById('errorLog');
 
-      if (!file) return;
+      const maxFiles = 5;
+      const maxTotalSize = 100 * 1024 * 1024; // 100MB
+      let totalSize = 0;
+
+      if (files.length === 0) {
+        alert("Please select at least one STL file.");
+        return;
+      }
+
+      if (files.length > maxFiles) {
+        alert("You can upload a maximum of 5 STL files.");
+        return;
+      }
+
+      for (let file of files) totalSize += file.size;
+      if (totalSize > maxTotalSize) {
+        alert("Total file size must not exceed 100MB.");
+        return;
+      }
 
       const formData = new FormData();
-      formData.append('stl', file);
+      for (let file of files) {
+        formData.append('stl', file);
+      }
 
       statusDiv.className = '';
-      statusDiv.innerHTML = `⏳ Slicing your file...<br>Estimated time: ~5–15 sec`;
+      statusDiv.innerHTML = `⏳ Slicing your files...<br>Estimated time per file: ~5–15 sec`;
       logBtn.style.display = 'none';
       errorLog.style.display = 'none';
 
@@ -88,30 +108,41 @@
         });
 
         const result = await response.json();
+        if (!Array.isArray(result.results)) throw new Error("Unexpected response format");
 
-        if (result.status === 'success') {
-          const seconds = (result.timeMs / 1000).toFixed(2);
-          statusDiv.className = 'success';
-          statusDiv.innerHTML = `
-            ✅ Slicing complete!<br>
-            <strong>Estimated Price:</strong> ${result.price}<br>
-            <strong>Time to slice:</strong> ${seconds} seconds<br>
-          `;
-        } else {
-          statusDiv.className = 'error';
-          statusDiv.innerHTML = `❌ Error: ${result.message}`;
-          if (result.log) {
-            errorLog.textContent = result.log;
-            logBtn.style.display = 'inline-block';
+        let html = '';
+        let hasErrors = false;
+
+        for (const res of result.results) {
+          if (res.status === 'success') {
+            const seconds = (res.timeMs / 1000).toFixed(2);
+            html += `
+              ✅ <strong>${res.file}</strong><br>
+              Price: ${res.price}<br>
+              Time: ${seconds} sec<br><br>
+            `;
+          } else {
+            hasErrors = true;
+            html += `
+              ❌ <strong>${res.file}</strong> failed<br>
+              ${res.error}<br><br>
+            `;
           }
         }
+
+        statusDiv.className = hasErrors ? 'error' : 'success';
+        statusDiv.innerHTML = html;
+
+        // Optionally expose logs later if server supports it
+        // logBtn.style.display = 'inline-block';
+        // errorLog.textContent = '...logs here...';
+
       } catch (err) {
         statusDiv.className = 'error';
         statusDiv.innerHTML = `❌ Upload failed: ${err.message}`;
       }
     });
 
-    // Toggle log display
     document.getElementById('showLogBtn').addEventListener('click', () => {
       const log = document.getElementById('errorLog');
       log.style.display = log.style.display === 'none' ? 'block' : 'none';
