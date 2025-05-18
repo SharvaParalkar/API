@@ -11,7 +11,7 @@ app.use(express.json());
 const dbPath = path.join(__dirname, "db", "filamentbros.sqlite");
 const schemaPath = path.join(__dirname, "schema.sql");
 
-// Serve the statuschecker.html at /status
+// Serve the order lookup HTML
 app.get("/status", (req, res) => {
   res.sendFile(path.join(__dirname, "statuschecker.html"));
 });
@@ -25,15 +25,14 @@ if (!fs.existsSync(dbPath)) {
   console.log("Database initialized.");
 }
 
-// Open for use
 const db = new Database(dbPath);
 
-// Health check
+// Health check endpoint
 app.get("/dbo/health", (req, res) => {
   res.json({ status: "OK", db: !!db });
 });
 
-// Test order insert
+// Insert test order
 app.post("/dbo/test-order", (req, res) => {
   const id = "order_" + Date.now();
   const stmt = db.prepare(`
@@ -57,7 +56,7 @@ app.post("/dbo/test-order", (req, res) => {
   res.json({ success: true, order_id: id });
 });
 
-// Secure lookup by phone or email
+// Secure order lookup by email or phone
 app.get("/dbo/status", (req, res) => {
   const { email, phone } = req.query;
 
@@ -73,8 +72,10 @@ app.get("/dbo/status", (req, res) => {
     values.push(email.trim());
   } else if (phone && !email) {
     const cleanedPhone = phone.replace(/\D/g, "").slice(-10);
-    query += "REPLACE(REPLACE(REPLACE(phone, '-', ''), ' ', ''), '(', '') LIKE ?";
-    values.push(`%${cleanedPhone}`);
+    query += `
+      REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, '-', ''), ' ', ''), '(', ''), ')', ''), '+', '') = ?
+    `;
+    values.push(cleanedPhone);
   } else {
     return res.status(400).json({ error: "Only email or phone should be used, not both." });
   }
@@ -93,7 +94,42 @@ app.get("/dbo/status", (req, res) => {
   res.json(safeData);
 });
 
-// Admin: view all orders (internal only)
+// Route: /status/lookup/:query (email or phone)
+app.get("/status/lookup/:query", (req, res) => {
+  const query = req.params.query;
+  if (!query) return res.status(400).json({ error: "Missing query parameter." });
+
+  let sql = "";
+  let value = "";
+
+  if (query.includes("@")) {
+    sql = "SELECT * FROM orders WHERE LOWER(email) = LOWER(?)";
+    value = query.trim();
+  } else {
+    const cleanedPhone = query.replace(/\D/g, "").slice(-10);
+    sql = `
+      SELECT * FROM orders WHERE 
+      REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, '-', ''), ' ', ''), '(', ''), ')', ''), '+', '') = ?
+    `;
+    value = cleanedPhone;
+  }
+
+  const rows = db.prepare(sql).all(value);
+  const safeData = rows.map(({ id, name, status, est_price, submitted_at, assigned_staff, payment_status }) => ({
+    id,
+    name,
+    status,
+    est_price,
+    submitted_at,
+    assigned_staff,
+    payment_status,
+  }));
+
+  res.json(safeData);
+});
+
+
+// Admin view: get all orders
 app.get("/dbo/orders", (req, res) => {
   const rows = db.prepare("SELECT * FROM orders").all();
   res.json(rows);
