@@ -104,9 +104,23 @@ app.post("/stl/upload", upload.single("stl"), async (req, res) => {
   if (!req.file) return res.status(400).send("No file uploaded.");
 
   const stlPath = path.join(__dirname, "uploads", req.file.filename);
+  let gcodePath = null;
+
+  const scheduleDeletion = () => {
+    setTimeout(() => {
+      try {
+        if (fs.existsSync(stlPath)) fs.unlinkSync(stlPath);
+        if (gcodePath && fs.existsSync(gcodePath)) fs.unlinkSync(gcodePath);
+        console.log(`⏲️ Timed delete: ${req.file.filename} and G-code`);
+      } catch (err) {
+        console.error("⚠️ Timed deletion failed:", err);
+      }
+    }, 2 * 60 * 1000); // 2 minutes
+  };
 
   try {
     const result = await sliceAndEstimate(stlPath);
+    gcodePath = result.outputPath;
 
     if (parseFloat(result.cost) === 0) {
       throw new Error("Estimated price is $0 — error slicing file.");
@@ -119,20 +133,23 @@ app.post("/stl/upload", upload.single("stl"), async (req, res) => {
       price: result.cost,
       timeMs: result.durationMs,
     });
-
-    // 🔁 After response is sent, delete files
-    res.on("finish", () => {
-      try {
-        if (fs.existsSync(stlPath)) fs.unlinkSync(stlPath);
-        if (fs.existsSync(result.outputPath)) fs.unlinkSync(result.outputPath);
-        console.log(`🗑️ Deleted: ${req.file.filename} and its G-code`);
-      } catch (err) {
-        console.error("⚠️ File deletion failed:", err);
-      }
-    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ status: "error", message: err.toString() });
+  } finally {
+    // Always try to delete after response finishes
+    res.on("finish", () => {
+      try {
+        if (fs.existsSync(stlPath)) fs.unlinkSync(stlPath);
+        if (gcodePath && fs.existsSync(gcodePath)) fs.unlinkSync(gcodePath);
+        console.log(`🗑️ Deleted: ${req.file.filename} and G-code`);
+      } catch (err) {
+        console.error("⚠️ Cleanup after finish failed:", err);
+      }
+    });
+
+    // Schedule fallback deletion in case finish doesn't trigger
+    scheduleDeletion();
   }
 });
 
