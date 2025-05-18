@@ -63,85 +63,118 @@
 
   <script>
     document.querySelector('#uploadForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
+  e.preventDefault();
 
-      const fileInput = e.target.querySelector('input[type="file"]');
-      const files = fileInput.files;
-      const statusDiv = document.getElementById('status');
-      const logBtn = document.getElementById('showLogBtn');
-      const errorLog = document.getElementById('errorLog');
+  const fileInput = e.target.querySelector('input[type="file"]');
+  const files = fileInput.files;
+  const statusDiv = document.getElementById('status');
+  const logBtn = document.getElementById('showLogBtn');
+  const errorLog = document.getElementById('errorLog');
 
-      const maxFiles = 5;
-      const maxTotalSize = 100 * 1024 * 1024; // 100MB
-      let totalSize = 0;
+  const maxFiles = 5;
+  const maxTotalSize = 100 * 1024 * 1024; // 100MB
+  let totalSize = 0;
 
-      if (files.length === 0) {
-        alert("Please select at least one STL file.");
-        return;
-      }
+  if (files.length === 0) {
+    alert("Please select at least one STL file.");
+    return;
+  }
 
-      if (files.length > maxFiles) {
-        alert("You can upload a maximum of 5 STL files.");
-        return;
-      }
+  if (files.length > maxFiles) {
+    alert("You can upload a maximum of 5 STL files.");
+    return;
+  }
 
-      for (let file of files) totalSize += file.size;
-      if (totalSize > maxTotalSize) {
-        alert("Total file size must not exceed 100MB.");
-        return;
-      }
+  for (let file of files) totalSize += file.size;
+  if (totalSize > maxTotalSize) {
+    alert("Total file size must not exceed 100MB.");
+    return;
+  }
 
-      const formData = new FormData();
-      for (let file of files) {
-        formData.append('stl', file);
-      }
+  const formData = new FormData();
+  for (let file of files) {
+    formData.append('stl', file);
+  }
 
-      statusDiv.className = '';
-      statusDiv.innerHTML = `⏳ Slicing your files...<br>Estimated time per file: ~5–15 sec`;
-      logBtn.style.display = 'none';
-      errorLog.style.display = 'none';
+  statusDiv.className = '';
+  statusDiv.classList.remove('success', 'error');
+  statusDiv.innerHTML = `⏳ Uploading and slicing your files...<br>Results will appear below.`;
+  logBtn.style.display = 'none';
+  errorLog.style.display = 'none';
 
-      try {
-        const response = await fetch('/stl/upload', {
-          method: 'POST',
-          body: formData
-        });
-
-        const result = await response.json();
-        if (!Array.isArray(result.results)) throw new Error("Unexpected response format");
-
-        let html = '';
-        let hasErrors = false;
-
-        for (const res of result.results) {
-          if (res.status === 'success') {
-            const seconds = (res.timeMs / 1000).toFixed(2);
-            html += `
-              ✅ <strong>${res.file}</strong><br>
-              Price: ${res.price}<br>
-              Time: ${seconds} sec<br><br>
-            `;
-          } else {
-            hasErrors = true;
-            html += `
-              ❌ <strong>${res.file}</strong> failed<br>
-              ${res.error}<br><br>
-            `;
-          }
-        }
-
-        statusDiv.className = hasErrors ? 'error' : 'success';
-        statusDiv.innerHTML = html;
-
-        // Optionally expose logs later if server supports it
-        // logBtn.style.display = 'inline-block';
-        // errorLog.textContent = '...logs here...';
-
-      } catch (err) {
-        statusDiv.className = 'error';
-        statusDiv.innerHTML = `❌ Upload failed: ${err.message}`;
-      }
+  try {
+    const response = await fetch('/stl/upload', {
+      method: 'POST',
+      body: formData
     });
+
+    if (!response.body || !response.ok) throw new Error("Server error or no stream returned.");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+   const processLine = (line) => {
+  if (line.startsWith("event: done")) {
+    statusDiv.innerHTML += `<strong>✅ All files processed.</strong><br>`;
+    return;
+  }
+
+  if (line.startsWith('data:')) {
+    const jsonStr = line.replace(/^data:\s*/, '');
+    if (!jsonStr.trim()) return;
+
+    const res = JSON.parse(jsonStr);
+    let html = '';
+
+    if (res.status === 'success') {
+      const seconds = (res.timeMs / 1000).toFixed(2);
+      html = `
+        ✅ <strong>${res.file}</strong><br>
+        Price: ${res.price}<br>
+        Time: ${seconds} sec<br><br>
+      `;
+    } else if (res.status === 'error') {
+      html = `
+        ❌ <strong>${res.file}</strong> failed<br>
+        ${res.error}<br><br>
+      `;
+    }
+
+    statusDiv.innerHTML += html;
+
+    // ✅ Properly apply the style
+    if (res.status === 'success') {
+      statusDiv.classList.add('success');
+    } else {
+      statusDiv.classList.add('error');
+    }
+  }
+};
+  
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // Save incomplete line
+
+      for (const line of lines) {
+        processLine(line.trim());
+      }
+    }
+
+    // Handle any remaining line
+    if (buffer) processLine(buffer.trim());
+
+  } catch (err) {
+    statusDiv.className = 'error';
+    statusDiv.innerHTML = `❌ Upload failed: ${err.message}`;
+  }
+});
 
     document.getElementById('showLogBtn').addEventListener('click', () => {
       const log = document.getElementById('errorLog');

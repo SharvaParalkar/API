@@ -130,7 +130,14 @@ app.post("/stl/upload", upload.array("stl", 5), async (req, res) => {
     return res.status(400).send("No files uploaded.");
   }
 
-  const responses = [];
+  // Set up SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  const sendSSE = (data) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
 
   for (const file of req.files) {
     const stlPath = path.join(__dirname, "uploads", file.filename);
@@ -144,7 +151,7 @@ app.post("/stl/upload", upload.array("stl", 5), async (req, res) => {
         throw new Error("Estimated price is $0 — error slicing file.");
       }
 
-      responses.push({
+      sendSSE({
         file: file.originalname,
         gcode: result.outputPath,
         price: result.cost,
@@ -152,7 +159,7 @@ app.post("/stl/upload", upload.array("stl", 5), async (req, res) => {
         status: "success",
       });
     } catch (err) {
-      responses.push({
+      sendSSE({
         file: file.originalname,
         error: err.toString(),
         status: "error",
@@ -168,7 +175,9 @@ app.post("/stl/upload", upload.array("stl", 5), async (req, res) => {
     }
   }
 
-  res.json({ results: responses });
+  // Final SSE signal that all files are done
+  res.write(`event: done\ndata: {}\n\n`);
+  res.end();
 });
 
 // Redirect root to /stl
