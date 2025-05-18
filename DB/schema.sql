@@ -8,8 +8,10 @@ CREATE TABLE IF NOT EXISTS orders (
   status TEXT,
   assigned_staff TEXT,
   est_price REAL,
+  assigned_price REAL,
   payment_status TEXT,
-  notes TEXT
+  notes TEXT,         -- customer notes
+  order_notes TEXT     -- staff-added internal notes
 );
 
 -- files

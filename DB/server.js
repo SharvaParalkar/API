@@ -80,16 +80,21 @@ app.get("/dbo/status", (req, res) => {
     return res.status(400).json({ error: "Only email or phone should be used, not both." });
   }
 
-  const rows = db.prepare(query).all(...values);
-  const safeData = rows.map(({ id, name, status, est_price, submitted_at, assigned_staff, payment_status }) => ({
-    id,
-    name,
-    status,
-    est_price,
-    submitted_at,
-    assigned_staff,
-    payment_status,
-  }));
+  const safeData = rows.map(row => ({
+  id: row.id,
+  name: row.name,
+  phone: row.phone,
+  email: row.email,
+  status: row.status,
+  est_price: row.est_price,
+  assigned_price: row.assigned_price,
+  submitted_at: row.submitted_at,
+  assigned_staff: row.assigned_staff,
+  payment_status: row.payment_status,
+  notes: row.notes || '',
+  order_notes: row.order_notes || ''
+}));
+
 
   res.json(safeData);
 });
