@@ -77,6 +77,30 @@ async function sliceAndEstimate(stlPath) {
       const fullLog = `--- STDOUT ---\n${stdout}\n\n--- STDERR ---\n${stderr}`;
       fs.writeFileSync(logPath, fullLog, "utf8");
 
+      // Limit to 20 logs by deleting the oldest
+      const logsDir = path.join(__dirname, "logs");
+      const allLogs = fs
+        .readdirSync(logsDir)
+        .filter((f) => f.endsWith(".txt"))
+        .map((f) => ({
+          file: f,
+          time: fs.statSync(path.join(logsDir, f)).mtime,
+        }))
+        .sort((a, b) => a.time - b.time); // Oldest first
+
+      if (allLogs.length > 20) {
+        const toDelete = allLogs.slice(0, allLogs.length - 20);
+        for (const log of toDelete) {
+          const fullPath = path.join(logsDir, log.file);
+          try {
+            fs.unlinkSync(fullPath);
+            console.log(`🗑️ Removed old log: ${log.file}`);
+          } catch (err) {
+            console.error("⚠️ Failed to remove old log:", err);
+          }
+        }
+      }
+
       if (code !== 0 || !fs.existsSync(outputPath)) {
         console.error("❌ Slicing failed:");
         console.error(stderr || "No G-code generated.");
