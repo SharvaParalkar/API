@@ -46,15 +46,19 @@ async function sliceAndEstimate(stlPath) {
     const configPath = `C:\\Users\\admin\\Downloads\\API\\STL-UPLOADER\\config.ini`;
 
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
-    if (!fs.existsSync(path.join(__dirname, "logs"))) fs.mkdirSync(path.join(__dirname, "logs"));
+    if (!fs.existsSync(path.join(__dirname, "logs")))
+      fs.mkdirSync(path.join(__dirname, "logs"));
 
     const args = [
-      "--load", configPath,
-      "--center", "500,500",
-      "--output", outputPath,
+      "--load",
+      configPath,
+      "--center",
+      "500,500",
+      "--output",
+      outputPath,
       "--slice",
       "--loglevel=5",
-      stlPath
+      stlPath,
     ];
 
     const start = Date.now();
@@ -63,8 +67,8 @@ async function sliceAndEstimate(stlPath) {
     let stdout = "";
     let stderr = "";
 
-    slicer.stdout.on("data", data => stdout += data.toString());
-    slicer.stderr.on("data", data => stderr += data.toString());
+    slicer.stdout.on("data", (data) => (stdout += data.toString()));
+    slicer.stderr.on("data", (data) => (stderr += data.toString()));
 
     slicer.on("close", async (code) => {
       const durationMs = Date.now() - start;
@@ -103,6 +107,10 @@ app.post("/stl/upload", upload.single("stl"), async (req, res) => {
 
   try {
     const result = await sliceAndEstimate(stlPath);
+
+    if (parseFloat(result.cost) === 0) {
+      throw new Error("Estimated price is $0 — error slicing file.");
+    }
 
     res.json({
       status: "success",
