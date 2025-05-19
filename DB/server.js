@@ -27,78 +27,6 @@ if (!fs.existsSync(dbPath)) {
 
 const db = new Database(dbPath);
 
-// Health check endpoint
-app.get("/dbo/health", (req, res) => {
-  res.json({ status: "OK", db: !!db });
-});
-
-// Insert test order
-app.post("/dbo/test-order", (req, res) => {
-  const id = "order_" + Date.now();
-  const stmt = db.prepare(`
-    INSERT INTO orders (
-      id, name, email, phone, submitted_at, status,
-      assigned_staff, est_price, assigned_price, payment_status, notes
-    ) VALUES (?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    id,
-    "Test User",
-    "test@example.com",
-    "1234567890",
-    "Submitted",
-    "Pablo",
-    14.50,
-    null,
-    "unpaid",
-    "Sample test order"
-  );
-  res.json({ success: true, order_id: id });
-});
-
-// Secure order lookup by email or phone
-app.get("/dbo/status", (req, res) => {
-  const { email, phone } = req.query;
-
-  if (!email && !phone) {
-    return res.status(400).json({ error: "Email or phone required" });
-  }
-
-  let query = "SELECT * FROM orders WHERE ";
-  const values = [];
-
-  if (email && !phone) {
-    query += "LOWER(email) = LOWER(?)";
-    values.push(email.trim());
-  } else if (phone && !email) {
-    const cleanedPhone = phone.replace(/\D/g, "").slice(-10);
-    query += `
-      REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, '-', ''), ' ', ''), '(', ''), ')', ''), '+', '') = ?
-    `;
-    values.push(cleanedPhone);
-  } else {
-    return res.status(400).json({ error: "Only email or phone should be used, not both." });
-  }
-
-  const safeData = rows.map(row => ({
-  id: row.id,
-  name: row.name,
-  phone: row.phone,
-  email: row.email,
-  status: row.status,
-  est_price: row.est_price,
-  assigned_price: row.assigned_price,
-  submitted_at: row.submitted_at,
-  assigned_staff: row.assigned_staff,
-  payment_status: row.payment_status,
-  notes: row.notes || '',
-  order_notes: row.order_notes || ''
-}));
-
-
-  res.json(safeData);
-});
-
 // Route: /status/lookup/:query (email or phone)
 app.get("/status/lookup/:query", (req, res) => {
   const query = req.params.query;
@@ -120,28 +48,24 @@ app.get("/status/lookup/:query", (req, res) => {
   }
 
   const rows = db.prepare(sql).all(value);
-  const safeData = rows.map(({ id, name, status, est_price, submitted_at, assigned_staff, payment_status }) => ({
+  const safeData = rows.map(({ id, name, status, est_price, assigned_price, submitted_at, assigned_staff, payment_status, notes, order_notes }) => ({
     id,
     name,
     status,
     est_price,
+    assigned_price,
     submitted_at,
     assigned_staff,
     payment_status,
+    notes: notes || '',
+    order_notes: order_notes || ''
   }));
 
   res.json(safeData);
 });
 
-
-// Admin view: get all orders
-app.get("/dbo/orders", (req, res) => {
-  const rows = db.prepare("SELECT * FROM orders").all();
-  res.json(rows);
-});
-
 // Launch server
 const PORT = process.env.PORT || 3100;
 app.listen(PORT, () => {
-  console.log(`FilamentBros DB API listening on port ${PORT}`);
+  console.log(`FilamentBros API listening on port ${PORT}`);
 });

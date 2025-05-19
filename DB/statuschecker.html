@@ -17,10 +17,9 @@
   <script>
   async function lookup() {
     const query = document.getElementById("search").value.trim();
-    const isEmail = query.includes("@");
-    const url = isEmail
-      ? `https://api.filamentbros.com/dbo/status?email=${encodeURIComponent(query)}`
-      : `https://api.filamentbros.com/dbo/status?phone=${encodeURIComponent(query)}`;
+    if (!query) return;
+
+    const url = `https://api.filamentbros.com/status/lookup/${encodeURIComponent(query)}`;
 
     const res = await fetch(url);
     const data = await res.json();
@@ -28,7 +27,7 @@
     const results = document.getElementById("results");
     results.innerHTML = "";
 
-    if (data.length === 0) {
+    if (!Array.isArray(data) || data.length === 0) {
       results.innerHTML = "No matching orders found.";
       return;
     }
@@ -48,7 +47,7 @@
       results.appendChild(div);
     });
   }
-</script>
+  </script>
 
 </body>
 </html>
