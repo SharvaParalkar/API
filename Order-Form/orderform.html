@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Print Request Form</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #e1e1e1;
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 1rem 0;
+    }
+
+    .container {
+      width: 600px;
+      max-width: 95%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .card {
+      background-color: #f7f7f7;
+      color: #1f6463;
+      padding: 1rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    h1, h2 {
+      color: #1f6463;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 1rem;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="file"],
+    textarea {
+      width: 100%;
+      padding: 0.8rem;
+      border: 2px solid #1f6463;
+      border-radius: 1rem;
+      font-size: 1rem;
+      box-sizing: border-box;
+      margin-top: 0.5rem;
+      background-color: #fdfdfd;
+    }
+
+    input[type="radio"] {
+      margin: 0;
+      vertical-align: baseline;
+      transform: none;
+      position: relative;
+      top: 6.5px;
+    }
+
+    .radio-group {
+      margin-top: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      line-height: 1.5;
+    }
+
+    button {
+      background-color: #1f6463;
+      color: white;
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 1.5rem;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      align-self: center;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(31, 100, 99, 0.3);
+    }
+
+    .disclaimer {
+      font-size: 0.9rem;
+      font-style: italic;
+      color: #1f6463;
+      text-align: center;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    a {
+      color: #1f6463;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>3D PRINT REQUEST FORM</h1>
+      <p>Affordable, Reliable, and Fast 3D printing services run by students.</p>
+    </div>
+
+    <div class="card">
+      <h2>Terms & Conditions *</h2>
+      <ul>
+        <li><strong>Payments must be received before printing</strong></li>
+        <li>Print errors on our end allow for a refund or reprint</li>
+        <li>3D prints are <strong>not</strong> affiliated with Texas A&M University</li>
+        <li>All prints are done in White PLA</li>
+        <li>Pickup location: Langford Architecture Building</li>
+        <li>If models have unprintable geometry, we'll ask you to fix the model before printing. Be sure to check the print preview we provide as well.</li>
+        <li>Prints under 100g of filament are subject to a flat rate of $3.</li>
+      </ul>
+      <div class="radio-group">
+        <input type="radio" id="agree" name="terms" required>
+        <label for="agree">I agree</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Upload Your Files</h2>
+      <label for="file">Upload up to 5 STL or 3MF files (100MB max each) *</label>
+      <input type="file" id="file" accept=".stl,.3mf" multiple required>
+    </div>
+
+    <div class="card">
+      <label for="email">Email *</label>
+      <input type="email" id="email" required>
+
+      <label for="name">Name *</label>
+      <input type="text" id="name" required>
+
+      <label for="phone">Phone Number *</label>
+      <input type="text" id="phone" required>
+
+      <label for="notes">Other Notes</label>
+      <textarea id="notes" rows="4"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>Print File Checklist</h2>
+      <label>.STL file(s) only contain the pieces you need printed *</label>
+      <div class="radio-group">
+        <input type="radio" id="piecesYes" name="pieces" required>
+        <label for="piecesYes">Yes</label>
+      </div>
+
+      <label>STL file is in millimeters *</label>
+      <div class="radio-group">
+        <input type="radio" id="unitsYes" name="units" required>
+        <label for="unitsYes">Yes</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <p><strong>You will be contacted regarding printing / payment details after we review your files (~24 hours or less)</strong></p>
+      <p>Track orders at <a href="https://filamentbros.com/track" target="_blank">filamentbros.com/track</a></p>
+    </div>
+
+    <button type="submit">Submit</button>
+    <p class="disclaimer">A copy of your response will be emailed to you.</p>
+
+    <!-- Add this at the bottom of the <body> -->
+<script>
+  document.querySelector("button[type='submit']").addEventListener("click", async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const notes = document.getElementById("notes").value.trim();
+    const termsAgreed = document.getElementById("agree").checked;
+    const piecesYes = document.getElementById("piecesYes").checked;
+    const unitsYes = document.getElementById("unitsYes").checked;
+    const files = document.getElementById("file").files;
+
+    if (!termsAgreed || !piecesYes || !unitsYes) {
+      alert("You must agree to the terms and confirm the checklist.");
+      return;
+    }
+
+    if (!name || !email || !phone || files.length === 0) {
+      alert("Please fill out all required fields and upload at least one file.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("email", email);
+    formData.append("phone", phone);
+    formData.append("notes", notes);
+
+    for (let i = 0; i < files.length && i < 5; i++) {
+      formData.append("file", files[i]);
+    }
+
+    try {
+      const res = await fetch("https://api.filamentbros.com/status/post", {
+        method: "POST",
+        body: formData
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        alert("Submission successful! Your Order ID: " + result.order_id);
+        window.location.reload();
+      } else {
+        console.error(result);
+        alert("Submission failed. Please try again later.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error. Please check your connection.");
+    }
+  });
+</script>
+
+  </div>
+</body>
+</html>
