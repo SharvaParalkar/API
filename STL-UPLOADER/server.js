@@ -130,10 +130,11 @@ app.post("/stl/upload", upload.array("stl", 5), async (req, res) => {
     return res.status(400).send("No files uploaded.");
   }
 
-  // Set up SSE headers
+  // ✅ Set up SSE headers
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+  res.flushHeaders(); // ✅ CRITICAL FOR SSE
 
   const sendSSE = (data) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
