@@ -7,9 +7,18 @@ PC <-> Database
 PC -> Dashboard
 PC <-> Print Estimate Feature
 
+WHAT EACH FILE DOES:
+db/server.js - allows for order lookups
+order-form/server.js - sends order submissions to the database and organizes STL files with proper order ID
+STL-UPLOADER/server.js - Used for generating print estimates as a feature on the order form
+
 FEATURE LOG 
 05/16/2025 - Got the upload stl feature working. Current state allows a user to access api.filamentbros.com/stl, upload an stl which is viewable in the stl-uploader/uploads file. 
 
 05/17/2025 - got the prusa cli connected, files are uploaded, processed, and then sent back to the browser. added multiple files (up to five, 100mb each). Real time updates for when files are finished processing. 
 
 05/18/2025 - got database set up, connected it to api.filamentbros.com/status/lookup/(email or phone), sanitizes phone #, database schema set up, imported old orders. 
+
+05/19/2025 - order tracker working again (refresh bug still there), order submission html set up
+
+05/20/2025 - order form now submits correctly to the database as a new entry, uploaded stl files also get named with the same order ID (i think)
