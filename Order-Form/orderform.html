@@ -31,8 +31,7 @@
     .main-layout {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      /* True thirds */
-      gap: 2rem;
+      gap: 1.5rem;
       width: 100%;
       margin: 0 auto;
     }
@@ -41,6 +40,7 @@
       display: flex;
       justify-content: center;
       width: 100%;
+      margin-left: .5rem;
     }
 
     .viewer {
@@ -53,35 +53,33 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      background-color: #f0f0f0;
+      direction: ltr;
     }
 
     .viewer canvas {
       width: 100% !important;
       height: 100% !important;
       display: block;
-    }
-
-    .wrapper {
-      display: flex;
-      justify-content: center;
-      width: 100%;
+      background-color: #f0f0f0;
     }
 
     /* LEFT COLUMN WRAPPER */
     .viewer-wrapper {
       width: 100%;
-      height: 100vh;
-      /* Full screen height */
+      max-height: 100vh;
       overflow-y: auto;
       padding-right: 0.5rem;
+      padding-bottom: 1rem;
       box-sizing: border-box;
       margin-left: 1.5rem;
       margin-right: 1.5rem;
-
+      display: flex;
+      justify-content: flex-end;
+      align-self: start;
+      margin-top: 10rem;
       scrollbar-width: none;
-      /* Firefox */
       -ms-overflow-style: none;
-      /* IE/Edge */
     }
 
     .viewer-wrapper::-webkit-scrollbar {
@@ -92,10 +90,12 @@
 
     #viewerColumn {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
+      grid-template-columns: repeat(2, 1fr);
+      column-gap: 1.5rem;
+      row-gap: 1.5rem;
       width: 100%;
       justify-items: center;
+      direction: rtl;
     }
 
     .container {
@@ -192,6 +192,49 @@
       color: #1f6463;
       text-decoration: underline;
     }
+
+    .viewer-notice {
+      direction: ltr;
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 20px;
+      padding: 15px 15px;
+      text-align: center;
+      font-size: 0.8em;
+      color: #6c757d;
+      max-width: 300px;
+      max-height: 80px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    #viewerColumn.two-files {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    #viewerColumn.two-files .viewer {
+      grid-column: 1;
+      justify-self: end;
+    }
+
+    .viewer-disclaimer {
+      display: flex;
+      justify-content: center;
+    }
+
+    #viewerColumn.two-files .viewer-disclaimer {
+      grid-column: 1;
+      justify-content: end;
+    }
+
+    #viewerColumn:has(.viewer):not(.two-files) .viewer-disclaimer {
+      grid-column: 1;
+      justify-content: end;
+    }
   </style>
 </head>
 
@@ -263,6 +306,37 @@
           <p class="disclaimer">A copy of your response will be emailed to you.</p>
         </div>
       </div>
+
+      <!-- RIGHT THIRD: Extra Info or Help Card -->
+      <!-- RIGHT THIRD: Extra Info or Help Card -->
+      <div style="
+  width: 100%;
+  max-height: 100vh;
+  overflow-y: auto;
+  padding-left: 0rem;
+  padding-bottom: 1rem;
+  box-sizing: border-box;
+  margin-left: 0rem;
+  margin-right: 1.5rem;
+  display: flex;
+  justify-content: flex-start;
+  align-self: start;
+  margin-top: 10rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+">
+        <div class="card" id="estimatesCard" style="max-width: 300px;">
+  <h2>Estimated Total: <span id="totalCost">$0.00</span></h2>
+  <div id="fileEstimates"></div>
+
+  <hr style="margin: 1rem 0; border: none; border-top: 1px solid #ccc;">
+
+  <h2>Need Help?</h2>
+  <p>If you have questions about STL formats, print settings, or costs, feel free to reach out!</p>
+  <p>Email us at <a href="mailto:filamentbros@gmail.com">filamentbros@gmail.com</a></p>
+  <p>or DM us on Instagram <a href="https://instagram.com/filamentbros" target="_blank">@filamentbros</a></p>
+</div>
+
     </div> <!-- .main-layout -->
   </div> <!-- .wrapper ends here, correctly -->
 
@@ -298,6 +372,21 @@
         formData.append("file", files[i]);
       }
 
+      // Show loading overlay
+      const loadingOverlay = document.createElement("div");
+      loadingOverlay.style.position = "fixed";
+      loadingOverlay.style.top = 0;
+      loadingOverlay.style.left = 0;
+      loadingOverlay.style.width = "100%";
+      loadingOverlay.style.height = "100%";
+      loadingOverlay.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
+      loadingOverlay.style.display = "flex";
+      loadingOverlay.style.justifyContent = "center";
+      loadingOverlay.style.alignItems = "center";
+      loadingOverlay.style.zIndex = 1000;
+      loadingOverlay.innerHTML = `<div style="font-size: 1.5rem; color: #1f6463;">Uploading and submitting...</div>`;
+      document.body.appendChild(loadingOverlay);
+
       try {
         const res = await fetch("https://api.filamentbros.com/status/post", {
           method: "POST",
@@ -305,6 +394,8 @@
         });
 
         const result = await res.json();
+        loadingOverlay.remove();
+
         if (res.ok) {
           showSuccessOverlay(result.order_id, email || phone);
         } else {
@@ -314,8 +405,20 @@
       } catch (err) {
         console.error(err);
         alert("Network error. Please check your connection.");
+        loadingOverlay.remove();
       }
     });
+
+    function getModelDimensions(geometry) {
+  geometry.computeBoundingBox();
+  const bb = geometry.boundingBox;
+  return {
+    width: (bb.max.x - bb.min.x).toFixed(2),
+    depth: (bb.max.y - bb.min.y).toFixed(2),
+    height: (bb.max.z - bb.min.z).toFixed(2)
+  };
+}
+
 
     function showSuccessOverlay(orderId, lookupValue) {
       const overlay = document.createElement("div");
@@ -371,101 +474,183 @@
 
     const loader = new THREE.STLLoader();
     const BUILD_PLATE_SIZE = 256;
-    const dampingFactor = 0.05;
 
-
-    
-
-    // Add this outside the loop, once
     const resizeRendererToDisplaySize = (renderer, canvasWrapper) => {
       const width = canvasWrapper.clientWidth;
-      const height = canvasWrapper.clientHeight; // ✅ Use actual height
+      const height = canvasWrapper.clientHeight;
       renderer.setSize(width, height, false);
       renderer.setPixelRatio(window.devicePixelRatio);
     };
-
 
     document.getElementById("file").addEventListener("change", async (e) => {
       const files = Array.from(e.target.files).slice(0, 5);
       const fileList = document.getElementById("fileList");
       const viewerContainer = document.getElementById("viewerColumn");
 
+      viewerContainer.classList.remove("two-files");
+      if (files.length === 2) {
+        viewerContainer.classList.add("two-files");
+      }
+
       fileList.innerHTML = "";
       viewerContainer.innerHTML = "";
 
-      for (const file of files) {
-  const li = document.createElement("li");
-  li.textContent = file.name;
-  fileList.appendChild(li);
 
-  const canvasWrapper = document.createElement("div");
-  canvasWrapper.className = "viewer";
-  viewerContainer.appendChild(canvasWrapper);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setClearColor(0xf0f0f0);
-  renderer.domElement.style.borderRadius = '20px';
-  renderer.domElement.__renderer = renderer;
-  canvasWrapper.appendChild(renderer.domElement);
+      for (let index = 0; index < files.length; index++) {
+        const file = files[index];
 
-  resizeRendererToDisplaySize(renderer, canvasWrapper);
+        const li = document.createElement("li");
+        li.textContent = file.name;
+        fileList.appendChild(li);
 
-  const aspect = canvasWrapper.clientWidth / canvasWrapper.clientHeight;
-  const diag = Math.sqrt(3) * BUILD_PLATE_SIZE * 1.5;
-  const camera = new THREE.PerspectiveCamera(35, aspect, 1, 2000);
-  camera.position.set(diag, diag * 0.7, diag);
-  camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
+        const canvasWrapper = document.createElement("div");
+        canvasWrapper.className = "viewer";
+        viewerContainer.appendChild(canvasWrapper);
 
-  const scene = new THREE.Scene();
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setClearColor(0xf0f0f0);
+        renderer.domElement.style.borderRadius = '20px';
+        renderer.domElement.__renderer = renderer;
+        canvasWrapper.appendChild(renderer.domElement);
 
-  // Lights
-  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-  const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  keyLight.position.set(200, 300, 200);
-  scene.add(keyLight);
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
-  fillLight.position.set(-150, 250, -150);
-  scene.add(fillLight);
-  const rimLight = new THREE.DirectionalLight(0xffffff, 0.2);
-  rimLight.position.set(100, 350, -250);
-  scene.add(rimLight);
+        requestAnimationFrame(() => {
+          resizeRendererToDisplaySize(renderer, canvasWrapper);
+        });
+        const aspect = canvasWrapper.clientWidth / canvasWrapper.clientHeight;
+        const diag = Math.sqrt(3) * BUILD_PLATE_SIZE * 1.5;
+        const camera = new THREE.PerspectiveCamera(35, aspect, 1, 2000);
+        camera.position.set(diag, diag * 0.7, diag);
+        camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
 
-  const grid = new THREE.GridHelper(BUILD_PLATE_SIZE, 16, 0x444444, 0x666666);
-  scene.add(grid);
+        const scene = new THREE.Scene();
 
-  const cube = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.BoxGeometry(BUILD_PLATE_SIZE, BUILD_PLATE_SIZE, BUILD_PLATE_SIZE)),
-    new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 })
-  );
-  cube.position.set(0, BUILD_PLATE_SIZE / 2, 0);
-  scene.add(cube);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        keyLight.position.set(200, 300, 200);
+        scene.add(keyLight);
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        fillLight.position.set(-150, 250, -150);
+        scene.add(fillLight);
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.2);
+        rimLight.position.set(100, 350, -250);
+        scene.add(rimLight);
 
-  const buffer = await file.arrayBuffer();
-  const geometry = loader.parse(buffer);
-  geometry.center();
-  geometry.rotateX(-Math.PI / 2);
-  geometry.computeBoundingBox();
-  geometry.translate(0, -geometry.boundingBox.min.y, 0);
+        const grid = new THREE.GridHelper(BUILD_PLATE_SIZE, 16, 0x444444, 0x666666);
+        scene.add(grid);
 
-  const modelMesh = new THREE.Mesh(
-    geometry,
-    new THREE.MeshPhongMaterial({ color: 0x2194ce, specular: 0x111111, shininess: 200 })
-  );
-  scene.add(modelMesh);
+        const cube = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(BUILD_PLATE_SIZE, BUILD_PLATE_SIZE, BUILD_PLATE_SIZE)),
+          new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 })
+        );
+        cube.position.set(0, BUILD_PLATE_SIZE / 2, 0);
+        scene.add(cube);
 
-  let angle = 0;
-  function animate() {
-    angle += 0.003;
-    const r = diag;
-    camera.position.x = Math.cos(angle) * r;
-    camera.position.z = Math.sin(angle) * r;
-    camera.position.y = BUILD_PLATE_SIZE / 2 + r * 0.4;
-    camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
-    renderer.render(scene, camera);
-    requestAnimationFrame(animate);
-  }
-  animate();
-}
+        const buffer = await file.arrayBuffer();
+        const geometry = loader.parse(buffer);
+        geometry.center();
+        geometry.rotateX(-Math.PI / 2);
+        geometry.computeBoundingBox();
+        geometry.translate(0, -geometry.boundingBox.min.y, 0);
+
+        const modelMesh = new THREE.Mesh(
+          geometry,
+          new THREE.MeshPhongMaterial({ color: 0x2194ce, specular: 0x111111, shininess: 200 })
+        );
+        scene.add(modelMesh);
+
+        const dims = getModelDimensions(geometry);
+
+const estimateCard = document.getElementById("fileEstimates");
+const totalCostSpan = document.getElementById("totalCost");
+
+const fileDiv = document.createElement("div");
+fileDiv.innerHTML = `
+  <p style="margin: 0.5rem 0 0 0;"><strong>${file.name}</strong></p>
+  <p style="margin: 0;">Dimensions: ${dims.width} x ${dims.depth} x ${dims.height} mm</p>
+  <p style="margin: 0;">Est. Price: <span id="price-${index}">Loading...</span></p>
+`;
+estimateCard.appendChild(fileDiv);
+
+// ---- Upload to API for Cost ----
+const formData = new FormData();
+formData.append("stl", file);
+
+fetch("https://api.filamentbros.com/stl/upload", {
+  method: "POST",
+  body: formData
+})
+  .then(res => {
+    if (!res.ok || !res.body) throw new Error("Slicing failed");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let bufferText = "";
+    let total = parseFloat(totalCostSpan.textContent.slice(1));
+
+    const readChunk = async () => {
+      const { done, value } = await reader.read();
+      if (done) return;
+
+      bufferText += decoder.decode(value, { stream: true });
+      const lines = bufferText.split("\n");
+      bufferText = lines.pop();
+
+      lines.forEach((line) => {
+        if (line.startsWith("data:")) {
+          const data = JSON.parse(line.replace(/^data:\s*/, ""));
+          if (data.status === "success") {
+            const price = parseFloat(data.price).toFixed(2);
+            document.getElementById(`price-${index}`).textContent = `$${price}`;
+            total += parseFloat(price);
+            totalCostSpan.textContent = `$${total.toFixed(2)}`;
+          } else if (data.status === "error") {
+            document.getElementById(`price-${index}`).textContent = "❌ Error";
+          }
+        }
+      });
+
+      await readChunk();
+    };
+
+    return readChunk();
+  })
+  .catch((err) => {
+    document.getElementById(`price-${index}`).textContent = "❌ Error";
+    console.error("Upload failed:", err);
+  });
+
+        let angle = 0;
+        function animate() {
+          angle += 0.003;
+          const r = diag;
+          camera.position.x = Math.cos(angle) * r;
+          camera.position.z = Math.sin(angle) * r;
+          camera.position.y = BUILD_PLATE_SIZE / 2 + r * 0.4;
+          camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
+          renderer.render(scene, camera);
+          requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // ✅ Add the viewer notice only once, after the last model
+        if (index === files.length - 1) {
+          const wrapper = document.createElement("div");
+          wrapper.className = "viewer-disclaimer";
+
+          const notice = document.createElement("div");
+          notice.className = "viewer-notice";
+          notice.innerHTML = `
+    <p style="margin: 0; font-weight: 600;">Not seeing your 3D model?</p>
+    <p style="margin: 2px 0 0 0;">Ensure your STL file is correctly formatted and contains 3D geometry.</p>
+  `;
+
+          wrapper.appendChild(notice);
+          viewerContainer.appendChild(wrapper);
+        }
+      }
+
+
     });
 
     window.addEventListener("resize", () => {
@@ -477,8 +662,6 @@
         }
       });
     });
-
-
   </script>
 
 
