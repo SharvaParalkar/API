@@ -1,10 +1,16 @@
 const express = require("express");
+const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 
 const app = express();
+
+app.use(cors({
+  origin: "https://filamentbros.com"
+}));
+
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, "uploads");

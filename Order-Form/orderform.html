@@ -1,11 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>3D Print Request Form</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --primary: #1f6463;
+      --secondary: #1f6463;
+      --accent: #bd8c7d;
+      --light-bg: #edefeb;
+      --text-dark: #333333;
+      --text-light: #ffffff;
+      --border-radius: 20px;
+      --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
     body {
       background-color: #e1e1e1;
       font-family: 'Roboto', sans-serif;
@@ -14,12 +25,74 @@
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      padding: 1rem 0;
+      padding: 2rem 0;
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      /* True thirds */
+      gap: 2rem;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .form-wrapper {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .viewer {
+      width: 100%;
+      height: 300px;
+      background: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--box-shadow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .wrapper {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    /* LEFT COLUMN WRAPPER */
+    .viewer-wrapper {
+      width: 100%;
+      height: 100vh;
+      /* Full screen height */
+      overflow-y: auto;
+      padding-right: 0.5rem;
+      box-sizing: border-box;
+      margin-left: 1.5rem;
+      margin-right: 1.5rem;
+
+      scrollbar-width: none;
+      /* Firefox */
+      -ms-overflow-style: none;
+      /* IE/Edge */
+    }
+
+    .viewer-wrapper::-webkit-scrollbar {
+      display: none;
+      /* Chrome/Safari */
+    }
+
+
+    #viewerColumn {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      width: 100%;
+      justify-items: center;
     }
 
     .container {
-      width: 600px;
-      max-width: 95%;
+      width: 100%;
       display: flex;
       flex-direction: column;
       gap: 1.25rem;
@@ -33,7 +106,8 @@
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     }
 
-    h1, h2 {
+    h1,
+    h2 {
       color: #1f6463;
       margin-bottom: 1rem;
     }
@@ -113,128 +187,327 @@
     }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <div class="card">
-      <h1>3D PRINT REQUEST FORM</h1>
-      <p>Affordable, Reliable, and Fast 3D printing services run by students.</p>
-    </div>
 
-    <div class="card">
-      <h2>Terms & Conditions *</h2>
-      <ul>
-        <li><strong>Payments must be received before printing</strong></li>
-        <li>Print errors on our end allow for a refund or reprint</li>
-        <li>3D prints are <strong>not</strong> affiliated with Texas A&M University</li>
-        <li>All prints are done in White PLA</li>
-        <li>Pickup location: Langford Architecture Building</li>
-        <li>If models have unprintable geometry, we'll ask you to fix the model before printing. Be sure to check the print preview we provide as well.</li>
-        <li>Prints under 100g of filament are subject to a flat rate of $3.</li>
-      </ul>
-      <div class="radio-group">
-        <input type="radio" id="agree" name="terms" required>
-        <label for="agree">I agree</label>
-      </div>
-    </div>
+  <div class="wrapper">
+    <div class="main-layout">
 
-    <div class="card">
-      <h2>Upload Your Files</h2>
-      <label for="file">Upload up to 5 STL or 3MF files (100MB max each) *</label>
-      <input type="file" id="file" accept=".stl,.3mf" multiple required>
-    </div>
-
-    <div class="card">
-      <label for="email">Email *</label>
-      <input type="email" id="email" required>
-
-      <label for="name">Name *</label>
-      <input type="text" id="name" required>
-
-      <label for="phone">Phone Number *</label>
-      <input type="text" id="phone" required>
-
-      <label for="notes">Other Notes</label>
-      <textarea id="notes" rows="4"></textarea>
-    </div>
-
-    <div class="card">
-      <h2>Print File Checklist</h2>
-      <label>.STL file(s) only contain the pieces you need printed *</label>
-      <div class="radio-group">
-        <input type="radio" id="piecesYes" name="pieces" required>
-        <label for="piecesYes">Yes</label>
+      <!-- LEFT THIRD: STL Viewers -->
+      <div class="viewer-wrapper">
+        <div id="viewerColumn"></div>
       </div>
 
-      <label>STL file is in millimeters *</label>
-      <div class="radio-group">
-        <input type="radio" id="unitsYes" name="units" required>
-        <label for="unitsYes">Yes</label>
+      <div class="form-wrapper">
+        <div class="container">
+          <div class="card">
+            <h1>3D PRINT REQUEST FORM</h1>
+            <p>Affordable, Reliable, and Fast 3D printing services run by students.</p>
+          </div>
+
+          <div class="card">
+            <h2>Upload Your 3D Files</h2>
+            <label for="file">Upload up to 5 STL files (100MB max each) *</label>
+            <input type="file" id="file" accept=".stl" multiple required>
+            <ul id="fileList" style="margin-top: 0.5rem; font-size: 0.95rem; color: #333;"></ul>
+          </div>
+
+          <div class="card">
+            <label for="email">Email *</label>
+            <input type="email" id="email" required>
+
+            <label for="name">Name *</label>
+            <input type="text" id="name" required>
+
+            <label for="phone">Phone Number *</label>
+            <input type="text" id="phone" required>
+
+            <label for="notes">Other Notes</label>
+            <textarea id="notes" rows="4"></textarea>
+          </div>
+
+          <div class="card">
+            <h2>Print File Checklist</h2>
+            <label>.STL file(s) only contain the pieces you need printed *</label>
+            <div class="radio-group">
+              <input type="radio" id="piecesYes" name="pieces" required>
+              <label for="piecesYes">Yes</label>
+            </div>
+
+            <label>STL file is in millimeters *</label>
+            <div class="radio-group">
+              <input type="radio" id="unitsYes" name="units" required>
+              <label for="unitsYes">Yes</label>
+            </div>
+          </div>
+
+          <div class="card">
+            <p><strong>You will be contacted regarding printing / payment details after we review your files (~24 hours
+                or
+                less)</strong></p>
+            <p>Track orders at <a href="https://filamentbros.com/track" target="_blank">filamentbros.com/track</a></p>
+            <p class="disclaimer">
+              By pressing submit you are agreeing to our
+              <a href="https://filamentbros.com/terms" target="_blank">terms and conditions</a>.
+            </p>
+          </div>
+
+          <button type="submit">Submit</button>
+          <p class="disclaimer">A copy of your response will be emailed to you.</p>
+        </div>
       </div>
-    </div>
+    </div> <!-- .main-layout -->
+  </div> <!-- .wrapper ends here, correctly -->
 
-    <div class="card">
-      <p><strong>You will be contacted regarding printing / payment details after we review your files (~24 hours or less)</strong></p>
-      <p>Track orders at <a href="https://filamentbros.com/track" target="_blank">filamentbros.com/track</a></p>
-    </div>
+  <script>
+    document.querySelector("button[type='submit']").addEventListener("click", async (e) => {
+      e.preventDefault();
 
-    <button type="submit">Submit</button>
-    <p class="disclaimer">A copy of your response will be emailed to you.</p>
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const notes = document.getElementById("notes").value.trim();
+      const piecesYes = document.getElementById("piecesYes").checked;
+      const unitsYes = document.getElementById("unitsYes").checked;
+      const files = document.getElementById("file").files;
 
-    <!-- Add this at the bottom of the <body> -->
-<script>
-  document.querySelector("button[type='submit']").addEventListener("click", async (e) => {
-    e.preventDefault();
-
-    const name = document.getElementById("name").value.trim();
-    const email = document.getElementById("email").value.trim();
-    const phone = document.getElementById("phone").value.trim();
-    const notes = document.getElementById("notes").value.trim();
-    const termsAgreed = document.getElementById("agree").checked;
-    const piecesYes = document.getElementById("piecesYes").checked;
-    const unitsYes = document.getElementById("unitsYes").checked;
-    const files = document.getElementById("file").files;
-
-    if (!termsAgreed || !piecesYes || !unitsYes) {
-      alert("You must agree to the terms and confirm the checklist.");
-      return;
-    }
-
-    if (!name || !email || !phone || files.length === 0) {
-      alert("Please fill out all required fields and upload at least one file.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("email", email);
-    formData.append("phone", phone);
-    formData.append("notes", notes);
-
-    for (let i = 0; i < files.length && i < 5; i++) {
-      formData.append("file", files[i]);
-    }
-
-    try {
-      const res = await fetch("https://api.filamentbros.com/status/post", {
-        method: "POST",
-        body: formData
-      });
-
-      const result = await res.json();
-      if (res.ok) {
-        alert("Submission successful! Your Order ID: " + result.order_id);
-        window.location.reload();
-      } else {
-        console.error(result);
-        alert("Submission failed. Please try again later.");
+      if (!piecesYes || !unitsYes) {
+        alert("Please complete the Print File Checklist");
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      alert("Network error. Please check your connection.");
-    }
-  });
-</script>
 
+      if (!name || !email || !phone || files.length === 0) {
+        alert("Please fill out all required fields and upload at least one file.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("email", email);
+      formData.append("phone", phone);
+      formData.append("notes", notes);
+
+      for (let i = 0; i < files.length && i < 5; i++) {
+        formData.append("file", files[i]);
+      }
+
+      try {
+        const res = await fetch("https://api.filamentbros.com/status/post", {
+          method: "POST",
+          body: formData
+        });
+
+        const result = await res.json();
+        if (res.ok) {
+          showSuccessOverlay(result.order_id, email || phone);
+        } else {
+          console.error(result);
+          alert("Submission failed. Please try again later.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Network error. Please check your connection.");
+      }
+    });
+
+    function showSuccessOverlay(orderId, lookupValue) {
+      const overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.top = 0;
+      overlay.style.left = 0;
+      overlay.style.width = "100%";
+      overlay.style.height = "100%";
+      overlay.style.backgroundColor = "rgba(0, 0, 0, 0.6)";
+      overlay.style.display = "flex";
+      overlay.style.justifyContent = "center";
+      overlay.style.alignItems = "center";
+      overlay.style.zIndex = 1000;
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.backgroundColor = "#f7f7f7";
+      card.style.color = "#1f6463";
+      card.style.textAlign = "center";
+      card.style.padding = "3rem";
+      card.style.borderRadius = "1rem";
+      card.style.maxWidth = "90%";
+      card.style.width = "400px";
+      card.style.boxShadow = "0 4px 20px rgba(0,0,0,0.2)";
+
+      const heading = document.createElement("h2");
+      heading.textContent = "Submission Successful!";
+      card.appendChild(heading);
+
+      const idPara = document.createElement("p");
+      idPara.textContent = "Your Order ID: " + orderId;
+      card.appendChild(idPara);
+
+      const countdownPara = document.createElement("p");
+      let secondsLeft = 3;
+      countdownPara.textContent = `Redirecting to tracker in ${secondsLeft}...`;
+      card.appendChild(countdownPara);
+
+      overlay.appendChild(card);
+      document.body.appendChild(overlay);
+
+      const redirectUrl = `https://filamentbros.com/track?lookup=${encodeURIComponent(lookupValue)}`;
+      const countdown = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft > 0) {
+          countdownPara.textContent = `Redirecting to tracker in ${secondsLeft}...`;
+        } else {
+          clearInterval(countdown);
+          window.location.href = redirectUrl;
+        }
+      }, 1000);
+    }
+
+    const loader = new THREE.STLLoader();
+    let scene, camera, renderer, modelMesh;
+    let cameraRadius = 400;
+    let cameraAngle = 0;
+    const BUILD_PLATE_SIZE = 256;
+    const dampingFactor = 0.05;
+
+    function initViewer() {
+      scene = new THREE.Scene();
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(300, 300);
+      renderer.setClearColor(0xf0f0f0);
+
+      renderer.domElement.style.borderRadius = '20px';
+      renderer.domElement.style.display = 'block'; // Prevents stray margin spacing
+
+      document.getElementById('viewerColumn').appendChild(renderer.domElement);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+      const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      keyLight.position.set(200, 300, 200);
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+      fillLight.position.set(-150, 250, -150);
+      scene.add(fillLight);
+
+      const rimLight = new THREE.DirectionalLight(0xffffff, 0.2);
+      rimLight.position.set(100, 350, -250);
+      scene.add(rimLight);
+
+      const grid = new THREE.GridHelper(BUILD_PLATE_SIZE, 16, 0x444444, 0x666666);
+      scene.add(grid);
+
+      const cube = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(BUILD_PLATE_SIZE, BUILD_PLATE_SIZE, BUILD_PLATE_SIZE)),
+        new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 })
+      );
+      cube.position.set(0, BUILD_PLATE_SIZE / 2, 0);
+      scene.add(cube);
+
+      const diag = Math.sqrt(3) * BUILD_PLATE_SIZE * 1.5;
+      camera = new THREE.PerspectiveCamera(35, 1, 1, 2000);
+      camera.position.set(diag, diag * 0.7, diag);
+      camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
+      animate();
+    }
+
+    function animate() {
+      cameraAngle += 0.003;
+      cameraRadius += (Math.sqrt(3) * BUILD_PLATE_SIZE * 1.5 - cameraRadius) * dampingFactor;
+
+      const centerY = BUILD_PLATE_SIZE / 2;
+      camera.position.x = Math.cos(cameraAngle) * cameraRadius;
+      camera.position.z = Math.sin(cameraAngle) * cameraRadius;
+      camera.position.y = centerY + cameraRadius * 0.4;
+      camera.lookAt(0, centerY, 0);
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    document.getElementById("file").addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files).slice(0, 5);
+      const fileList = document.getElementById("fileList");
+      const viewerContainer = document.getElementById("viewerColumn");
+
+      fileList.innerHTML = "";
+      viewerContainer.innerHTML = ""; // Clear previous viewers
+
+      for (const file of files) {
+        const li = document.createElement("li");
+        li.textContent = file.name;
+        fileList.appendChild(li);
+
+        // Create a new viewer canvas
+        const canvasWrapper = document.createElement("div");
+        canvasWrapper.className = "viewer";
+        viewerContainer.appendChild(canvasWrapper);
+
+        const buffer = await file.arrayBuffer();
+        const geometry = loader.parse(buffer);
+        geometry.center();
+        geometry.rotateX(-Math.PI / 2);
+        geometry.computeBoundingBox();
+        geometry.translate(0, -geometry.boundingBox.min.y, 0);
+
+        const scene = new THREE.Scene();
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(300, 300);
+        renderer.setClearColor(0xf0f0f0);
+        renderer.domElement.style.borderRadius = '20px';
+        canvasWrapper.appendChild(renderer.domElement);
+
+
+        const camera = new THREE.PerspectiveCamera(35, 1, 1, 2000);
+        const diag = Math.sqrt(3) * BUILD_PLATE_SIZE * 1.5;
+        camera.position.set(diag, diag * 0.7, diag);
+        camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
+
+        const modelMesh = new THREE.Mesh(
+          geometry,
+          new THREE.MeshPhongMaterial({ color: 0x2194ce, specular: 0x111111, shininess: 200 })
+        );
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        keyLight.position.set(200, 300, 200);
+        scene.add(keyLight);
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        fillLight.position.set(-150, 250, -150);
+        scene.add(fillLight);
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.2);
+        rimLight.position.set(100, 350, -250);
+        scene.add(rimLight);
+
+        const grid = new THREE.GridHelper(BUILD_PLATE_SIZE, 16, 0x444444, 0x666666);
+        scene.add(grid);
+
+        const cube = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(BUILD_PLATE_SIZE, BUILD_PLATE_SIZE, BUILD_PLATE_SIZE)),
+          new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 })
+        );
+        cube.position.set(0, BUILD_PLATE_SIZE / 2, 0);
+        scene.add(cube);
+        scene.add(modelMesh);
+
+        // Animate viewer
+        let angle = 0;
+        function animate() {
+          angle += 0.003;
+          const r = diag;
+          camera.position.x = Math.cos(angle) * r;
+          camera.position.z = Math.sin(angle) * r;
+          camera.position.y = BUILD_PLATE_SIZE / 2 + r * 0.4;
+          camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
+          renderer.render(scene, camera);
+          requestAnimationFrame(animate);
+        }
+        animate();
+      }
+    });
+
+  </script>
   </div>
 </body>
+
 </html>
