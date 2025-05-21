@@ -45,13 +45,20 @@
 
     .viewer {
       width: 100%;
-      height: 300px;
+      aspect-ratio: 1 / 1;
       background: white;
       border-radius: var(--border-radius);
       box-shadow: var(--box-shadow);
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+    }
+
+    .viewer canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
     }
 
     .wrapper {
@@ -363,66 +370,20 @@
     }
 
     const loader = new THREE.STLLoader();
-    let scene, camera, renderer, modelMesh;
-    let cameraRadius = 400;
-    let cameraAngle = 0;
     const BUILD_PLATE_SIZE = 256;
     const dampingFactor = 0.05;
 
-    function initViewer() {
-      scene = new THREE.Scene();
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(300, 300);
-      renderer.setClearColor(0xf0f0f0);
 
-      renderer.domElement.style.borderRadius = '20px';
-      renderer.domElement.style.display = 'block'; // Prevents stray margin spacing
+    
 
-      document.getElementById('viewerColumn').appendChild(renderer.domElement);
+    // Add this outside the loop, once
+    const resizeRendererToDisplaySize = (renderer, canvasWrapper) => {
+      const width = canvasWrapper.clientWidth;
+      const height = canvasWrapper.clientHeight; // ✅ Use actual height
+      renderer.setSize(width, height, false);
+      renderer.setPixelRatio(window.devicePixelRatio);
+    };
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-      const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      keyLight.position.set(200, 300, 200);
-      scene.add(keyLight);
-
-      const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
-      fillLight.position.set(-150, 250, -150);
-      scene.add(fillLight);
-
-      const rimLight = new THREE.DirectionalLight(0xffffff, 0.2);
-      rimLight.position.set(100, 350, -250);
-      scene.add(rimLight);
-
-      const grid = new THREE.GridHelper(BUILD_PLATE_SIZE, 16, 0x444444, 0x666666);
-      scene.add(grid);
-
-      const cube = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.BoxGeometry(BUILD_PLATE_SIZE, BUILD_PLATE_SIZE, BUILD_PLATE_SIZE)),
-        new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 })
-      );
-      cube.position.set(0, BUILD_PLATE_SIZE / 2, 0);
-      scene.add(cube);
-
-      const diag = Math.sqrt(3) * BUILD_PLATE_SIZE * 1.5;
-      camera = new THREE.PerspectiveCamera(35, 1, 1, 2000);
-      camera.position.set(diag, diag * 0.7, diag);
-      camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
-      animate();
-    }
-
-    function animate() {
-      cameraAngle += 0.003;
-      cameraRadius += (Math.sqrt(3) * BUILD_PLATE_SIZE * 1.5 - cameraRadius) * dampingFactor;
-
-      const centerY = BUILD_PLATE_SIZE / 2;
-      camera.position.x = Math.cos(cameraAngle) * cameraRadius;
-      camera.position.z = Math.sin(cameraAngle) * cameraRadius;
-      camera.position.y = centerY + cameraRadius * 0.4;
-      camera.lookAt(0, centerY, 0);
-
-      renderer.render(scene, camera);
-      requestAnimationFrame(animate);
-    }
 
     document.getElementById("file").addEventListener("change", async (e) => {
       const files = Array.from(e.target.files).slice(0, 5);
@@ -430,83 +391,97 @@
       const viewerContainer = document.getElementById("viewerColumn");
 
       fileList.innerHTML = "";
-      viewerContainer.innerHTML = ""; // Clear previous viewers
+      viewerContainer.innerHTML = "";
 
       for (const file of files) {
-        const li = document.createElement("li");
-        li.textContent = file.name;
-        fileList.appendChild(li);
+  const li = document.createElement("li");
+  li.textContent = file.name;
+  fileList.appendChild(li);
 
-        // Create a new viewer canvas
-        const canvasWrapper = document.createElement("div");
-        canvasWrapper.className = "viewer";
-        viewerContainer.appendChild(canvasWrapper);
+  const canvasWrapper = document.createElement("div");
+  canvasWrapper.className = "viewer";
+  viewerContainer.appendChild(canvasWrapper);
 
-        const buffer = await file.arrayBuffer();
-        const geometry = loader.parse(buffer);
-        geometry.center();
-        geometry.rotateX(-Math.PI / 2);
-        geometry.computeBoundingBox();
-        geometry.translate(0, -geometry.boundingBox.min.y, 0);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setClearColor(0xf0f0f0);
+  renderer.domElement.style.borderRadius = '20px';
+  renderer.domElement.__renderer = renderer;
+  canvasWrapper.appendChild(renderer.domElement);
 
-        const scene = new THREE.Scene();
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(300, 300);
-        renderer.setClearColor(0xf0f0f0);
-        renderer.domElement.style.borderRadius = '20px';
-        canvasWrapper.appendChild(renderer.domElement);
+  resizeRendererToDisplaySize(renderer, canvasWrapper);
 
+  const aspect = canvasWrapper.clientWidth / canvasWrapper.clientHeight;
+  const diag = Math.sqrt(3) * BUILD_PLATE_SIZE * 1.5;
+  const camera = new THREE.PerspectiveCamera(35, aspect, 1, 2000);
+  camera.position.set(diag, diag * 0.7, diag);
+  camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
 
-        const camera = new THREE.PerspectiveCamera(35, 1, 1, 2000);
-        const diag = Math.sqrt(3) * BUILD_PLATE_SIZE * 1.5;
-        camera.position.set(diag, diag * 0.7, diag);
-        camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
+  const scene = new THREE.Scene();
 
-        const modelMesh = new THREE.Mesh(
-          geometry,
-          new THREE.MeshPhongMaterial({ color: 0x2194ce, specular: 0x111111, shininess: 200 })
-        );
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  keyLight.position.set(200, 300, 200);
+  scene.add(keyLight);
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+  fillLight.position.set(-150, 250, -150);
+  scene.add(fillLight);
+  const rimLight = new THREE.DirectionalLight(0xffffff, 0.2);
+  rimLight.position.set(100, 350, -250);
+  scene.add(rimLight);
 
-        // Lights
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-        const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        keyLight.position.set(200, 300, 200);
-        scene.add(keyLight);
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
-        fillLight.position.set(-150, 250, -150);
-        scene.add(fillLight);
-        const rimLight = new THREE.DirectionalLight(0xffffff, 0.2);
-        rimLight.position.set(100, 350, -250);
-        scene.add(rimLight);
+  const grid = new THREE.GridHelper(BUILD_PLATE_SIZE, 16, 0x444444, 0x666666);
+  scene.add(grid);
 
-        const grid = new THREE.GridHelper(BUILD_PLATE_SIZE, 16, 0x444444, 0x666666);
-        scene.add(grid);
+  const cube = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(BUILD_PLATE_SIZE, BUILD_PLATE_SIZE, BUILD_PLATE_SIZE)),
+    new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 })
+  );
+  cube.position.set(0, BUILD_PLATE_SIZE / 2, 0);
+  scene.add(cube);
 
-        const cube = new THREE.LineSegments(
-          new THREE.EdgesGeometry(new THREE.BoxGeometry(BUILD_PLATE_SIZE, BUILD_PLATE_SIZE, BUILD_PLATE_SIZE)),
-          new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 })
-        );
-        cube.position.set(0, BUILD_PLATE_SIZE / 2, 0);
-        scene.add(cube);
-        scene.add(modelMesh);
+  const buffer = await file.arrayBuffer();
+  const geometry = loader.parse(buffer);
+  geometry.center();
+  geometry.rotateX(-Math.PI / 2);
+  geometry.computeBoundingBox();
+  geometry.translate(0, -geometry.boundingBox.min.y, 0);
 
-        // Animate viewer
-        let angle = 0;
-        function animate() {
-          angle += 0.003;
-          const r = diag;
-          camera.position.x = Math.cos(angle) * r;
-          camera.position.z = Math.sin(angle) * r;
-          camera.position.y = BUILD_PLATE_SIZE / 2 + r * 0.4;
-          camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
-          renderer.render(scene, camera);
-          requestAnimationFrame(animate);
-        }
-        animate();
-      }
+  const modelMesh = new THREE.Mesh(
+    geometry,
+    new THREE.MeshPhongMaterial({ color: 0x2194ce, specular: 0x111111, shininess: 200 })
+  );
+  scene.add(modelMesh);
+
+  let angle = 0;
+  function animate() {
+    angle += 0.003;
+    const r = diag;
+    camera.position.x = Math.cos(angle) * r;
+    camera.position.z = Math.sin(angle) * r;
+    camera.position.y = BUILD_PLATE_SIZE / 2 + r * 0.4;
+    camera.lookAt(0, BUILD_PLATE_SIZE / 2, 0);
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
     });
 
+    window.addEventListener("resize", () => {
+      document.querySelectorAll(".viewer").forEach((canvasWrapper) => {
+        const canvas = canvasWrapper.querySelector("canvas");
+        const renderer = canvas?.__renderer;
+        if (renderer) {
+          resizeRendererToDisplaySize(renderer, canvasWrapper);
+        }
+      });
+    });
+
+
   </script>
+
+
   </div>
 </body>
 
