@@ -42,21 +42,31 @@ const upload = multer({
 });
 
 // Parse filament cost from .gcode
-function parseGcodeCost(gcodePath) {
+function parseGcodeData(gcodePath) {
   return new Promise((resolve, reject) => {
     fs.readFile(gcodePath, "utf8", (err, data) => {
       if (err) return reject(err);
       const lines = data.split("\n");
+      let cost = null;
+      let weight = null;
+
       for (let line of lines) {
         if (line.toLowerCase().startsWith("; filament cost =")) {
-          const cost = line.split("=")[1].trim();
-          return resolve(cost);
+          cost = parseFloat(line.split("=")[1].trim().replace("$", ""));
+        } else if (line.toLowerCase().startsWith("; filament used [g] =")) {
+          weight = parseFloat(line.split("=")[1].trim());
         }
       }
-      reject("Filament cost not found in G-code.");
+
+      if (cost == null || weight == null) {
+        return reject("Missing cost or weight in G-code.");
+      }
+
+      resolve({ cost, weight });
     });
   });
 }
+
 
 // Slice STL using PrusaSlicer CLI
 async function sliceAndEstimate(stlPath) {
@@ -129,8 +139,9 @@ async function sliceAndEstimate(stlPath) {
       }
 
       try {
-        const cost = await parseGcodeCost(outputPath);
-        resolve({ outputPath, cost, durationMs, logPath });
+        const { cost, weight } = await parseGcodeData(outputPath);
+        const finalCost = weight < 100 ? 3.0 : cost;
+        resolve({ outputPath, cost: finalCost.toFixed(2), durationMs, logPath });
       } catch (err) {
         reject("Slicing succeeded, but filament cost not found.");
       }
