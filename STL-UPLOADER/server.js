@@ -11,10 +11,21 @@ app.use(cors({
   origin: "https://filamentbros.com"
 }));
 
-
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
+// Validate origin before accepting any uploads
+function validateOrigin(req, res, next) {
+  const origin = req.headers.origin || req.headers.referer;
+
+  if (!origin || !origin.startsWith("https://filamentbros.com")) {
+    console.warn("❌ Blocked upload from invalid origin:", origin);
+    return res.status(403).send("Forbidden");
+  }
+
+  next();
+}
 
 // Configure Multer for up to 5 STL uploads, 100MB max per file
 const storage = multer.diskStorage({
@@ -131,61 +142,72 @@ async function sliceAndEstimate(stlPath) {
 app.use("/stl", express.static(path.join(__dirname, "public")));
 
 // Handle multiple STL uploads
-app.post("/stl/upload", upload.array("stl", 5), async (req, res) => {
-  if (!req.files || req.files.length === 0) {
-    return res.status(400).send("No files uploaded.");
-  }
+app.post(
+  "/stl/upload",
+  validateOrigin,
+  upload.array("stl", 5),
+  async (req, res) => {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).send("No files uploaded.");
+    }
 
-  // ✅ Set up SSE headers
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders(); // ✅ CRITICAL FOR SSE
+    // Set up SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
 
-  const sendSSE = (data) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
-  };
+    const sendSSE = (data) => {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
 
-  for (const file of req.files) {
-    const stlPath = path.join(__dirname, "uploads", file.filename);
-    let gcodePath = null;
+    for (const file of req.files) {
+      const stlPath = path.join(__dirname, "uploads", file.filename);
+      let gcodePath = null;
 
-    try {
-      const result = await sliceAndEstimate(stlPath);
-      gcodePath = result.outputPath;
-
-      if (parseFloat(result.cost) === 0) {
-        throw new Error("Estimated price is $0 — error slicing file.");
-      }
-
-      sendSSE({
-        file: file.originalname,
-        gcode: result.outputPath,
-        price: result.cost,
-        timeMs: result.durationMs,
-        status: "success",
-      });
-    } catch (err) {
-      sendSSE({
-        file: file.originalname,
-        error: err.toString(),
-        status: "error",
-      });
-    } finally {
       try {
-        if (fs.existsSync(stlPath)) fs.unlinkSync(stlPath);
-        if (gcodePath && fs.existsSync(gcodePath)) fs.unlinkSync(gcodePath);
-        console.log(`🗑️ Deleted: ${file.filename} and G-code`);
+        const result = await Promise.race([
+          sliceAndEstimate(stlPath),
+          new Promise((_, reject) =>
+            setTimeout(() => reject("⏰ Slicing timed out after 20 seconds."), 20000)
+          )
+        ]);
+
+        gcodePath = result.outputPath;
+
+        if (parseFloat(result.cost) === 0) {
+          throw new Error("Estimated price is $0 — error slicing file.");
+        }
+
+        sendSSE({
+          file: file.originalname,
+          gcode: result.outputPath,
+          price: result.cost,
+          timeMs: result.durationMs,
+          status: "success",
+        });
       } catch (err) {
-        console.error("⚠️ Cleanup failed:", err);
+        sendSSE({
+          file: file.originalname,
+          error: err.toString(),
+          status: "error",
+        });
+      } finally {
+        try {
+          if (fs.existsSync(stlPath)) fs.unlinkSync(stlPath);
+          if (gcodePath && fs.existsSync(gcodePath)) fs.unlinkSync(gcodePath);
+          console.log(`🗑️ Deleted: ${file.filename} and G-code`);
+        } catch (err) {
+          console.error("⚠️ Cleanup failed:", err);
+        }
       }
     }
-  }
 
-  // Final SSE signal that all files are done
-  res.write(`event: done\ndata: {}\n\n`);
-  res.end();
-});
+    // Final SSE signal that all files are done
+    res.write(`event: done\ndata: {}\n\n`);
+    res.end();
+  }
+);
 
 // Redirect root to /stl
 app.get("/", (req, res) => {
