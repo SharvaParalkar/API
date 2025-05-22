@@ -1,0 +1,296 @@
+--- STDOUT ---
+[2025-05-21 18:13:31.428629] [0x00000954] [debug]   TriangleMesh::repair() started
+[2025-05-21 18:13:31.428629] [0x00000954] [debug]   TriangleMesh::repair() finished
+[2025-05-21 18:13:31.428629] [0x00000954] [debug]   BuildVolume bed_shape clasified as: Rectangle
+[2025-05-21 18:13:31.428629] [0x00000954] [info]    Starting the slicing process. WorkingSet: 32MB; PrivateBytes: 22MB; Pagefile(peak): 22MB(22MB)
+10 => Processing triangulated mesh
+[2025-05-21 18:13:31.440149] [0x00000954] [info]    Slicing volumes... WorkingSet: 32MB; PrivateBytes: 22MB; Pagefile(peak): 22MB(22MB)
+[2025-05-21 18:13:31.440149] [0x00000954] [debug]   slice_mesh to polygons
+[2025-05-21 18:13:31.453601] [0x00000954] [debug]   Slicing volumes - removing top empty layers
+[2025-05-21 18:13:31.453601] [0x00000954] [debug]   Slicing volumes - make_slices in parallel - begin
+[2025-05-21 18:13:31.453601] [0x00000954] [debug]   Slicing volumes - make_slices in parallel - end
+20 => Generating perimeters
+[2025-05-21 18:13:31.464624] [0x00000954] [info]    Generating perimeters... WorkingSet: 42MB; PrivateBytes: 32MB; Pagefile(peak): 32MB(32MB)
+[2025-05-21 18:13:31.464624] [0x00000954] [debug]   Generating extra perimeters for region 0 in parallel - start
+[2025-05-21 18:13:31.495551] [0x00000954] [debug]   Generating extra perimeters for region 0 in parallel - end
+[2025-05-21 18:13:31.495551] [0x00000954] [debug]   Generating perimeters in parallel - start
+[2025-05-21 18:13:31.495551] [0x00000954] [trace]   Generating perimeters for layer 0
+[2025-05-21 18:13:31.495551] [0x00000954] [trace]   Generating perimeters for layer 0, region 0
+[2025-05-21 18:13:31.495551] [0x00000c78] [trace]   Generating perimeters for layer 4
+[2025-05-21 18:13:31.495551] [0x00000f1c] [trace]   Generating perimeters for layer 1
+[2025-05-21 18:13:31.495551] [0x00000c78] [trace]   Generating perimeters for layer 4, region 0
+[2025-05-21 18:13:31.495551] [0x000017d8] [trace]   Generating perimeters for layer 2
+[2025-05-21 18:13:31.495551] [0x000017d8] [trace]   Generating perimeters for layer 2, region 0
+[2025-05-21 18:13:31.495551] [0x00000f1c] [trace]   Generating perimeters for layer 1, region 0
+[2025-05-21 18:13:31.495551] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 533429, inner-wall width = 533429.
+[2025-05-21 18:13:31.495551] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.495551] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 4.
+[2025-05-21 18:13:31.495551] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.495551] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.495551] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 4.
+[2025-05-21 18:13:31.495551] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.495551] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.495551] [0x00000f1c] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.495551] [0x00000f1c] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.495551] [0x00000f1c] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 4.
+[2025-05-21 18:13:31.495551] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 4.
+[2025-05-21 18:13:31.528756] [0x00000954] [trace]   Generating perimeters for layer 0 - Done
+[2025-05-21 18:13:31.528756] [0x00000954] [trace]   Generating perimeters for layer 6
+[2025-05-21 18:13:31.528756] [0x00000954] [trace]   Generating perimeters for layer 6, region 0
+[2025-05-21 18:13:31.528756] [0x000017d8] [trace]   Generating perimeters for layer 2 - Done
+[2025-05-21 18:13:31.528756] [0x000017d8] [trace]   Generating perimeters for layer 3
+[2025-05-21 18:13:31.528756] [0x000017d8] [trace]   Generating perimeters for layer 3, region 0
+[2025-05-21 18:13:31.528756] [0x00000c78] [trace]   Generating perimeters for layer 4 - Done
+[2025-05-21 18:13:31.528756] [0x00000c78] [trace]   Generating perimeters for layer 5
+[2025-05-21 18:13:31.528756] [0x00000c78] [trace]   Generating perimeters for layer 5, region 0
+[2025-05-21 18:13:31.528756] [0x00000f1c] [trace]   Generating perimeters for layer 1 - Done
+[2025-05-21 18:13:31.528756] [0x00000f1c] [trace]   Generating perimeters for layer 7
+[2025-05-21 18:13:31.528756] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.528756] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.528756] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 4.
+[2025-05-21 18:13:31.528756] [0x00000f1c] [trace]   Generating perimeters for layer 7, region 0
+[2025-05-21 18:13:31.528756] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.528756] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.528756] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 4.
+[2025-05-21 18:13:31.528756] [0x00000f1c] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.528756] [0x00000f1c] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.528756] [0x00000f1c] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 4.
+[2025-05-21 18:13:31.528756] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.528756] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.528756] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 4.
+[2025-05-21 18:13:31.562434] [0x00000c78] [trace]   Generating perimeters for layer 5 - Done
+[2025-05-21 18:13:31.562434] [0x00000c78] [trace]   Generating perimeters for layer 8
+[2025-05-21 18:13:31.562434] [0x00000c78] [trace]   Generating perimeters for layer 8, region 0
+[2025-05-21 18:13:31.562434] [0x000017d8] [trace]   Generating perimeters for layer 3 - Done
+[2025-05-21 18:13:31.564937] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.564937] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.564937] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 4.
+[2025-05-21 18:13:31.564937] [0x00000f1c] [trace]   Generating perimeters for layer 7 - Done
+[2025-05-21 18:13:31.564937] [0x00000954] [trace]   Generating perimeters for layer 6 - Done
+[2025-05-21 18:13:31.591426] [0x00000c78] [trace]   Generating perimeters for layer 8 - Done
+[2025-05-21 18:13:31.591426] [0x00000954] [debug]   Generating perimeters in parallel - end
+30 => Preparing infill
+[2025-05-21 18:13:31.591426] [0x00000954] [info]    Detecting solid surfaces... WorkingSet: 48MB; PrivateBytes: 37MB; Pagefile(peak): 37MB(40MB)
+[2025-05-21 18:13:31.591426] [0x00000954] [debug]   Detecting solid surfaces for region 0 in parallel - start
+[2025-05-21 18:13:31.597930] [0x00000954] [debug]   Detecting solid surfaces for region 0 - clipping in parallel - start
+[2025-05-21 18:13:31.600235] [0x00000954] [debug]   Detecting solid surfaces for region 0 - clipping in parallel - end
+[2025-05-21 18:13:31.600235] [0x00000954] [info]    Preparing fill surfaces... WorkingSet: 48MB; PrivateBytes: 37MB; Pagefile(peak): 37MB(40MB)
+[2025-05-21 18:13:31.600235] [0x00000954] [info]    Discovering vertical shells... WorkingSet: 48MB; PrivateBytes: 37MB; Pagefile(peak): 37MB(40MB)
+[2025-05-21 18:13:31.600235] [0x00000954] [debug]   Discovering vertical shells for region 0 in parallel - start : cache top / bottom
+[2025-05-21 18:13:31.600235] [0x00000954] [debug]   Discovering vertical shells for region 0 in parallel - end : cache top / bottom
+[2025-05-21 18:13:31.600235] [0x00000954] [debug]   Discovering vertical shells for region 0 in parallel - start : ensure vertical wall thickness
+[2025-05-21 18:13:31.600235] [0x00000954] [debug]   Discovering vertical shells for region 0 in parallel - end
+[2025-05-21 18:13:31.600235] [0x00000954] [info]    Processing external surfaces... WorkingSet: 49MB; PrivateBytes: 37MB; Pagefile(peak): 37MB(40MB)
+[2025-05-21 18:13:31.600235] [0x00000954] [debug]   Processing external surfaces for region 0 in parallel - start
+[2025-05-21 18:13:31.600235] [0x00000954] [trace]   Processing external surface, detecting bridges. layer0.45
+[2025-05-21 18:13:31.600235] [0x00000954] [trace]   Processing external surface, detecting bridges - done
+[2025-05-21 18:13:31.600235] [0x00000c78] [trace]   Processing external surface, detecting bridges. layer2.25
+[2025-05-21 18:13:31.600235] [0x00000c78] [trace]   Processing external surface, detecting bridges - done
+[2025-05-21 18:13:31.600235] [0x00000f1c] [trace]   Processing external surface, detecting bridges. layer1.35
+[2025-05-21 18:13:31.600235] [0x00000f1c] [trace]   Processing external surface, detecting bridges - done
+[2025-05-21 18:13:31.600235] [0x00000c78] [trace]   Processing external surface, detecting bridges. layer2.7
+[2025-05-21 18:13:31.600235] [0x00000c78] [trace]   Processing external surface, detecting bridges - done
+[2025-05-21 18:13:31.600235] [0x000017d8] [trace]   Processing external surface, detecting bridges. layer0.9
+[2025-05-21 18:13:31.600235] [0x000017d8] [trace]   Processing external surface, detecting bridges - done
+[2025-05-21 18:13:31.600235] [0x00000c78] [trace]   Processing external surface, detecting bridges. layer3.15
+[2025-05-21 18:13:31.600235] [0x00000c78] [trace]   Processing external surface, detecting bridges - done
+[2025-05-21 18:13:31.600235] [0x00000f1c] [trace]   Processing external surface, detecting bridges. layer1.8
+[2025-05-21 18:13:31.600235] [0x00000f1c] [trace]   Processing external surface, detecting bridges - done
+[2025-05-21 18:13:31.600235] [0x000017d8] [trace]   Processing external surface, detecting bridges. layer3.6
+[2025-05-21 18:13:31.600235] [0x000017d8] [trace]   Processing external surface, detecting bridges - done
+[2025-05-21 18:13:31.600235] [0x00000c78] [trace]   Processing external surface, detecting bridges. layer4.05
+[2025-05-21 18:13:31.600235] [0x00000c78] [trace]   Processing external surface, detecting bridges - done
+[2025-05-21 18:13:31.600235] [0x00000954] [debug]   Processing external surfaces for region 0 in parallel - end
+[2025-05-21 18:13:31.600235] [0x00000954] [trace]   discover_horizontal_shells()
+[2025-05-21 18:13:31.600235] [0x00000954] [info]    Bridge over infill - Start WorkingSet: 49MB; PrivateBytes: 37MB; Pagefile(peak): 37MB(40MB)
+[2025-05-21 18:13:31.618584] [0x00000954] [info]    Bridge over infill - Directions and expanded surfaces computed WorkingSet: 49MB; PrivateBytes: 37MB; Pagefile(peak): 37MB(40MB)
+[2025-05-21 18:13:31.618584] [0x00000954] [info]    Bridge over infill - End WorkingSet: 49MB; PrivateBytes: 37MB; Pagefile(peak): 37MB(40MB)
+45 => Making infill
+[2025-05-21 18:13:31.618584] [0x00000954] [debug]   Filling layers in parallel - start
+[2025-05-21 18:13:31.618584] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.618584] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.618584] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 10.
+[2025-05-21 18:13:31.618584] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.618584] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.618584] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 10.
+[2025-05-21 18:13:31.618584] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.618584] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.618584] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 40.
+[2025-05-21 18:13:31.624591] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.624591] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.624591] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 30.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 8.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 6.
+[2025-05-21 18:13:31.624591] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.624591] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.624591] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 16.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 12.
+[2025-05-21 18:13:31.624591] [0x00000f1c] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.624591] [0x00000f1c] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.624591] [0x00000f1c] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 92.
+[2025-05-21 18:13:31.624591] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.624591] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.624591] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 8.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.624591] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 12.
+[2025-05-21 18:13:31.626888] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.626888] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.626888] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 70.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 10.
+[2025-05-21 18:13:31.626888] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.626888] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.626888] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 8.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 8.
+[2025-05-21 18:13:31.626888] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.626888] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.626888] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 6.
+[2025-05-21 18:13:31.626888] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.626888] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.626888] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 16.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 6.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.626888] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 14.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 34.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 30.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 8.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 4.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 12.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 6.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 6.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 40.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 6.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 78.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 8.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 6.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 18.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 10.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 12.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 84.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 10.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 8.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.632396] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 6.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 14.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 30.
+[2025-05-21 18:13:31.640247] [0x000017d8] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.640247] [0x000017d8] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.640247] [0x000017d8] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 10.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 12.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 6.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.640247] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 78.
+[2025-05-21 18:13:31.640247] [0x00000f1c] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.640247] [0x00000f1c] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.640247] [0x00000f1c] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 10.
+[2025-05-21 18:13:31.648758] [0x00000954] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.648758] [0x00000954] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.648758] [0x00000954] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 10.
+[2025-05-21 18:13:31.648758] [0x00000c78] [trace]   Applying the Redistribute meta-strategy with outer-wall width = 583429, inner-wall width = 583429.
+[2025-05-21 18:13:31.648758] [0x00000c78] [trace]   Applying the Widening Beading meta-strategy with minimum input width 150000 and minimum output width 510000.
+[2025-05-21 18:13:31.648758] [0x00000c78] [trace]   Applying the Limited Beading meta-strategy with maximum bead count = 10.
+[2025-05-21 18:13:31.648758] [0x00000954] [debug]   Filling layers in parallel - end
+[2025-05-21 18:13:31.648758] [0x00000954] [debug]   Ironing in parallel - start
+[2025-05-21 18:13:31.648758] [0x00000954] [debug]   Ironing in parallel - end
+[2025-05-21 18:13:31.648758] [0x00000954] [debug]   Searching support spots - start
+65 => Searching support spots
+[2025-05-21 18:13:31.648758] [0x00000954] [debug]   SupportSpotsGenerator: applying filament type: PLA
+[2025-05-21 18:13:31.665136] [0x00000954] [debug]   Searching support spots - end
+[2025-05-21 18:13:31.665136] [0x00000954] [debug]   psAlertWhenSupportsNeeded - start
+69 => Alert if supports needed
+[2025-05-21 18:13:31.665136] [0x00000954] [debug]   psAlertWhenSupportsNeeded - end
+[2025-05-21 18:13:31.665136] [0x00000954] [debug]   Calculating overhanging perimeters - start
+89 => Calculating overhanging perimeters
+[2025-05-21 18:13:31.679164] [0x00000954] [debug]   Calculating overhanging perimeters - end
+88 => Generating skirt and brim
+[2025-05-21 18:13:31.693604] [0x00000954] [info]    Slicing process finished. WorkingSet: 51MB; PrivateBytes: 39MB; Pagefile(peak): 39MB(40MB)
+90 => Exporting G-code to C:\Users\admin\Downloads\test_output\1747876411199-Thick wall channel spacer.gcode
+[2025-05-21 18:13:31.693604] [0x00000954] [info]    Exporting G-code... WorkingSet: 51MB; PrivateBytes: 39MB; Pagefile(peak): 39MB(40MB)
+[2025-05-21 18:13:31.693604] [0x00000954] [debug]   SeamPlacer: init: start
+[2025-05-21 18:13:31.709477] [0x00000954] [debug]   SeamPlacer: gather occlusion meshes: start
+[2025-05-21 18:13:31.709477] [0x00000954] [debug]   SeamPlacer: gather occlusion meshes: end
+[2025-05-21 18:13:31.709477] [0x00000954] [debug]   SeamPlacer: decimate: start
+[2025-05-21 18:13:31.712489] [0x00000954] [debug]   SeamPlacer: decimate: end
+[2025-05-21 18:13:31.712489] [0x00000954] [debug]   SeamPlacer: Compute visibility sample points: start
+[2025-05-21 18:13:31.712489] [0x00000954] [debug]   SeamPlacer: Compute visiblity sample points: end
+[2025-05-21 18:13:31.712489] [0x00000954] [debug]   SeamPlacer: Mesh sample raidus: 0.974044
+[2025-05-21 18:13:31.712489] [0x00000954] [debug]   SeamPlacer: build AABB tree: start
+[2025-05-21 18:13:31.712489] [0x00000954] [debug]   SeamPlacer: build AABB tree: end
+[2025-05-21 18:13:31.712489] [0x00000954] [debug]   SeamPlacer: raycast visibility of 30000 samples over 2746 triangles: end
+[2025-05-21 18:13:31.989900] [0x00000954] [debug]   SeamPlacer: raycast visibility of 30000 samples over 2746 triangles: end
+[2025-05-21 18:13:32.009812] [0x00000954] [debug]   SeamPlacer: init: end
+[2025-05-21 18:13:32.012312] [0x00000954] [trace]   Exported layer 0 print_z 0.45 WorkingSet: 53MB; PrivateBytes: 41MB; Pagefile(peak): 41MB(45MB)
+[2025-05-21 18:13:32.013689] [0x000017d8] [trace]   Exported layer 1 print_z 0.9 WorkingSet: 54MB; PrivateBytes: 42MB; Pagefile(peak): 42MB(45MB)
+[2025-05-21 18:13:32.013689] [0x00000f1c] [trace]   Exported layer 2 print_z 1.35 WorkingSet: 55MB; PrivateBytes: 42MB; Pagefile(peak): 42MB(45MB)
+[2025-05-21 18:13:32.013689] [0x00000c78] [trace]   Exported layer 3 print_z 1.8 WorkingSet: 55MB; PrivateBytes: 42MB; Pagefile(peak): 42MB(45MB)
+[2025-05-21 18:13:32.027098] [0x00000954] [trace]   Exported layer 4 print_z 2.25 WorkingSet: 55MB; PrivateBytes: 43MB; Pagefile(peak): 43MB(45MB)
+[2025-05-21 18:13:32.027098] [0x00000f1c] [trace]   Exported layer 5 print_z 2.7 WorkingSet: 55MB; PrivateBytes: 43MB; Pagefile(peak): 43MB(45MB)
+[2025-05-21 18:13:32.036110] [0x000017d8] [trace]   Exported layer 6 print_z 3.15 WorkingSet: 54MB; PrivateBytes: 42MB; Pagefile(peak): 42MB(45MB)
+[2025-05-21 18:13:32.040392] [0x00000c78] [trace]   Exported layer 7 print_z 3.6 WorkingSet: 55MB; PrivateBytes: 43MB; Pagefile(peak): 43MB(45MB)
+[2025-05-21 18:13:32.042399] [0x00000f1c] [trace]   Exported layer 8 print_z 4.05 WorkingSet: 55MB; PrivateBytes: 43MB; Pagefile(peak): 43MB(45MB)
+[2025-05-21 18:13:32.042399] [0x00000954] [debug]   Start processing gcode,  WorkingSet: 55MB; PrivateBytes: 42MB; Pagefile(peak): 42MB(45MB)
+[2025-05-21 18:13:32.082265] [0x00000954] [debug]   Finished processing gcode,  WorkingSet: 55MB; PrivateBytes: 43MB; Pagefile(peak): 43MB(45MB)
+[2025-05-21 18:13:32.082265] [0x00000954] [info]    Exporting G-code finished WorkingSet: 55MB; PrivateBytes: 43MB; Pagefile(peak): 43MB(45MB)
+Slicing result exported to C:\Users\admin\Downloads\test_output\1747876411199-Thick wall channel spacer.gcode
+
+
+--- STDERR ---
