@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FilamentBros Order Dashboard</title>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background-color: #f5f5f5;
+    }
+
+    h1 {
+      text-align: center;
+      color: #1f6463;
+      margin-bottom: 2rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 1.25rem;
+      color: #333;
+    }
+
+    .card h2 {
+      color: #1f6463;
+      font-size: 1.1rem;
+      margin: 0 0 0.75rem 0;
+    }
+
+    .card ul {
+      padding-left: 1rem;
+      margin: 0;
+      font-size: 0.95rem;
+      list-style: disc;
+    }
+
+    .card ul li {
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>FilamentBros Order Dashboard</h1>
+  <div class="grid" id="orderGrid"></div>
+
+  <script>
+    fetch("/dashboard/data")
+      .then(res => res.json())
+      .then(data => {
+        const grid = document.getElementById("orderGrid");
+        data.forEach(order => {
+          const card = document.createElement("div");
+          card.className = "card";
+
+          const heading = document.createElement("h2");
+          heading.textContent = order.name || "Unnamed Order";
+          card.appendChild(heading);
+
+          const list = document.createElement("ul");
+          [
+            ["Email", order.email],
+            ["Phone", order.phone],
+            ["Status", order.status],
+            ["Submitted", new Date(order.submitted_at).toLocaleString()],
+            ["Staff", order.assigned_staff || "—"],
+            ["Est. Price", order.est_price ? `$${order.est_price.toFixed(2)}` : "—"],
+            ["Assigned Price", order.assigned_price ? `$${order.assigned_price.toFixed(2)}` : "—"],
+            ["Payment", order.payment_status || "—"],
+            ["Customer Notes", order.notes || "—"],
+            ["Staff Notes", order.order_notes || "—"]
+          ].forEach(([label, value]) => {
+            const li = document.createElement("li");
+            li.innerHTML = `<strong>${label}:</strong> ${value}`;
+            list.appendChild(li);
+          });
+
+          card.appendChild(list);
+          grid.appendChild(card);
+        });
+      })
+      .catch(err => {
+        document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
