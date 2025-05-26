@@ -38,20 +38,26 @@
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 1.5rem;
+      align-items: start;
     }
 
     .card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
       background: white;
       border-radius: 1rem;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       padding: 1.25rem;
       color: #333;
       position: relative;
+       height: auto;
     }
 
     .card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
       color: #1f6463;
-      font-size: 1.1rem;
       margin: 0 0 0.75rem 0;
     }
 
@@ -62,8 +68,66 @@
       list-style: disc;
     }
 
+    .card:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+      transform: translateY(-3px);
+      transition: 0.2s ease;
+    }
+
     .card ul li {
       margin-bottom: 0.5rem;
+    }
+
+    .order-id {
+      margin-top: 1.25rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #ddd;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #666;
+      font-weight: 500;
+    }
+
+
+    .stl-header {
+      font-weight: bold;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stl-list {
+      padding-left: 1.2rem;
+      list-style-type: disc;
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+    }
+
+    .stl-list li {
+      font-size: 0.9rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .stl-link {
+      display: block;
+      max-width: 100%;
+      color: #1f6463;
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+       word-break: break-word; /* Ensures long words break cleanly */
+    }
+
+    .download-all-btn {
+      margin-top: 0.25rem;
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      background-color: #1f6463;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
     }
 
     .order-id {
@@ -86,12 +150,101 @@
   <div class="grid" id="orderGrid"></div>
 
   <script>
-  let allOrders = [];
 
-  function renderOrders(orders) {
-    const grid = document.getElementById("orderGrid");
-    grid.innerHTML = '';
-    orders.forEach(order => {
+
+    let allOrders = [];
+
+    function renderOrders(orders) {
+      const grid = document.getElementById("orderGrid");
+      grid.innerHTML = '';
+      orders.forEach(order => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const heading = document.createElement("h2");
+        heading.textContent = order.name || "Unnamed Order";
+        card.appendChild(heading);
+
+        const list = document.createElement("ul");
+        [
+          ["Email", order.email],
+          ["Phone", order.phone],
+          ["Status", order.status],
+          ["Submitted", new Date(order.submitted_at).toLocaleString()],
+          ["Staff", order.assigned_staff || "—"],
+          ["Est. Price", order.est_price ? `$${order.est_price.toFixed(2)}` : "—"],
+          ["Assigned Price", order.assigned_price ? `$${order.assigned_price.toFixed(2)}` : "—"],
+          ["Payment", order.payment_status || "—"],
+          ["Customer Notes", order.notes || "—"],
+          ["Staff Notes", order.order_notes || "—"]
+        ].forEach(([label, value]) => {
+          const li = document.createElement("li");
+          li.innerHTML = `<strong>${label}:</strong> ${value}`;
+          list.appendChild(li);
+        });
+
+        card.appendChild(list);
+
+        fetch(`/dashboard/files/${order.id}`)
+
+          .then(res => res.json())
+          .then(files => {
+            if (files.length > 0) {
+              const stlTitle = document.createElement("p");
+              stlTitle.className = "stl-header";
+              stlTitle.textContent = "🧾 STL Files:";
+              card.appendChild(stlTitle);
+
+              const list = document.createElement("ul");
+              list.className = "stl-list";
+
+              files.forEach(fileUrl => {
+                const fullFilename = decodeURIComponent(fileUrl.split("/").pop());
+                const downloadUrl = `/dashboard/fileserve/${encodeURIComponent(fullFilename)}`;
+
+                // More flexible cleanup
+                const filename = fullFilename.replace(/^order[_-]?[a-zA-Z0-9]+[_-]/i, "");
+
+                const li = document.createElement("li");
+                li.innerHTML = `
+    <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
+      ⬇️ ${filename}
+    </a>
+  `;
+                list.appendChild(li);
+              });
+
+
+              card.appendChild(list);
+
+              if (files.length > 0) {
+                const downloadAll = document.createElement("a");
+                downloadAll.href = `/dashboard/download-all/${order.id}`;
+                downloadAll.className = "download-all-btn";
+                downloadAll.textContent = "📦 Download All";
+                card.appendChild(downloadAll);
+              }
+            }
+
+            const idTag = document.createElement("div");
+              idTag.className = "order-id";
+              idTag.textContent = `ID: ${order.id || "N/A"}`;
+              card.appendChild(idTag);
+
+          })
+
+          .catch(err => {
+            console.error(`❌ Failed to load STL files for ${order.id}`, err);
+          });
+
+
+        grid.appendChild(card);
+      });
+    }
+
+    function renderSingleOrder(order) {
+      const grid = document.getElementById("orderGrid");
+
       const card = document.createElement("div");
       card.className = "card";
 
@@ -124,48 +277,141 @@
       idTag.textContent = `ID: ${order.id || "N/A"}`;
       card.appendChild(idTag);
 
-      grid.appendChild(card);
-    });
-  }
+      fetch(`/dashboard/files/${order.id}`)
+        .then(res => res.json())
+        .then(files => {
+          if (files.length > 0) {
+            const stlTitle = document.createElement("p");
+            stlTitle.className = "stl-header";
+            stlTitle.textContent = "🧾 STL Files:";
+            card.appendChild(stlTitle);
+
+            const list = document.createElement("ul");
+            list.className = "stl-list";
+
+            files.forEach(fileUrl => {
+              const fullFilename = decodeURIComponent(fileUrl.split("/").pop());
+              const downloadUrl = `/dashboard/fileserve/${encodeURIComponent(fullFilename)}`;
+              const filename = fullFilename.replace(/^order[_-]?[a-zA-Z0-9]+[_-]/i, "");
+
+              const li = document.createElement("li");
+              li.innerHTML = `
+            <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
+              ⬇️ ${filename}
+            </a>`;
+              list.appendChild(li);
+            });
+
+            card.appendChild(list);
+
+            if (files.length > 1) {
+              const downloadAll = document.createElement("a");
+              downloadAll.href = `/dashboard/download-all/${order.id}`;
+              downloadAll.className = "download-all-btn";
+              downloadAll.textContent = "📦 Download All";
+              card.appendChild(downloadAll);
+            }
+          }
+        })
+        .catch(err => {
+          console.error(`❌ Failed to load STL files for ${order.id}`, err);
+        });
+
+      grid.prepend(card); // ✅ Add new card at the top
+    }
 
 
-  function filterOrders(query) {
-    const q = query.toLowerCase();
-    const filtered = allOrders.filter(order => {
-      return (
-        (order.name && order.name.toLowerCase().includes(q)) ||
-        (order.email && order.email.toLowerCase().includes(q)) ||
-        (order.phone && order.phone.toLowerCase().includes(q)) ||
-        (order.id && (
-          order.id.toLowerCase().includes(q) ||
-          order.id.replace(/^order_/, '').includes(q)
-        ))
-      );
-    });
-    renderOrders(filtered);
-  }
-
-  function loadOrders() {
-    fetch("/dashboard/data")
-      .then(res => res.json())
-      .then(data => {
-        allOrders = data;
-        const query = document.getElementById("searchInput").value;
-        filterOrders(query);
-      })
-      .catch(err => {
-        document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
-        console.error(err);
+    function filterOrders(query) {
+      const q = query.toLowerCase();
+      const filtered = allOrders.filter(order => {
+        return (
+          (order.name && order.name.toLowerCase().includes(q)) ||
+          (order.email && order.email.toLowerCase().includes(q)) ||
+          (order.phone && order.phone.toLowerCase().includes(q)) ||
+          (order.id && (
+            order.id.toLowerCase().includes(q) ||
+            order.id.replace(/^order_/, '').includes(q)
+          ))
+        );
       });
-  }
+      renderOrders(filtered);
+    }
 
-  document.getElementById("searchInput").addEventListener("input", (e) => {
-    filterOrders(e.target.value);
-  });
+    let latestTimestamp = null;
 
-  loadOrders(); // Initial load
-  setInterval(loadOrders, 30000); // Refresh every 30 seconds
-</script>
+    // Append new orders to the list and render
+    function appendNewOrders(newOrders) {
+      if (newOrders.length === 0) return;
+
+      const existingIds = new Set(allOrders.map(order => order.id));
+      const uniqueNewOrders = newOrders.filter(order => !existingIds.has(order.id));
+
+      if (uniqueNewOrders.length === 0) return;
+
+      uniqueNewOrders.forEach(order => {
+        allOrders.unshift(order); // Add to the front of the array
+        renderSingleOrder(order); // Only render this one
+      });
+
+      // Sort allOrders for internal consistency (if needed later)
+      allOrders.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+
+      // Update the latest timestamp
+      latestTimestamp = allOrders[0].submitted_at;
+    }
+
+
+    // First full load
+    function loadInitialOrders() {
+      fetch("/dashboard/data")
+        .then(res => res.json())
+        .then(data => {
+          allOrders = data;
+          if (data.length > 0) {
+            latestTimestamp = data[0].submitted_at;
+          }
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
+        })
+        .catch(err => {
+          document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
+          console.error(err);
+        });
+    }
+
+    // Only get orders submitted after the latest known one
+    function fetchNewOrders() {
+      if (!latestTimestamp) return;
+
+      fetch(`/dashboard/data?since=${encodeURIComponent(latestTimestamp)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.length > 0) {
+            appendNewOrders(data);
+          }
+        })
+        .catch(err => {
+          console.error("❌ Failed to fetch new orders:", err);
+        });
+    }
+
+
+    loadInitialOrders();
+    setInterval(fetchNewOrders, 10000); // Check for new orders every 30s
+
+    let searchTimeout;  // Holds the timer reference
+
+    document.getElementById("searchInput").addEventListener("input", () => {
+      clearTimeout(searchTimeout); // Cancel the previous timer if user types again
+
+      searchTimeout = setTimeout(() => {
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query); // Run the actual filtering after 200ms pause
+      }, 200);
+    });
+
+
+  </script>
 
 </body>
 
