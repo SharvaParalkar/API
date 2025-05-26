@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FilamentBros Order Dashboard</title>
   <style>
     body {
@@ -15,7 +16,22 @@
     h1 {
       text-align: center;
       color: #1f6463;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .search-container {
+      max-width: 500px;
+      margin: 0 auto 2rem auto;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .search-container input {
+      flex: 1;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5rem;
     }
 
     .grid {
@@ -27,9 +43,10 @@
     .card {
       background: white;
       border-radius: 1rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       padding: 1.25rem;
       color: #333;
+      position: relative;
     }
 
     .card h2 {
@@ -48,51 +65,108 @@
     .card ul li {
       margin-bottom: 0.5rem;
     }
+
+    .order-id {
+      margin-top: 1rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #888;
+      font-weight: bold;
+    }
   </style>
 </head>
+
 <body>
   <h1>FilamentBros Order Dashboard</h1>
+
+  <div class="search-container">
+    <input type="text" id="searchInput" placeholder="Search by name, email, phone, or order ID..." />
+  </div>
+
   <div class="grid" id="orderGrid"></div>
 
   <script>
+  let allOrders = [];
+
+  function renderOrders(orders) {
+    const grid = document.getElementById("orderGrid");
+    grid.innerHTML = '';
+    orders.forEach(order => {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const heading = document.createElement("h2");
+      heading.textContent = order.name || "Unnamed Order";
+      card.appendChild(heading);
+
+      const list = document.createElement("ul");
+      [
+        ["Email", order.email],
+        ["Phone", order.phone],
+        ["Status", order.status],
+        ["Submitted", new Date(order.submitted_at).toLocaleString()],
+        ["Staff", order.assigned_staff || "—"],
+        ["Est. Price", order.est_price ? `$${order.est_price.toFixed(2)}` : "—"],
+        ["Assigned Price", order.assigned_price ? `$${order.assigned_price.toFixed(2)}` : "—"],
+        ["Payment", order.payment_status || "—"],
+        ["Customer Notes", order.notes || "—"],
+        ["Staff Notes", order.order_notes || "—"]
+      ].forEach(([label, value]) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${label}:</strong> ${value}`;
+        list.appendChild(li);
+      });
+
+      card.appendChild(list);
+
+      const idTag = document.createElement("div");
+      idTag.className = "order-id";
+      idTag.textContent = `ID: ${order.id || "N/A"}`;
+      card.appendChild(idTag);
+
+      grid.appendChild(card);
+    });
+  }
+
+
+  function filterOrders(query) {
+    const q = query.toLowerCase();
+    const filtered = allOrders.filter(order => {
+      return (
+        (order.name && order.name.toLowerCase().includes(q)) ||
+        (order.email && order.email.toLowerCase().includes(q)) ||
+        (order.phone && order.phone.toLowerCase().includes(q)) ||
+        (order.id && (
+          order.id.toLowerCase().includes(q) ||
+          order.id.replace(/^order_/, '').includes(q)
+        ))
+      );
+    });
+    renderOrders(filtered);
+  }
+
+  function loadOrders() {
     fetch("/dashboard/data")
       .then(res => res.json())
       .then(data => {
-        const grid = document.getElementById("orderGrid");
-        data.forEach(order => {
-          const card = document.createElement("div");
-          card.className = "card";
-
-          const heading = document.createElement("h2");
-          heading.textContent = order.name || "Unnamed Order";
-          card.appendChild(heading);
-
-          const list = document.createElement("ul");
-          [
-            ["Email", order.email],
-            ["Phone", order.phone],
-            ["Status", order.status],
-            ["Submitted", new Date(order.submitted_at).toLocaleString()],
-            ["Staff", order.assigned_staff || "—"],
-            ["Est. Price", order.est_price ? `$${order.est_price.toFixed(2)}` : "—"],
-            ["Assigned Price", order.assigned_price ? `$${order.assigned_price.toFixed(2)}` : "—"],
-            ["Payment", order.payment_status || "—"],
-            ["Customer Notes", order.notes || "—"],
-            ["Staff Notes", order.order_notes || "—"]
-          ].forEach(([label, value]) => {
-            const li = document.createElement("li");
-            li.innerHTML = `<strong>${label}:</strong> ${value}`;
-            list.appendChild(li);
-          });
-
-          card.appendChild(list);
-          grid.appendChild(card);
-        });
+        allOrders = data;
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
       })
       .catch(err => {
         document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
         console.error(err);
       });
-  </script>
+  }
+
+  document.getElementById("searchInput").addEventListener("input", (e) => {
+    filterOrders(e.target.value);
+  });
+
+  loadOrders(); // Initial load
+  setInterval(loadOrders, 30000); // Refresh every 30 seconds
+</script>
+
 </body>
+
 </html>
