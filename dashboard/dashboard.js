@@ -40,7 +40,7 @@ app.get("/dashboard/files/:orderId", (req, res) => {
   try {
     const files = fs.readdirSync(STLS_DIR);
     const matchingFiles = files.filter(file => file.startsWith(orderId)); // ✅ Fixed
-    const fileUrls = matchingFiles.map(file => `/dashboard/stl/${encodeURIComponent(file)}`);
+    const fileUrls = matchingFiles.map(file => `/dashboard/fileserve/${encodeURIComponent(file)}`);
     console.log("✅ Matched STL files for", orderId, "→", matchingFiles); // Optional log
     res.json(fileUrls);
   } catch (err) {
@@ -95,6 +95,30 @@ app.get("/dashboard/download-all/:orderId", (req, res) => {
   } catch (err) {
     console.error("❌ Failed to create ZIP:", err.message);
     res.status(500).send("Failed to generate ZIP.");
+  }
+});
+
+app.post("/dashboard/update-price", express.json(), (req, res) => {
+  const { orderId, est_price } = req.body;
+  try {
+    const stmt = db.prepare("UPDATE orders SET est_price = ? WHERE id = ?");
+    stmt.run(est_price, orderId);
+    res.status(200).send("Updated estimate.");
+  } catch (err) {
+    console.error("❌ Failed to update est_price:", err.message);
+    res.status(500).send("Failed to update.");
+  }
+});
+
+app.post("/dashboard/update-notes", express.json(), (req, res) => {
+  const { orderId, order_notes } = req.body;
+  try {
+    const stmt = db.prepare("UPDATE orders SET order_notes = ? WHERE id = ?");
+    stmt.run(order_notes, orderId);
+    res.status(200).send("Updated staff notes.");
+  } catch (err) {
+    console.error("❌ Failed to update staff notes:", err.message);
+    res.status(500).send("Failed to update notes.");
   }
 });
 

@@ -19,10 +19,16 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 function validateOrigin(req, res, next) {
   const origin = req.headers.origin || req.headers.referer;
 
-  if (!origin || !origin.startsWith("https://filamentbros.com")) {
-    console.warn("❌ Blocked upload from invalid origin:", origin);
-    return res.status(403).send("Forbidden");
-  }
+  const allowedOrigins = [
+  "https://filamentbros.com",
+  "https://api.filamentbros.com",
+  "http://localhost:3000",  // Optional: for local dev testing
+];
+
+if (!origin || !allowedOrigins.some(o => origin.startsWith(o))) {
+  console.warn("❌ Blocked upload from invalid origin:", origin);
+  return res.status(403).send("Forbidden");
+}
 
   next();
 }
