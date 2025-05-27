@@ -19,13 +19,20 @@
       }
 
       .search-container {
-        max-width: 500px;
-        margin: 0 auto 2rem auto;
+        max-width: 700px;
+        /* or whatever width you prefer */
+        margin-left: auto;
+        margin-right: auto;
+        margin-bottom: 2rem;
         display: flex;
-        gap: 0.5rem;
+        gap: 1rem;
+        align-items: center;
+        justify-content: center;
       }
 
       .search-container input {
+        width: 100%;
+        max-width: 700px;
         flex: 1;
         padding: 0.75rem;
         font-size: 1rem;
@@ -235,26 +242,170 @@
         background-color: #2ecc71;
         color: #000;
       }
+
+      .toggle-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+        flex-shrink: 0;
+      }
+
+      .toggle-wrapper input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.3s;
+        border-radius: 24px;
+      }
+
+      .slider::before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+      }
+
+      .toggle-wrapper input:checked + .slider {
+        background-color: #1f6463;
+      }
+
+      .toggle-wrapper input:checked + .slider::before {
+        transform: translateX(20px);
+      }
+
+      .toggle-label {
+        font-size: 0.9rem;
+        margin-left: 0.5rem;
+        line-height: 24px;
+        color: #333;
+      }
+
+      .top-bar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-direction: column;
+      }
+
+      .search-container {
+        width: 100%;
+        max-width: 700px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+      }
+      .toggle-group {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(245, 245, 245, 0.95);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-box {
+  background: white;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  width: 320px;
+  max-width: 90%;
+  text-align: center;
+}
+
+.login-box input[type="text"],
+.login-box input[type="password"] {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+}
+
+.login-box button {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  background-color: #1f6463;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.login-box .remember-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  justify-content: left;
+}
+
     </style>
   </head>
 
   <body>
     <h1>FilamentBros Order Dashboard</h1>
 
-    <div class="search-container">
-      <input
-        type="text"
-        id="searchInput"
-        placeholder="Search by name, email, phone, or order ID..."
-      />
+    <div class="top-bar">
+      <div class="search-container">
+        <div class="toggle-group">
+          <span class="toggle-label">Old Orders</span>
+          <label class="toggle-wrapper">
+            <input type="checkbox" id="showOldToggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search by name, email, phone, or order ID..."
+        />
+      </div>
     </div>
 
     <div class="grid" id="orderGrid"></div>
 
     <script>
       let allOrders = [];
-      const VALID_STATUSES = ["pending", "pre print", "printing", "printing pay later", "completed"];
-
+      const VALID_STATUSES = [
+        "pending",
+        "pre print",
+        "printing",
+        "printing pay later",
+        "completed",
+      ];
 
       async function renderOrders(
         orders,
@@ -372,12 +523,23 @@
 
           const table = document.createElement("table");
           table.className = "details-table";
+          const submittedDate = new Date(order.submitted_at);
+          const formattedDate = submittedDate.toLocaleString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+
           [
             ["Email", order.email],
             ["Phone", order.phone],
             ["Staff", order.assigned_staff || "—"],
             ["Customer Notes", order.notes || "—"],
             ["Staff Notes", order.order_notes || "—"],
+            ["Submitted At", formattedDate],
           ].forEach(([label, value]) => {
             const row = document.createElement("tr");
             row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
@@ -423,9 +585,9 @@
 
                   const li = document.createElement("li");
                   li.innerHTML = `
-                          <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
-                            ${filename}
-                          </a>`;
+                            <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
+                              ${filename}
+                            </a>`;
                   list.appendChild(li);
                 });
 
@@ -473,7 +635,14 @@
         const q = query.toLowerCase();
         const isSearchActive = q.trim().length > 0; // ✅ only expand if non-empty
 
+        const showOld = document.getElementById("showOldToggle").checked;
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
         const filtered = allOrders.filter((order) => {
+          const submittedAt = new Date(order.submitted_at);
+          const isRecent = submittedAt >= oneWeekAgo;
+          if (!showOld && !isRecent) return false;
           return (
             (order.name && order.name.toLowerCase().includes(q)) ||
             (order.email && order.email.toLowerCase().includes(q)) ||
@@ -637,6 +806,13 @@
         }, 200);
       });
 
+      document
+        .getElementById("showOldToggle")
+        .addEventListener("change", () => {
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
+        });
+
       async function autoEstimateOrder(order, card) {
         try {
           const files = await fetch(`/dashboard/files/${order.id}`).then((r) =>
@@ -749,6 +925,65 @@
       }
 
       setInterval(refreshOrderStatuses, 10000); // every 10 seconds
+
+      const loginOverlay = document.getElementById("loginOverlay");
+  const loginForm = document.getElementById("loginForm");
+  const loginError = document.getElementById("loginError");
+
+  // Auto-login from localStorage
+  if (localStorage.getItem("rememberedUser")) {
+    loginOverlay.style.display = "none";
+  }
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const remember = document.getElementById("rememberMe").checked;
+
+    const formData = new URLSearchParams();
+    formData.append("username", username);
+    formData.append("password", password);
+    if (remember) formData.append("remember", "on");
+
+    try {
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+
+      if (res.redirected) {
+        if (remember) localStorage.setItem("rememberedUser", "true");
+        loginOverlay.style.display = "none";
+      } else {
+        loginError.textContent = "Invalid username or password.";
+        loginError.style.display = "block";
+      }
+    } catch (err) {
+      loginError.textContent = "Login error. Try again.";
+      loginError.style.display = "block";
+    }
+  });
+  
     </script>
+
+    <div id="loginOverlay" class="login-overlay">
+  <div class="login-box">
+    <h2>FilamentBros Login</h2>
+    <form id="loginForm">
+      <input type="text" id="username" placeholder="Username" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <label class="remember-line">
+        <input type="checkbox" id="rememberMe" />
+        Remember Me
+      </label>
+      <button type="submit">Login</button>
+      <p id="loginError" style="color: red; display: none; font-size: 0.85rem;"></p>
+    </form>
+  </div>
+</div>
+
+
   </body>
 </html>
