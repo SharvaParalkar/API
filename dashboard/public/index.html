@@ -51,7 +51,7 @@
       padding: 1.25rem;
       color: #333;
       position: relative;
-       height: auto;
+      height: auto;
     }
 
     .card h2 {
@@ -114,8 +114,9 @@
       text-decoration: none;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
-       word-break: break-word; /* Ensures long words break cleanly */
+      white-space: normal;
+      word-break: break-word;
+      /* Ensures long words break cleanly */
     }
 
     .download-all-btn {
@@ -137,6 +138,73 @@
       color: #888;
       font-weight: bold;
     }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      color: white;
+    }
+
+    .card h2 div {
+      margin-top: 0.25rem;
+    }
+
+    .status-submitted {
+      background-color: #1f6463;
+    }
+
+    .status-complete {
+      background-color: #5cb85c;
+    }
+
+    .status-failed {
+      background-color: #d9534f;
+    }
+
+    .details-toggle {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: #1f6463;
+      background: none;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .details-section {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.6s ease, opacity 0.6s ease;
+      opacity: 0;
+      margin-top: 0;
+    }
+
+
+    .details-section.visible {
+      max-height: 1000px;
+      /* large enough to cover any content height */
+      opacity: 1;
+      margin-top: 0.75rem;
+    }
+
+    .details-table {
+      width: 100%;
+      font-size: 0.9rem;
+      border-spacing: 0.4rem 0.25rem;
+    }
+
+    .details-table td {
+      vertical-align: top;
+      padding: 0.2rem 0.5rem;
+    }
+
+    .details-table td:first-child {
+      font-weight: bold;
+      width: 30%;
+    }
   </style>
 </head>
 
@@ -154,36 +222,66 @@
 
     let allOrders = [];
 
-    function renderOrders(orders) {
-      const grid = document.getElementById("orderGrid");
-      grid.innerHTML = '';
+    function renderOrders(orders, expandDetails = false, container = null) {
+      const grid = container || document.getElementById("orderGrid");
+      if (!container) grid.innerHTML = '';
       orders.forEach(order => {
         const card = document.createElement("div");
         card.className = "card";
 
         const heading = document.createElement("h2");
-        heading.textContent = order.name || "Unnamed Order";
+        heading.innerHTML = `
+  ${order.name || "Unnamed Order"}
+  <div>
+    <span class="status-badge status-${order.status?.toLowerCase() || 'submitted'}">
+      ${order.status}
+    </span>
+  </div>
+`;
+
         card.appendChild(heading);
 
-        const list = document.createElement("ul");
+        // Show estimated price right under heading
+        const price = document.createElement("p");
+        price.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : "—"}`;
+        card.appendChild(price);
+
+        const toggleBtn = document.createElement("button");
+        toggleBtn.className = "details-toggle";
+        toggleBtn.textContent = "Show Details ▼";
+        card.appendChild(toggleBtn);
+
+        const detailsSection = document.createElement("div");
+        detailsSection.className = "details-section";
+        card.appendChild(detailsSection);
+
+        const table = document.createElement("table");
+        table.className = "details-table";
         [
           ["Email", order.email],
           ["Phone", order.phone],
-          ["Status", order.status],
-          ["Submitted", new Date(order.submitted_at).toLocaleString()],
           ["Staff", order.assigned_staff || "—"],
-          ["Est. Price", order.est_price ? `$${order.est_price.toFixed(2)}` : "—"],
-          ["Assigned Price", order.assigned_price ? `$${order.assigned_price.toFixed(2)}` : "—"],
-          ["Payment", order.payment_status || "—"],
           ["Customer Notes", order.notes || "—"],
           ["Staff Notes", order.order_notes || "—"]
         ].forEach(([label, value]) => {
-          const li = document.createElement("li");
-          li.innerHTML = `<strong>${label}:</strong> ${value}`;
-          list.appendChild(li);
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
+          table.appendChild(row);
         });
 
-        card.appendChild(list);
+        detailsSection.appendChild(table);
+
+        toggleBtn.onclick = () => {
+          const visible = detailsSection.classList.toggle("visible");
+          toggleBtn.textContent = visible ? "Hide ▲" : "Show Details ▼";
+        };
+
+        // Expand by default if search is active
+        if (expandDetails) {
+          detailsSection.classList.add("visible");
+          toggleBtn.textContent = "Hide ▲";
+        }
+
 
         fetch(`/dashboard/files/${order.id}`)
 
@@ -192,8 +290,8 @@
             if (files.length > 0) {
               const stlTitle = document.createElement("p");
               stlTitle.className = "stl-header";
-              stlTitle.textContent = "🧾 STL Files:";
-              card.appendChild(stlTitle);
+              stlTitle.textContent = "STL Files:";
+              detailsSection.appendChild(stlTitle); // ✅ append to details section
 
               const list = document.createElement("ul");
               list.className = "stl-list";
@@ -201,36 +299,31 @@
               files.forEach(fileUrl => {
                 const fullFilename = decodeURIComponent(fileUrl.split("/").pop());
                 const downloadUrl = `/dashboard/fileserve/${encodeURIComponent(fullFilename)}`;
-
-                // More flexible cleanup
                 const filename = fullFilename.replace(/^order[_-]?[a-zA-Z0-9]+[_-]/i, "");
 
                 const li = document.createElement("li");
                 li.innerHTML = `
-    <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
-      ⬇️ ${filename}
-    </a>
-  `;
+        <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
+          ${filename}
+        </a>`;
                 list.appendChild(li);
               });
 
-
-              card.appendChild(list);
+              detailsSection.appendChild(list); // ✅ append to details section
 
               if (files.length > 0) {
                 const downloadAll = document.createElement("a");
                 downloadAll.href = `/dashboard/download-all/${order.id}`;
                 downloadAll.className = "download-all-btn";
                 downloadAll.textContent = "📦 Download All";
-                card.appendChild(downloadAll);
+                detailsSection.appendChild(downloadAll); // ✅ append to details section
               }
             }
 
             const idTag = document.createElement("div");
-              idTag.className = "order-id";
-              idTag.textContent = `ID: ${order.id || "N/A"}`;
-              card.appendChild(idTag);
-
+            idTag.className = "order-id";
+            idTag.textContent = `ID: ${order.id || "N/A"}`;
+            card.appendChild(idTag);
           })
 
           .catch(err => {
@@ -242,87 +335,11 @@
       });
     }
 
-    function renderSingleOrder(order) {
-      const grid = document.getElementById("orderGrid");
-
-      const card = document.createElement("div");
-      card.className = "card";
-
-      const heading = document.createElement("h2");
-      heading.textContent = order.name || "Unnamed Order";
-      card.appendChild(heading);
-
-      const list = document.createElement("ul");
-      [
-        ["Email", order.email],
-        ["Phone", order.phone],
-        ["Status", order.status],
-        ["Submitted", new Date(order.submitted_at).toLocaleString()],
-        ["Staff", order.assigned_staff || "—"],
-        ["Est. Price", order.est_price ? `$${order.est_price.toFixed(2)}` : "—"],
-        ["Assigned Price", order.assigned_price ? `$${order.assigned_price.toFixed(2)}` : "—"],
-        ["Payment", order.payment_status || "—"],
-        ["Customer Notes", order.notes || "—"],
-        ["Staff Notes", order.order_notes || "—"]
-      ].forEach(([label, value]) => {
-        const li = document.createElement("li");
-        li.innerHTML = `<strong>${label}:</strong> ${value}`;
-        list.appendChild(li);
-      });
-
-      card.appendChild(list);
-
-      const idTag = document.createElement("div");
-      idTag.className = "order-id";
-      idTag.textContent = `ID: ${order.id || "N/A"}`;
-      card.appendChild(idTag);
-
-      fetch(`/dashboard/files/${order.id}`)
-        .then(res => res.json())
-        .then(files => {
-          if (files.length > 0) {
-            const stlTitle = document.createElement("p");
-            stlTitle.className = "stl-header";
-            stlTitle.textContent = "🧾 STL Files:";
-            card.appendChild(stlTitle);
-
-            const list = document.createElement("ul");
-            list.className = "stl-list";
-
-            files.forEach(fileUrl => {
-              const fullFilename = decodeURIComponent(fileUrl.split("/").pop());
-              const downloadUrl = `/dashboard/fileserve/${encodeURIComponent(fullFilename)}`;
-              const filename = fullFilename.replace(/^order[_-]?[a-zA-Z0-9]+[_-]/i, "");
-
-              const li = document.createElement("li");
-              li.innerHTML = `
-            <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
-              ⬇️ ${filename}
-            </a>`;
-              list.appendChild(li);
-            });
-
-            card.appendChild(list);
-
-            if (files.length > 1) {
-              const downloadAll = document.createElement("a");
-              downloadAll.href = `/dashboard/download-all/${order.id}`;
-              downloadAll.className = "download-all-btn";
-              downloadAll.textContent = "📦 Download All";
-              card.appendChild(downloadAll);
-            }
-          }
-        })
-        .catch(err => {
-          console.error(`❌ Failed to load STL files for ${order.id}`, err);
-        });
-
-      grid.prepend(card); // ✅ Add new card at the top
-    }
-
 
     function filterOrders(query) {
       const q = query.toLowerCase();
+      const isSearchActive = q.trim().length > 0; // ✅ only expand if non-empty
+
       const filtered = allOrders.filter(order => {
         return (
           (order.name && order.name.toLowerCase().includes(q)) ||
@@ -334,13 +351,19 @@
           ))
         );
       });
-      renderOrders(filtered);
+
+      renderOrders(filtered, isSearchActive); // ✅ conditionally expand
     }
 
     let latestTimestamp = null;
 
     // Append new orders to the list and render
-    function appendNewOrders(newOrders) {
+
+    function renderOrdersToContainer(orders, container) {
+  renderOrders(orders, false, container);
+}
+
+    async function appendNewOrders(newOrders) {
       if (newOrders.length === 0) return;
 
       const existingIds = new Set(allOrders.map(order => order.id));
@@ -348,41 +371,60 @@
 
       if (uniqueNewOrders.length === 0) return;
 
-      uniqueNewOrders.forEach(order => {
-        allOrders.unshift(order); // Add to the front of the array
-        renderSingleOrder(order); // Only render this one
-      });
+      for (const order of uniqueNewOrders) {
+        allOrders.unshift(order);
+        const query = document.getElementById("searchInput").value;
+        if (!query.trim()) {
+          // Only append if not in a filtered search view
+          const grid = document.getElementById("orderGrid");
+          const tempOrders = [order];
+          const tempHTML = document.createElement("div");
+          renderOrdersToContainer(tempOrders, tempHTML); // custom helper
+          grid.prepend(...tempHTML.children);
+        } // Reuse main render function to show correctly
 
-      // Sort allOrders for internal consistency (if needed later)
+        // Trigger auto estimate if missing
+        if (
+          (order.est_price == null || order.est_price === 0) &&
+          !(order.order_notes && order.order_notes.includes("Print estimate failed"))
+        ) {
+          await autoEstimateOrder(order);
+        }
+      }
+
+      // Update latest timestamp
       allOrders.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
-
-      // Update the latest timestamp
       latestTimestamp = allOrders[0].submitted_at;
     }
 
 
+
     // First full load
     function loadInitialOrders() {
-  fetch("/dashboard/data")
-    .then(res => res.json())
-    .then(async (data) => {
-      allOrders = data;
-      if (data.length > 0) latestTimestamp = data[0].submitted_at;
-      const query = document.getElementById("searchInput").value;
-      filterOrders(query);
+      fetch("/dashboard/data")
+        .then(res => res.json())
+        .then(async (data) => {
+          allOrders = data;
+          if (data.length > 0) latestTimestamp = data[0].submitted_at;
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
 
-      // Trigger estimates for orders missing est_price
-      for (const order of data) {
-        if (order.est_price == null) {
-          await autoEstimateOrder(order);
-        }
-      }
-    })
-    .catch(err => {
-      document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
-      console.error(err);
-    });
-}
+          // Trigger estimates for orders missing est_price
+          for (const order of data) {
+            if (
+              (order.est_price == null || order.est_price === 0) &&
+              !(order.order_notes && order.order_notes.includes("Print estimate failed"))
+            ) {
+              await autoEstimateOrder(order);
+            }
+
+          }
+        })
+        .catch(err => {
+          document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
+          console.error(err);
+        });
+    }
 
     // Only get orders submitted after the latest known one
     function fetchNewOrders() {
@@ -415,109 +457,108 @@
       }, 200);
     });
 
-async function autoEstimateOrder(order) {
-  try {
-    const files = await fetch(`/dashboard/files/${order.id}`).then(r => r.json());
-    if (!files.length) {
-      console.log(`⏭️ Skipped ${order.id} — No STL files found.`);
-      return;
-    }
+    async function autoEstimateOrder(order) {
+      try {
+        const files = await fetch(`/dashboard/files/${order.id}`).then(r => r.json());
+        if (!files.length) {
+          console.log(`⏭️ Skipped ${order.id} — No STL files found.`);
+          return;
+        }
 
-    const formData = new FormData();
-    const fileNames = [];
+        const formData = new FormData();
+        const fileNames = [];
 
-    for (const fileUrl of files) {
-      const response = await fetch(fileUrl);
-      const blob = await response.blob();
-      const filename = decodeURIComponent(fileUrl.split("/").pop());
-      formData.append("stl", blob, filename);
-      fileNames.push(filename);
-    }
+        for (const fileUrl of files) {
+          const response = await fetch(fileUrl);
+          const blob = await response.blob();
+          const filename = decodeURIComponent(fileUrl.split("/").pop());
+          formData.append("stl", blob, filename);
+          fileNames.push(filename);
+        }
 
-    const sseResponse = await fetch("/stl/upload", {
-      method: "POST",
-      headers: {
-        Origin: "https://filamentbros.com"
-      },
-      body: formData
-    });
+        const sseResponse = await fetch("/stl/upload", {
+          method: "POST",
+          headers: {
+            Origin: "https://filamentbros.com"
+          },
+          body: formData
+        });
 
-    const reader = sseResponse.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
-    let totalEstimate = 0;
-    let failedFiles = [];
+        const reader = sseResponse.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        let totalEstimate = 0;
+        let failedFiles = [];
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
 
-      const events = buffer.split("\n\n");
-      buffer = events.pop(); // Keep last incomplete
+          const events = buffer.split("\n\n");
+          buffer = events.pop(); // Keep last incomplete
 
-      for (const event of events) {
-        if (event.startsWith("data:")) {
-          const data = JSON.parse(event.replace("data:", "").trim());
-          if (data.status === "success" && data.price) {
-            totalEstimate += parseFloat(data.price);
-          } else if (data.status === "error") {
-            failedFiles.push(data.file || "Unknown file");
+          for (const event of events) {
+            if (event.startsWith("data:")) {
+              const data = JSON.parse(event.replace("data:", "").trim());
+              if (data.status === "success" && data.price) {
+                totalEstimate += parseFloat(data.price);
+              } else if (data.status === "error") {
+                failedFiles.push(data.file || "Unknown file");
+              }
+            }
           }
         }
+
+        if (totalEstimate > 0) {
+          await fetch("/dashboard/update-price", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: order.id,
+              est_price: totalEstimate.toFixed(2)
+            })
+          });
+          console.log(`✅ Updated order ${order.id} with estimate $${totalEstimate.toFixed(2)}`);
+        }
+
+        const orderCard = [...document.querySelectorAll(".order-id")]
+          .find(div => div.textContent.includes(order.id))
+          ?.parentElement;
+
+        if (orderCard) {
+          // Update price line
+          const priceLine = orderCard.querySelector("p");
+          if (priceLine) {
+            priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(2)}`;
+          }
+
+          if (failedFiles.length > 0) {
+            const message = `⚠️ Print estimate failed for: ${failedFiles.join(", ")}`;
+
+            // Update in database
+            await fetch("/dashboard/update-notes", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: order.id,
+                order_notes: message
+              })
+            });
+
+            // Optional: update UI immediately without reload
+            const notesLine = [...orderCard.querySelectorAll("li")]
+              .find(li => li.innerHTML.includes("Staff Notes:"));
+            if (notesLine) {
+              notesLine.innerHTML = `<strong>Staff Notes:</strong> ${message}`;
+            }
+          }
+        }
+
+      } catch (err) {
+        console.error(`❌ Failed to auto-estimate for order ${order.id}:`, err);
       }
     }
-
-    if (totalEstimate > 0) {
-      await fetch("/dashboard/update-price", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: order.id,
-          est_price: totalEstimate.toFixed(2)
-        })
-      });
-      console.log(`✅ Updated order ${order.id} with estimate $${totalEstimate.toFixed(2)}`);
-    }
-
-    const orderCard = [...document.querySelectorAll(".order-id")]
-  .find(div => div.textContent.includes(order.id))
-  ?.parentElement;
-
-if (orderCard) {
-  // Update price line
-  const priceLine = [...orderCard.querySelectorAll("li")]
-    .find(li => li.innerHTML.includes("Est. Price:"));
-   if (priceLine) {
-    priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(2)}`;
-  }
-
-  if (failedFiles.length > 0) {
-    const message = `⚠️ Estimate failed for: ${failedFiles.join(", ")}`;
-
-    // Update in database
-    await fetch("/dashboard/update-notes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId: order.id,
-        order_notes: message
-      })
-    });
-
-    // Optional: update UI immediately without reload
-    const notesLine = [...orderCard.querySelectorAll("li")]
-      .find(li => li.innerHTML.includes("Staff Notes:"));
-    if (notesLine) {
-      notesLine.innerHTML = `<strong>Staff Notes:</strong> ${message}`;
-    }
-  }
-}
-
-} catch (err) {
-  console.error(`❌ Failed to auto-estimate for order ${order.id}:`, err);
-}
-}
 
 
   </script>
