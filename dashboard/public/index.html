@@ -332,6 +332,15 @@
 
 
         grid.appendChild(card);
+
+        if (
+          (order.est_price == null || order.est_price === 0) &&
+          !(order.order_notes && order.order_notes.includes("Print estimate failed"))
+        ) {
+          autoEstimateOrder(order, card);
+        }
+
+
       });
     }
 
@@ -360,8 +369,8 @@
     // Append new orders to the list and render
 
     function renderOrdersToContainer(orders, container) {
-  renderOrders(orders, false, container);
-}
+      renderOrders(orders, false, container);
+    }
 
     async function appendNewOrders(newOrders) {
       if (newOrders.length === 0) return;
@@ -457,108 +466,105 @@
       }, 200);
     });
 
-    async function autoEstimateOrder(order) {
-      try {
-        const files = await fetch(`/dashboard/files/${order.id}`).then(r => r.json());
-        if (!files.length) {
-          console.log(`⏭️ Skipped ${order.id} — No STL files found.`);
-          return;
-        }
+    async function autoEstimateOrder(order, card) {
+  try {
+    const files = await fetch(`/dashboard/files/${order.id}`).then(r => r.json());
+    if (!files.length) {
+      console.log(`⏭️ Skipped ${order.id} — No STL files found.`);
+      return;
+    }
 
-        const formData = new FormData();
-        const fileNames = [];
+    const formData = new FormData();
+    const fileNames = [];
 
-        for (const fileUrl of files) {
-          const response = await fetch(fileUrl);
-          const blob = await response.blob();
-          const filename = decodeURIComponent(fileUrl.split("/").pop());
-          formData.append("stl", blob, filename);
-          fileNames.push(filename);
-        }
+    for (const fileUrl of files) {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const filename = decodeURIComponent(fileUrl.split("/").pop());
+      formData.append("stl", blob, filename);
+      fileNames.push(filename);
+    }
 
-        const sseResponse = await fetch("/stl/upload", {
-          method: "POST",
-          headers: {
-            Origin: "https://filamentbros.com"
-          },
-          body: formData
-        });
+    const sseResponse = await fetch("/stl/upload", {
+      method: "POST",
+      headers: {
+        Origin: "https://filamentbros.com"
+      },
+      body: formData
+    });
 
-        const reader = sseResponse.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let buffer = "";
-        let totalEstimate = 0;
-        let failedFiles = [];
+    const reader = sseResponse.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let totalEstimate = 0;
+    let failedFiles = [];
 
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-          const events = buffer.split("\n\n");
-          buffer = events.pop(); // Keep last incomplete
+      const events = buffer.split("\n\n");
+      buffer = events.pop(); // Keep last incomplete
 
-          for (const event of events) {
-            if (event.startsWith("data:")) {
-              const data = JSON.parse(event.replace("data:", "").trim());
-              if (data.status === "success" && data.price) {
-                totalEstimate += parseFloat(data.price);
-              } else if (data.status === "error") {
-                failedFiles.push(data.file || "Unknown file");
-              }
-            }
+      for (const event of events) {
+        if (event.startsWith("data:")) {
+          const data = JSON.parse(event.replace("data:", "").trim());
+          if (data.status === "success" && data.price) {
+            totalEstimate += parseFloat(data.price);
+          } else if (data.status === "error") {
+            failedFiles.push(data.file || "Unknown file");
           }
         }
-
-        if (totalEstimate > 0) {
-          await fetch("/dashboard/update-price", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderId: order.id,
-              est_price: totalEstimate.toFixed(2)
-            })
-          });
-          console.log(`✅ Updated order ${order.id} with estimate $${totalEstimate.toFixed(2)}`);
-        }
-
-        const orderCard = [...document.querySelectorAll(".order-id")]
-          .find(div => div.textContent.includes(order.id))
-          ?.parentElement;
-
-        if (orderCard) {
-          // Update price line
-          const priceLine = orderCard.querySelector("p");
-          if (priceLine) {
-            priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(2)}`;
-          }
-
-          if (failedFiles.length > 0) {
-            const message = `⚠️ Print estimate failed for: ${failedFiles.join(", ")}`;
-
-            // Update in database
-            await fetch("/dashboard/update-notes", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                orderId: order.id,
-                order_notes: message
-              })
-            });
-
-            // Optional: update UI immediately without reload
-            const notesLine = [...orderCard.querySelectorAll("li")]
-              .find(li => li.innerHTML.includes("Staff Notes:"));
-            if (notesLine) {
-              notesLine.innerHTML = `<strong>Staff Notes:</strong> ${message}`;
-            }
-          }
-        }
-
-      } catch (err) {
-        console.error(`❌ Failed to auto-estimate for order ${order.id}:`, err);
       }
     }
+
+    if (totalEstimate > 0) {
+      await fetch("/dashboard/update-price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          est_price: totalEstimate.toFixed(2)
+        })
+      });
+      console.log(`✅ Updated order ${order.id} with estimate $${totalEstimate.toFixed(2)}`);
+    }
+
+    if (card) {
+      const priceLine = card.querySelector("p");
+      if (priceLine) {
+        priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(2)}`;
+      }
+
+      if (failedFiles.length > 0) {
+        const message = `⚠️ Print estimate failed for: ${failedFiles.join(", ")}`;
+
+        // Update in database
+        await fetch("/dashboard/update-notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: order.id,
+            order_notes: message
+          })
+        });
+
+        // Update UI immediately
+        const notesLine = [...card.querySelectorAll("li")]
+          .find(li => li.innerHTML.includes("Staff Notes:"));
+        if (notesLine) {
+          notesLine.innerHTML = `<strong>Staff Notes:</strong> ${message}`;
+        }
+      }
+    }
+
+  } catch (err) {
+    console.error(`❌ Failed to auto-estimate for order ${order.id}:`, err);
+  }
+}
+
+    
 
 
   </script>
