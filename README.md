@@ -34,4 +34,7 @@ FEATURE LOG
 
 05/25/2025 - dashboard work, initial prototype complete, no download functionality yet, just shows all orders in nice cards. 
 
-05/26/2025 - 
+05/26/2025 - Dashboard, shows all cards, collapses cards, download functionality works, and styling is better
+
+
+
