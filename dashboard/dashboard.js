@@ -122,6 +122,27 @@ app.post("/dashboard/update-notes", express.json(), (req, res) => {
   }
 });
 
+app.post("/dashboard/update-status", express.json(), (req, res) => {
+  const { orderId, status } = req.body;
+  if (!orderId || !status) {
+    return res.status(400).json({ error: "Missing orderId or status" });
+  }
+
+  try {
+    const stmt = db.prepare("UPDATE orders SET status = ? WHERE id = ?");
+    const result = stmt.run(status, orderId);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Failed to update status:", err.message);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 const PORT = 3300;
 app.listen(PORT, () => {
   console.log(`✅ Dashboard running at http://localhost:${PORT}`);
