@@ -1,989 +1,1018 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FilamentBros Order Dashboard</title>
-    <style>
-      body {
-        font-family: "Roboto", sans-serif;
-        margin: 0;
-        padding: 2rem;
-        background-color: #f5f5f5;
-      }
 
-      h1 {
-        text-align: center;
-        color: #1f6463;
-        margin-bottom: 1rem;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FilamentBros Order Dashboard</title>
+  <style>
+    body {
+      font-family: "Roboto", sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background-color: #f5f5f5;
+    }
 
-      .search-container {
-        max-width: 700px;
-        /* or whatever width you prefer */
-        margin-left: auto;
-        margin-right: auto;
-        margin-bottom: 2rem;
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        justify-content: center;
-      }
+    h1 {
+      text-align: center;
+      color: #1f6463;
+      margin-bottom: 1rem;
+    }
 
-      .search-container input {
-        width: 100%;
-        max-width: 700px;
-        flex: 1;
-        padding: 0.75rem;
-        font-size: 1rem;
-        border: 2px solid #ccc;
-        border-radius: 5rem;
-      }
+    .search-container {
+      max-width: 700px;
+      /* or whatever width you prefer */
+      margin-left: auto;
+      margin-right: auto;
+      margin-bottom: 2rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      justify-content: center;
+    }
 
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1.5rem;
-        align-items: start;
-      }
+    .search-container input {
+      width: 100%;
+      max-width: 700px;
+      flex: 1;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5rem;
+    }
 
-      .card {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        background: white;
-        border-radius: 1rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        padding: 1.25rem;
-        color: #333;
-        position: relative;
-        height: auto;
-      }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
 
-      .card h2 {
-        font-size: 1.2rem;
-        margin-bottom: 1rem;
-        color: #1f6463;
-        margin: 0 0 0.75rem 0;
-      }
+    .card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 1.25rem;
+      color: #333;
+      position: relative;
+      height: auto;
+    }
 
-      .card ul {
-        padding-left: 1rem;
-        margin: 0;
-        font-size: 0.95rem;
-        list-style: disc;
-      }
+    .card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      color: #1f6463;
+      margin: 0 0 0.75rem 0;
+    }
 
-      .card:hover {
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-        transform: translateY(-3px);
-        transition: 0.2s ease;
-      }
+    .card ul {
+      padding-left: 1rem;
+      margin: 0;
+      font-size: 0.95rem;
+      list-style: disc;
+    }
 
-      .card ul li {
-        margin-bottom: 0.5rem;
-      }
+    .card:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+      transform: translateY(-3px);
+      transition: 0.2s ease;
+    }
 
-      .order-id {
-        margin-top: 1.25rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid #ddd;
-        text-align: center;
-        font-size: 0.8rem;
-        color: #666;
-        font-weight: 500;
-      }
+    .card ul li {
+      margin-bottom: 0.5rem;
+    }
 
-      .stl-header {
-        font-weight: bold;
-        margin-top: 1rem;
-        margin-bottom: 0.5rem;
-      }
+    .order-id {
+      margin-top: 1.25rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #ddd;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #666;
+      font-weight: 500;
+    }
 
-      .stl-list {
-        padding-left: 1.2rem;
-        list-style-type: disc;
-        margin-top: 0;
-        margin-bottom: 0.75rem;
-      }
+    .stl-header {
+      font-weight: bold;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
 
-      .stl-list li {
-        font-size: 0.9rem;
-        margin-bottom: 0.35rem;
-      }
+    .stl-list {
+      padding-left: 1.2rem;
+      list-style-type: disc;
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+    }
 
-      .stl-link {
-        display: block;
-        max-width: 100%;
-        color: #1f6463;
-        text-decoration: none;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: normal;
-        word-break: break-word;
-        /* Ensures long words break cleanly */
-      }
+    .stl-list li {
+      font-size: 0.9rem;
+      margin-bottom: 0.35rem;
+    }
 
-      .download-all-btn {
-        margin-top: 0.25rem;
-        display: inline-block;
-        margin-top: 0.5rem;
-        padding: 0.4rem 0.75rem;
-        background-color: #1f6463;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        font-size: 0.85rem;
-      }
+    .stl-link {
+      display: block;
+      max-width: 100%;
+      color: #1f6463;
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: normal;
+      word-break: break-word;
+      /* Ensures long words break cleanly */
+    }
 
-      .order-id {
-        margin-top: 1rem;
-        text-align: center;
-        font-size: 0.85rem;
-        color: #888;
-        font-weight: bold;
-      }
+    .download-all-btn {
+      margin-top: 0.25rem;
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      background-color: #1f6463;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
 
-      .status-badge {
-        display: inline-block;
-        padding: 0.2rem 0.6rem;
-        border-radius: 1rem;
-        font-size: 0.75rem;
-        margin-top: 0.25rem;
-        color: white;
-      }
+    .order-id {
+      margin-top: 1rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #888;
+      font-weight: bold;
+    }
 
-      .card h2 div {
-        margin-top: 0.25rem;
-      }
+    .status-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      color: white;
+    }
 
-      .status-submitted {
-        background-color: #1f6463;
-      }
+    .card h2 div {
+      margin-top: 0.25rem;
+    }
 
-      .status-complete {
-        background-color: #5cb85c;
-      }
+    .status-submitted {
+      background-color: #1f6463;
+    }
 
-      .status-failed {
-        background-color: #d9534f;
-      }
+    .status-complete {
+      background-color: #5cb85c;
+    }
 
-      .details-toggle {
-        margin-top: 0.5rem;
-        font-size: 0.85rem;
-        color: #1f6463;
-        background: none;
-        border: none;
-        font-weight: bold;
-        cursor: pointer;
-      }
+    .status-failed {
+      background-color: #d9534f;
+    }
 
-      .details-section {
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.6s ease, opacity 0.6s ease;
-        opacity: 0;
-        margin-top: 0;
-      }
+    .details-toggle {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: #1f6463;
+      background: none;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
 
-      .details-section.visible {
-        max-height: 1000px;
-        /* large enough to cover any content height */
-        opacity: 1;
-        margin-top: 0.75rem;
-      }
+    .details-section {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.6s ease, opacity 0.6s ease;
+      opacity: 0;
+      margin-top: 0;
+    }
 
-      .details-table {
-        width: 100%;
-        font-size: 0.9rem;
-        border-spacing: 0.4rem 0.25rem;
-      }
+    .details-section.visible {
+      max-height: 1000px;
+      /* large enough to cover any content height */
+      opacity: 1;
+      margin-top: 0.75rem;
+    }
 
-      .details-table td {
-        vertical-align: top;
-        padding: 0.2rem 0.5rem;
-      }
+    .details-table {
+      width: 100%;
+      font-size: 0.9rem;
+      border-spacing: 0.4rem 0.25rem;
+    }
 
-      .details-table td:first-child {
-        font-weight: bold;
-        width: 30%;
-      }
+    .details-table td {
+      vertical-align: top;
+      padding: 0.2rem 0.5rem;
+    }
 
-      .status-dropdown {
-        padding: 0.4rem 0.75rem;
-        border-radius: 0.5rem;
-        border: 1px solid #ccc;
-        font-size: 0.9rem;
-        background-color: #f5f5f5;
-      }
+    .details-table td:first-child {
+      font-weight: bold;
+      width: 30%;
+    }
 
-      .status-pending {
-        background-color: #ff6e5f;
-        color: #000;
-      }
+    .status-dropdown {
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid #ccc;
+      font-size: 0.9rem;
+      background-color: #f5f5f5;
+    }
 
-      .status-pre-print {
-        background-color: #ffaea5;
-        color: #000;
-      }
+    .status-pending {
+      background-color: #ff6e5f;
+      color: #000;
+    }
 
-      .status-printing {
-        background-color: #f4d03f;
-        color: #000;
-      }
+    .status-pre-print {
+      background-color: #ffaea5;
+      color: #000;
+    }
 
-      .status-printing-pay-later {
-        background-color: #f4d03f;
-        color: #000;
-      }
+    .status-printing {
+      background-color: #f4d03f;
+      color: #000;
+    }
 
-      .status-completed {
-        background-color: #2ecc71;
-        color: #000;
-      }
+    .status-printing-pay-later {
+      background-color: #f4d03f;
+      color: #000;
+    }
 
-      .toggle-wrapper {
-        position: relative;
-        display: inline-block;
-        width: 44px;
-        height: 24px;
-        flex-shrink: 0;
-      }
+    .status-completed {
+      background-color: #2ecc71;
+      color: #000;
+    }
 
-      .toggle-wrapper input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-      }
+    .toggle-wrapper {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
 
-      .slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #ccc;
-        transition: 0.3s;
-        border-radius: 24px;
-      }
+    .toggle-wrapper input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
 
-      .slider::before {
-        position: absolute;
-        content: "";
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        bottom: 3px;
-        background-color: white;
-        transition: 0.3s;
-        border-radius: 50%;
-      }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.3s;
+      border-radius: 24px;
+    }
 
-      .toggle-wrapper input:checked + .slider {
-        background-color: #1f6463;
-      }
+    .slider::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
 
-      .toggle-wrapper input:checked + .slider::before {
-        transform: translateX(20px);
-      }
+    .toggle-wrapper input:checked+.slider {
+      background-color: #1f6463;
+    }
 
-      .toggle-label {
-        font-size: 0.9rem;
-        margin-left: 0.5rem;
-        line-height: 24px;
-        color: #333;
-      }
+    .toggle-wrapper input:checked+.slider::before {
+      transform: translateX(20px);
+    }
 
-      .top-bar {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-bottom: 2rem;
-        flex-direction: column;
-      }
+    .toggle-label {
+      font-size: 0.9rem;
+      margin-left: 0.5rem;
+      line-height: 24px;
+      color: #333;
+    }
 
-      .search-container {
-        width: 100%;
-        max-width: 700px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 1rem;
-      }
-      .toggle-group {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-      }
+    .top-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-direction: column;
+    }
 
-      .login-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(245, 245, 245, 0.95);
-  z-index: 9999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+    .search-container {
+      width: 100%;
+      max-width: 700px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
 
-.login-box {
-  background: white;
-  padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  width: 320px;
-  max-width: 90%;
-  text-align: center;
-}
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
 
-.login-box input[type="text"],
-.login-box input[type="password"] {
-  width: 100%;
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 0.5rem;
-}
+    .login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
 
-.login-box button {
-  width: 100%;
-  padding: 0.75rem;
-  font-size: 1rem;
-  background-color: #1f6463;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  cursor: pointer;
-}
+    }
 
-.login-box .remember-line {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
-  justify-content: left;
-}
+    .login-box {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
 
-    </style>
-  </head>
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
 
-  <body>
-    <h1>FilamentBros Order Dashboard</h1>
+    .login-box input[type="text"],
+    .login-box input[type="password"] {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+      box-sizing: border-box;
+      /* ✅ prevents padding from adding to width */
+    }
 
-    <div class="top-bar">
-      <div class="search-container">
-        <div class="toggle-group">
-          <span class="toggle-label">Old Orders</span>
-          <label class="toggle-wrapper">
-            <input type="checkbox" id="showOldToggle" />
-            <span class="slider"></span>
-          </label>
-        </div>
+    .login-box button {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
 
-        <input
-          type="text"
-          id="searchInput"
-          placeholder="Search by name, email, phone, or order ID..."
-        />
+    .login-box .remember-line {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      justify-content: left;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>FilamentBros Order Dashboard</h1>
+
+  <div class="top-bar">
+    <div class="search-container">
+      <div class="toggle-group">
+        <span class="toggle-label">Old Orders</span>
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="showOldToggle" />
+          <span class="slider"></span>
+        </label>
       </div>
+
+      <input type="text" id="searchInput" placeholder="Search by name, email, phone, or order ID..." />
     </div>
+  </div>
 
-    <div class="grid" id="orderGrid"></div>
+  <div class="grid" id="orderGrid"></div>
 
-    <script>
-      let allOrders = [];
-      const VALID_STATUSES = [
-        "pending",
-        "pre print",
-        "printing",
-        "printing pay later",
-        "completed",
-      ];
+  <script>
+    let allOrders = [];
+    const VALID_STATUSES = [
+      "pending",
+      "pre print",
+      "printing",
+      "printing pay later",
+      "completed",
+    ];
 
-      async function renderOrders(
-        orders,
-        expandDetails = false,
-        container = null
-      ) {
-        const grid = container || document.getElementById("orderGrid");
-        if (!container) grid.innerHTML = "";
-        for (const order of orders) {
-          const card = document.createElement("div");
-          card.className = "card";
+    async function renderOrders(
+      orders,
+      expandDetails = false,
+      container = null
+    ) {
+      const grid = container || document.getElementById("orderGrid");
+      if (!container) grid.innerHTML = "";
+      for (const order of orders) {
+        const card = document.createElement("div");
+        card.className = "card";
 
-          const heading = document.createElement("h2");
-          heading.textContent = order.name || "Unnamed Order";
-          card.appendChild(heading); // Only append ONCE
+        const heading = document.createElement("h2");
+        heading.textContent = order.name || "Unnamed Order";
+        card.appendChild(heading); // Only append ONCE
 
-          const statusOptions = [
-            "pending",
-            "pre print",
-            "printing",
-            "printing pay later", // 🔁 fix casing here
-            "completed",
-          ];
-          const currentStatus = (order.status || "pending").toLowerCase();
+        const statusOptions = [
+          "pending",
+          "pre print",
+          "printing",
+          "printing pay later", // 🔁 fix casing here
+          "completed",
+        ];
+        const currentStatus = (order.status || "pending").toLowerCase();
 
-          const statusDropdown = document.createElement("select");
-          statusDropdown.className = "status-dropdown";
+        const statusDropdown = document.createElement("select");
+        statusDropdown.className = "status-dropdown";
+        applyStatusColor(statusDropdown, currentStatus);
+
+        let matched = false;
+
+        statusOptions.forEach((status) => {
+          const option = document.createElement("option");
+          option.value = status;
+          option.textContent = status
+            .split(" ")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+          if (status.toLowerCase() === currentStatus.toLowerCase()) {
+            option.selected = true;
+            matched = true;
+          }
+          statusDropdown.appendChild(option);
+        });
+
+        // If nothing matched, fallback to 'pending'
+        if (!matched) {
+          statusDropdown.value = "pending";
+          applyStatusColor(statusDropdown, "pending");
+        } else {
           applyStatusColor(statusDropdown, currentStatus);
+        }
 
-          let matched = false;
-
-          statusOptions.forEach((status) => {
-            const option = document.createElement("option");
-            option.value = status;
-            option.textContent = status
-              .split(" ")
-              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-              .join(" ");
-            if (status.toLowerCase() === currentStatus.toLowerCase()) {
-              option.selected = true;
-              matched = true;
-            }
-            statusDropdown.appendChild(option);
-          });
-
-          // If nothing matched, fallback to 'pending'
-          if (!matched) {
-            statusDropdown.value = "pending";
-            applyStatusColor(statusDropdown, "pending");
-          } else {
-            applyStatusColor(statusDropdown, currentStatus);
+        // If the original status is missing, push 'pending' to database
+        if (!order.status || order.status.trim() === "") {
+          try {
+            await fetch("/dashboard/update-status", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ orderId: order.id, status: "pending" }),
+            });
+            console.log(
+              `⏳ Auto-updated blank status to 'pending' for ${order.id}`
+            );
+            order.status = "pending"; // ✅ Ensure memory copy is updated too
+          } catch (err) {
+            console.error(
+              `❌ Failed to save 'pending' status for ${order.id}`,
+              err
+            );
           }
+        }
 
-          // If the original status is missing, push 'pending' to database
-          if (!order.status || order.status.trim() === "") {
-            try {
-              await fetch("/dashboard/update-status", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId: order.id, status: "pending" }),
-              });
-              console.log(
-                `⏳ Auto-updated blank status to 'pending' for ${order.id}`
-              );
-              order.status = "pending"; // ✅ Ensure memory copy is updated too
-            } catch (err) {
-              console.error(
-                `❌ Failed to save 'pending' status for ${order.id}`,
-                err
-              );
-            }
+        // Update status in backend when changed
+        statusDropdown.addEventListener("change", async () => {
+          const newStatus = statusDropdown.value;
+          applyStatusColor(statusDropdown, newStatus); // 🔁 update color immediately
+          try {
+            await fetch("/dashboard/update-status", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ orderId: order.id, status: newStatus }),
+            });
+            console.log(
+              `✅ Status for order ${order.id} updated to ${newStatus}`
+            );
+          } catch (err) {
+            console.error(
+              `❌ Failed to update status for order ${order.id}:`,
+              err
+            );
           }
+        });
 
-          // Update status in backend when changed
-          statusDropdown.addEventListener("change", async () => {
-            const newStatus = statusDropdown.value;
-            applyStatusColor(statusDropdown, newStatus); // 🔁 update color immediately
-            try {
-              await fetch("/dashboard/update-status", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId: order.id, status: newStatus }),
-              });
-              console.log(
-                `✅ Status for order ${order.id} updated to ${newStatus}`
-              );
-            } catch (err) {
-              console.error(
-                `❌ Failed to update status for order ${order.id}:`,
-                err
-              );
-            }
-          });
+        const statusWrapper = document.createElement("div");
+        statusWrapper.style.marginTop = "0.5rem";
+        statusWrapper.appendChild(statusDropdown);
+        card.appendChild(statusWrapper); // Place dropdown below the name
 
-          const statusWrapper = document.createElement("div");
-          statusWrapper.style.marginTop = "0.5rem";
-          statusWrapper.appendChild(statusDropdown);
-          card.appendChild(statusWrapper); // Place dropdown below the name
-
-          // Show estimated price right under heading
-          const price = document.createElement("p");
-          price.innerHTML = `<strong>Est. Price:</strong> ${
-            order.est_price ? `$${order.est_price.toFixed(2)}` : "—"
+        // Show estimated price right under heading
+        const price = document.createElement("p");
+        price.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : "—"
           }`;
-          card.appendChild(price);
+        card.appendChild(price);
 
-          const toggleBtn = document.createElement("button");
-          toggleBtn.className = "details-toggle";
-          toggleBtn.textContent = "Show Details ▼";
-          card.appendChild(toggleBtn);
+        const toggleBtn = document.createElement("button");
+        toggleBtn.className = "details-toggle";
+        toggleBtn.textContent = "Show Details ▼";
+        card.appendChild(toggleBtn);
 
-          const detailsSection = document.createElement("div");
-          detailsSection.className = "details-section";
-          card.appendChild(detailsSection);
+        const detailsSection = document.createElement("div");
+        detailsSection.className = "details-section";
+        card.appendChild(detailsSection);
 
-          const table = document.createElement("table");
-          table.className = "details-table";
-          const submittedDate = new Date(order.submitted_at);
-          const formattedDate = submittedDate.toLocaleString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          });
+        const table = document.createElement("table");
+        table.className = "details-table";
+        const submittedDate = new Date(order.submitted_at);
+        const formattedDate = submittedDate.toLocaleString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
 
-          [
-            ["Email", order.email],
-            ["Phone", order.phone],
-            ["Staff", order.assigned_staff || "—"],
-            ["Customer Notes", order.notes || "—"],
-            ["Staff Notes", order.order_notes || "—"],
-            ["Submitted At", formattedDate],
-          ].forEach(([label, value]) => {
-            const row = document.createElement("tr");
-            row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
-            table.appendChild(row);
-          });
+        [
+          ["Email", order.email],
+          ["Phone", order.phone],
+          ["Staff", order.assigned_staff || "—"],
+          ["Customer Notes", order.notes || "—"],
+          ["Staff Notes", order.order_notes || "—"],
+          ["Submitted At", formattedDate],
+        ].forEach(([label, value]) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
+          table.appendChild(row);
+        });
 
-          detailsSection.appendChild(table);
+        detailsSection.appendChild(table);
 
-          toggleBtn.onclick = () => {
-            const visible = detailsSection.classList.toggle("visible");
-            toggleBtn.textContent = visible ? "Hide ▲" : "Show Details ▼";
-          };
+        toggleBtn.onclick = () => {
+          const visible = detailsSection.classList.toggle("visible");
+          toggleBtn.textContent = visible ? "Hide ▲" : "Show Details ▼";
+        };
 
-          // Expand by default if search is active
-          if (expandDetails) {
-            detailsSection.classList.add("visible");
-            toggleBtn.textContent = "Hide ▲";
-          }
+        // Expand by default if search is active
+        if (expandDetails) {
+          detailsSection.classList.add("visible");
+          toggleBtn.textContent = "Hide ▲";
+        }
 
-          fetch(`/dashboard/files/${order.id}`)
-            .then((res) => res.json())
-            .then((files) => {
-              if (files.length > 0) {
-                const stlTitle = document.createElement("p");
-                stlTitle.className = "stl-header";
-                stlTitle.textContent = "STL Files:";
-                detailsSection.appendChild(stlTitle); // ✅ append to details section
+        fetch(`/dashboard/files/${order.id}`)
+          .then((res) => res.json())
+          .then((files) => {
+            if (files.length > 0) {
+              const stlTitle = document.createElement("p");
+              stlTitle.className = "stl-header";
+              stlTitle.textContent = "STL Files:";
+              detailsSection.appendChild(stlTitle); // ✅ append to details section
 
-                const list = document.createElement("ul");
-                list.className = "stl-list";
+              const list = document.createElement("ul");
+              list.className = "stl-list";
 
-                files.forEach((fileUrl) => {
-                  const fullFilename = decodeURIComponent(
-                    fileUrl.split("/").pop()
-                  );
-                  const downloadUrl = `/dashboard/fileserve/${encodeURIComponent(
-                    fullFilename
-                  )}`;
-                  const filename = fullFilename.replace(
-                    /^order[_-]?[a-zA-Z0-9]+[_-]/i,
-                    ""
-                  );
+              files.forEach((fileUrl) => {
+                const fullFilename = decodeURIComponent(
+                  fileUrl.split("/").pop()
+                );
+                const downloadUrl = `/dashboard/fileserve/${encodeURIComponent(
+                  fullFilename
+                )}`;
+                const filename = fullFilename.replace(
+                  /^order[_-]?[a-zA-Z0-9]+[_-]/i,
+                  ""
+                );
 
-                  const li = document.createElement("li");
-                  li.innerHTML = `
+                const li = document.createElement("li");
+                li.innerHTML = `
                             <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
                               ${filename}
                             </a>`;
-                  list.appendChild(li);
-                });
+                list.appendChild(li);
+              });
 
-                detailsSection.appendChild(list); // ✅ append to details section
+              detailsSection.appendChild(list); // ✅ append to details section
 
-                if (files.length > 0) {
-                  const downloadAll = document.createElement("a");
-                  downloadAll.href = `/dashboard/download-all/${order.id}`;
-                  downloadAll.className = "download-all-btn";
-                  downloadAll.textContent = "📦 Download All";
-                  detailsSection.appendChild(downloadAll); // ✅ append to details section
-                }
-              }
-
-              const idTag = document.createElement("div");
-              idTag.className = "order-id";
-              idTag.textContent = `ID: ${order.id || "N/A"}`;
-              card.appendChild(idTag);
-            })
-
-            .catch((err) => {
-              console.error(`❌ Failed to load STL files for ${order.id}`, err);
-            });
-
-          grid.appendChild(card);
-
-          if (
-            (order.est_price == null || order.est_price === 0) &&
-            !(
-              order.order_notes &&
-              order.order_notes.includes("Print estimate failed")
-            )
-          ) {
-            autoEstimateOrder(order, card);
-          }
-        }
-      }
-
-      function applyStatusColor(dropdown, status) {
-        const normalized = status.toLowerCase().replace(/\s+/g, "-");
-        dropdown.className = "status-dropdown status-" + normalized;
-      }
-
-      function filterOrders(query) {
-        const q = query.toLowerCase();
-        const isSearchActive = q.trim().length > 0; // ✅ only expand if non-empty
-
-        const showOld = document.getElementById("showOldToggle").checked;
-        const now = new Date();
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-        const filtered = allOrders.filter((order) => {
-          const submittedAt = new Date(order.submitted_at);
-          const isRecent = submittedAt >= oneWeekAgo;
-          if (!showOld && !isRecent) return false;
-          return (
-            (order.name && order.name.toLowerCase().includes(q)) ||
-            (order.email && order.email.toLowerCase().includes(q)) ||
-            (order.phone && order.phone.toLowerCase().includes(q)) ||
-            (order.id &&
-              (order.id.toLowerCase().includes(q) ||
-                order.id.replace(/^order_/, "").includes(q)))
-          );
-        });
-
-        renderOrders(filtered, isSearchActive); // ✅ conditionally expand
-      }
-
-      let latestTimestamp = null;
-
-      // Append new orders to the list and render
-
-      function renderOrdersToContainer(orders, container) {
-        renderOrders(orders, false, container);
-      }
-
-      async function appendNewOrders(newOrders) {
-        if (newOrders.length === 0) return;
-
-        const existingIds = new Set(allOrders.map((order) => order.id));
-        const uniqueNewOrders = newOrders.filter(
-          (order) => !existingIds.has(order.id)
-        );
-
-        if (uniqueNewOrders.length === 0) return;
-
-        for (const order of uniqueNewOrders) {
-          allOrders.unshift(order);
-          const query = document.getElementById("searchInput").value;
-          if (!query.trim()) {
-            // Only append if not in a filtered search view
-            const grid = document.getElementById("orderGrid");
-            const tempOrders = [order];
-            const tempHTML = document.createElement("div");
-            renderOrdersToContainer(tempOrders, tempHTML); // custom helper
-            grid.prepend(...tempHTML.children);
-          } // Reuse main render function to show correctly
-
-          // Trigger auto estimate if missing
-          if (
-            (order.est_price == null || order.est_price === 0) &&
-            !(
-              order.order_notes &&
-              order.order_notes.includes("Print estimate failed")
-            )
-          ) {
-            await autoEstimateOrder(order);
-          }
-        }
-
-        // Update latest timestamp
-        allOrders.sort(
-          (a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)
-        );
-        latestTimestamp = allOrders[0].submitted_at;
-      }
-
-      async function refreshOrderStatuses() {
-        try {
-          const response = await fetch("/dashboard/data");
-          const latestData = await response.json();
-
-          const grid = document.getElementById("orderGrid");
-          const cards = grid.querySelectorAll(".card");
-
-          latestData.forEach((latestOrder) => {
-            const matchingCard = [...cards].find((card) =>
-              card.innerText.includes(latestOrder.id)
-            );
-
-            if (matchingCard) {
-              const dropdown = matchingCard.querySelector("select");
-              const currentStatus = dropdown.value.toLowerCase();
-              let newStatus = (latestOrder.status || "pending").toLowerCase();
-
-              // Ensure the status is one of the allowed options
-              const allowedStatuses = [
-                "pending",
-                "pre print",
-                "printing",
-                "printing pay later",
-                "completed",
-              ];
-              if (!allowedStatuses.includes(newStatus)) {
-                newStatus = "pending";
-              }
-
-              if (currentStatus !== newStatus) {
-                dropdown.value = newStatus;
-                applyStatusColor(dropdown, newStatus);
+              if (files.length > 0) {
+                const downloadAll = document.createElement("a");
+                downloadAll.href = `/dashboard/download-all/${order.id}`;
+                downloadAll.className = "download-all-btn";
+                downloadAll.textContent = "📦 Download All";
+                detailsSection.appendChild(downloadAll); // ✅ append to details section
               }
             }
-          });
-        } catch (err) {
-          console.error("❌ Failed to refresh statuses:", err);
-        }
-      }
 
-      // First full load
-      function loadInitialOrders() {
-        fetch("/dashboard/data")
-          .then((res) => res.json())
-          .then(async (data) => {
-            allOrders = data;
-            if (data.length > 0) latestTimestamp = data[0].submitted_at;
-            const query = document.getElementById("searchInput").value;
-            filterOrders(query);
-
-            // Trigger estimates for orders missing est_price
-            for (const order of data) {
-              if (
-                (order.est_price == null || order.est_price === 0) &&
-                !(
-                  order.order_notes &&
-                  order.order_notes.includes("Print estimate failed")
-                )
-              ) {
-                await autoEstimateOrder(order);
-              }
-            }
+            const idTag = document.createElement("div");
+            idTag.className = "order-id";
+            idTag.textContent = `ID: ${order.id || "N/A"}`;
+            card.appendChild(idTag);
           })
+
           .catch((err) => {
-            document.getElementById("orderGrid").innerHTML =
-              "<p>⚠️ Failed to load orders.</p>";
-            console.error(err);
+            console.error(`❌ Failed to load STL files for ${order.id}`, err);
           });
+
+        grid.appendChild(card);
+
+        if (
+          (order.est_price == null || order.est_price === 0) &&
+          !(
+            order.order_notes &&
+            order.order_notes.includes("Print estimate failed")
+          )
+        ) {
+          autoEstimateOrder(order, card);
+        }
       }
+    }
 
-      // Only get orders submitted after the latest known one
-      function fetchNewOrders() {
-        if (!latestTimestamp) return;
+    function applyStatusColor(dropdown, status) {
+      const normalized = status.toLowerCase().replace(/\s+/g, "-");
+      dropdown.className = "status-dropdown status-" + normalized;
+    }
 
-        fetch(`/dashboard/data?since=${encodeURIComponent(latestTimestamp)}`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.length > 0) {
-              appendNewOrders(data);
-            }
-          })
-          .catch((err) => {
-            console.error("❌ Failed to fetch new orders:", err);
-          });
-      }
+    function filterOrders(query) {
+      const q = query.toLowerCase();
+      const isSearchActive = q.trim().length > 0; // ✅ only expand if non-empty
 
-      loadInitialOrders();
-      setInterval(fetchNewOrders, 10000); // Check for new orders every 30s
+      const showOld = document.getElementById("showOldToggle").checked;
+      const now = new Date();
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      let searchTimeout; // Holds the timer reference
-
-      document.getElementById("searchInput").addEventListener("input", () => {
-        clearTimeout(searchTimeout); // Cancel the previous timer if user types again
-
-        searchTimeout = setTimeout(() => {
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query); // Run the actual filtering after 200ms pause
-        }, 200);
+      const filtered = allOrders.filter((order) => {
+        const submittedAt = new Date(order.submitted_at);
+        const isRecent = submittedAt >= oneWeekAgo;
+        if (!showOld && !isRecent) return false;
+        return (
+          (order.name && order.name.toLowerCase().includes(q)) ||
+          (order.email && order.email.toLowerCase().includes(q)) ||
+          (order.phone && order.phone.toLowerCase().includes(q)) ||
+          (order.id &&
+            (order.id.toLowerCase().includes(q) ||
+              order.id.replace(/^order_/, "").includes(q)))
+        );
       });
 
-      document
-        .getElementById("showOldToggle")
-        .addEventListener("change", () => {
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
+      renderOrders(filtered, isSearchActive); // ✅ conditionally expand
+    }
+
+    let latestTimestamp = null;
+
+    // Append new orders to the list and render
+
+    function renderOrdersToContainer(orders, container) {
+      renderOrders(orders, false, container);
+    }
+
+    async function appendNewOrders(newOrders) {
+      if (newOrders.length === 0) return;
+
+      const existingIds = new Set(allOrders.map((order) => order.id));
+      const uniqueNewOrders = newOrders.filter(
+        (order) => !existingIds.has(order.id)
+      );
+
+      if (uniqueNewOrders.length === 0) return;
+
+      for (const order of uniqueNewOrders) {
+        allOrders.unshift(order);
+        const query = document.getElementById("searchInput").value;
+        if (!query.trim()) {
+          // Only append if not in a filtered search view
+          const grid = document.getElementById("orderGrid");
+          const tempOrders = [order];
+          const tempHTML = document.createElement("div");
+          renderOrdersToContainer(tempOrders, tempHTML); // custom helper
+          grid.prepend(...tempHTML.children);
+        } // Reuse main render function to show correctly
+
+        // Trigger auto estimate if missing
+        if (
+          (order.est_price == null || order.est_price === 0) &&
+          !(
+            order.order_notes &&
+            order.order_notes.includes("Print estimate failed")
+          )
+        ) {
+          await autoEstimateOrder(order);
+        }
+      }
+
+      // Update latest timestamp
+      allOrders.sort(
+        (a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)
+      );
+      latestTimestamp = allOrders[0].submitted_at;
+    }
+
+    async function refreshOrderStatuses() {
+      try {
+        const response = await fetch("/dashboard/data", {
+          credentials: "include" // ✅ Ensures session cookie is sent
         });
 
-      async function autoEstimateOrder(order, card) {
-        try {
-          const files = await fetch(`/dashboard/files/${order.id}`).then((r) =>
-            r.json()
+        if (!response.ok) {
+          throw new Error(`Request failed: ${response.status}`);
+        }
+
+        const latestData = await response.json();
+        const grid = document.getElementById("orderGrid");
+        const cards = grid.querySelectorAll(".card");
+
+        latestData.forEach((latestOrder) => {
+          const matchingCard = [...cards].find((card) =>
+            card.innerText.includes(latestOrder.id)
           );
-          if (!files.length) {
-            console.log(`⏭️ Skipped ${order.id} — No STL files found.`);
-            return;
+
+          if (matchingCard) {
+            const dropdown = matchingCard.querySelector("select");
+            const currentStatus = dropdown.value.toLowerCase();
+            let newStatus = (latestOrder.status || "pending").toLowerCase();
+
+            const allowedStatuses = [
+              "pending",
+              "pre print",
+              "printing",
+              "printing pay later",
+              "completed"
+            ];
+            if (!allowedStatuses.includes(newStatus)) {
+              newStatus = "pending";
+            }
+
+            if (currentStatus !== newStatus) {
+              dropdown.value = newStatus;
+              applyStatusColor(dropdown, newStatus);
+            }
           }
+        });
+      } catch (err) {
+        console.error("❌ Failed to refresh statuses:", err);
+      }
+    }
 
-          const formData = new FormData();
-          const fileNames = [];
 
-          for (const fileUrl of files) {
-            const response = await fetch(fileUrl);
-            const blob = await response.blob();
-            const filename = decodeURIComponent(fileUrl.split("/").pop());
-            formData.append("stl", blob, filename);
-            fileNames.push(filename);
+    // First full load
+    function loadInitialOrders() {
+      fetch("/dashboard/data", { credentials: "include" })
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+          const data = await res.json();
+          allOrders = Array.isArray(data) ? data : [];
+          if (data.length > 0) latestTimestamp = data[0].submitted_at;
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
+
+          for (const order of data) {
+            if (
+              (order.est_price == null || order.est_price === 0) &&
+              !(order.order_notes && order.order_notes.includes("Print estimate failed"))
+            ) {
+              await autoEstimateOrder(order);
+            }
           }
+        })
+        .catch((err) => {
+          allOrders = [];
+          document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
+          console.error("❌ Failed to loadInitialOrders:", err);
+        });
 
-          const sseResponse = await fetch("/stl/upload", {
-            method: "POST",
-            headers: {
-              Origin: "https://filamentbros.com",
-            },
-            body: formData,
-          });
+    }
 
-          const reader = sseResponse.body.getReader();
-          const decoder = new TextDecoder("utf-8");
-          let buffer = "";
-          let totalEstimate = 0;
-          let failedFiles = [];
+    // Only get orders submitted after the latest known one
+    function fetchNewOrders() {
+      if (!latestTimestamp) return;
 
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
+      fetch(`/dashboard/data?since=${encodeURIComponent(latestTimestamp)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.length > 0) {
+            appendNewOrders(data);
+          }
+        })
+        .catch((err) => {
+          console.error("❌ Failed to fetch new orders:", err);
+        });
+    }
 
-            const events = buffer.split("\n\n");
-            buffer = events.pop(); // Keep last incomplete
+    //loadInitialOrders();
+    //setInterval(fetchNewOrders, 10000); // Check for new orders every 30s
 
-            for (const event of events) {
-              if (event.startsWith("data:")) {
-                const data = JSON.parse(event.replace("data:", "").trim());
-                if (data.status === "success" && data.price) {
-                  totalEstimate += parseFloat(data.price);
-                } else if (data.status === "error") {
-                  failedFiles.push(data.file || "Unknown file");
-                }
+    let searchTimeout; // Holds the timer reference
+
+    document.getElementById("searchInput").addEventListener("input", () => {
+      clearTimeout(searchTimeout); // Cancel the previous timer if user types again
+
+      searchTimeout = setTimeout(() => {
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query); // Run the actual filtering after 200ms pause
+      }, 200);
+    });
+
+    document
+      .getElementById("showOldToggle")
+      .addEventListener("change", () => {
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+      });
+
+    async function autoEstimateOrder(order, card) {
+      try {
+        const files = await fetch(`/dashboard/files/${order.id}`).then((r) =>
+          r.json()
+        );
+        if (!files.length) {
+          console.log(`⏭️ Skipped ${order.id} — No STL files found.`);
+          return;
+        }
+
+        const formData = new FormData();
+        const fileNames = [];
+
+        for (const fileUrl of files) {
+          const response = await fetch(fileUrl);
+          const blob = await response.blob();
+          const filename = decodeURIComponent(fileUrl.split("/").pop());
+          formData.append("stl", blob, filename);
+          fileNames.push(filename);
+        }
+
+        const sseResponse = await fetch("/stl/upload", {
+          method: "POST",
+          headers: {
+            Origin: "https://filamentbros.com",
+          },
+          body: formData,
+        });
+
+        const reader = sseResponse.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        let totalEstimate = 0;
+        let failedFiles = [];
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const events = buffer.split("\n\n");
+          buffer = events.pop(); // Keep last incomplete
+
+          for (const event of events) {
+            if (event.startsWith("data:")) {
+              const data = JSON.parse(event.replace("data:", "").trim());
+              if (data.status === "success" && data.price) {
+                totalEstimate += parseFloat(data.price);
+              } else if (data.status === "error") {
+                failedFiles.push(data.file || "Unknown file");
               }
             }
           }
+        }
 
-          if (totalEstimate > 0) {
-            await fetch("/dashboard/update-price", {
+        if (totalEstimate > 0) {
+          await fetch("/dashboard/update-price", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: order.id,
+              est_price: totalEstimate.toFixed(2),
+            }),
+          });
+          console.log(
+            `✅ Updated order ${order.id
+            } with estimate $${totalEstimate.toFixed(2)}`
+          );
+        }
+
+        if (card) {
+          const priceLine = card.querySelector("p");
+          if (priceLine) {
+            priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(
+              2
+            )}`;
+          }
+
+          if (failedFiles.length > 0) {
+            const message = `⚠️ Print estimate failed for: ${failedFiles.join(
+              ", "
+            )}`;
+
+            // Update in database
+            await fetch("/dashboard/update-notes", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 orderId: order.id,
-                est_price: totalEstimate.toFixed(2),
+                order_notes: message,
               }),
             });
-            console.log(
-              `✅ Updated order ${
-                order.id
-              } with estimate $${totalEstimate.toFixed(2)}`
+
+            // Update UI immediately
+            const notesLine = [...card.querySelectorAll("li")].find((li) =>
+              li.innerHTML.includes("Staff Notes:")
             );
-          }
-
-          if (card) {
-            const priceLine = card.querySelector("p");
-            if (priceLine) {
-              priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(
-                2
-              )}`;
-            }
-
-            if (failedFiles.length > 0) {
-              const message = `⚠️ Print estimate failed for: ${failedFiles.join(
-                ", "
-              )}`;
-
-              // Update in database
-              await fetch("/dashboard/update-notes", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  orderId: order.id,
-                  order_notes: message,
-                }),
-              });
-
-              // Update UI immediately
-              const notesLine = [...card.querySelectorAll("li")].find((li) =>
-                li.innerHTML.includes("Staff Notes:")
-              );
-              if (notesLine) {
-                notesLine.innerHTML = `<strong>Staff Notes:</strong> ${message}`;
-              }
+            if (notesLine) {
+              notesLine.innerHTML = `<strong>Staff Notes:</strong> ${message}`;
             }
           }
-        } catch (err) {
-          console.error(
-            `❌ Failed to auto-estimate for order ${order.id}:`,
-            err
-          );
         }
+      } catch (err) {
+        console.error(
+          `❌ Failed to auto-estimate for order ${order.id}:`,
+          err
+        );
       }
-
-      setInterval(refreshOrderStatuses, 10000); // every 10 seconds
-
-      const loginOverlay = document.getElementById("loginOverlay");
-  const loginForm = document.getElementById("loginForm");
-  const loginError = document.getElementById("loginError");
-
-  // Auto-login from localStorage
-  if (localStorage.getItem("rememberedUser")) {
-    loginOverlay.style.display = "none";
-  }
-
-  loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
-    const remember = document.getElementById("rememberMe").checked;
-
-    const formData = new URLSearchParams();
-    formData.append("username", username);
-    formData.append("password", password);
-    if (remember) formData.append("remember", "on");
-
-    try {
-      const res = await fetch("/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData.toString(),
-      });
-
-      if (res.redirected) {
-        if (remember) localStorage.setItem("rememberedUser", "true");
-        loginOverlay.style.display = "none";
-      } else {
-        loginError.textContent = "Invalid username or password.";
-        loginError.style.display = "block";
-      }
-    } catch (err) {
-      loginError.textContent = "Login error. Try again.";
-      loginError.style.display = "block";
     }
-  });
-  
-    </script>
 
-    <div id="loginOverlay" class="login-overlay">
-  <div class="login-box">
-    <h2>FilamentBros Login</h2>
-    <form id="loginForm">
-      <input type="text" id="username" placeholder="Username" required />
-      <input type="password" id="password" placeholder="Password" required />
-      <label class="remember-line">
-        <input type="checkbox" id="rememberMe" />
-        Remember Me
-      </label>
-      <button type="submit">Login</button>
-      <p id="loginError" style="color: red; display: none; font-size: 0.85rem;"></p>
-    </form>
+    //setInterval(refreshOrderStatuses, 10000); // every 10 seconds
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const loginOverlay = document.getElementById("loginOverlay");
+      const loginForm = document.getElementById("loginForm");
+      const loginError = document.getElementById("loginError");
+
+      // Auto-login if remembered
+      if (localStorage.getItem("rememberedUser")) {
+        loginOverlay.style.display = "none";
+        loadInitialOrders();
+        setInterval(fetchNewOrders, 10000);
+        setInterval(refreshOrderStatuses, 10000);
+      }
+
+      loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const username = document.getElementById("username").value.trim().toLowerCase();
+        const password = document.getElementById("password").value.trim();
+        const remember = document.getElementById("rememberMe").checked;
+
+        const formData = new URLSearchParams();
+        formData.append("username", username);
+        formData.append("password", password);
+        if (remember) formData.append("remember", "on");
+
+        try {
+          const res = await fetch("/dashboard/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: formData.toString(),
+          });
+
+          if (res.ok) {
+            if (remember) localStorage.setItem("rememberedUser", "true");
+            loginOverlay.style.display = "none";
+
+            loadInitialOrders();
+            setInterval(fetchNewOrders, 10000);
+            setInterval(refreshOrderStatuses, 10000);
+
+          } else {
+            let errorText = "Login failed.";
+            try {
+              const data = await res.json();
+              errorText = data.error || errorText;
+            } catch {
+              // if not JSON, fallback
+              const fallbackText = await res.text();
+              errorText = fallbackText || errorText;
+            }
+            loginError.textContent = errorText;
+            loginError.style.display = "block";
+          }
+
+
+        } catch (err) {
+          loginError.textContent = "Login error. Try again.";
+          loginError.style.display = "block";
+        }
+      });
+    });
+
+
+  </script>
+
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-box">
+      <h2>FilamentBros Login</h2>
+      <form id="loginForm">
+        <input type="text" id="username" placeholder="Username" required />
+        <input type="password" id="password" placeholder="Password" required />
+        <label class="remember-line">
+          <input type="checkbox" id="rememberMe" />
+          Remember Me
+        </label>
+        <button type="submit">Login</button>
+        <p id="loginError" style="color: red; display: none; font-size: 0.85rem;"></p>
+      </form>
+    </div>
   </div>
-</div>
 
 
-  </body>
+</body>
+
 </html>
