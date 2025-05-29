@@ -597,6 +597,12 @@
         detailsSection.className = "details-section";
         card.appendChild(detailsSection);
 
+        const idLine = document.createElement("div");
+        idLine.className = "order-id";
+        idLine.textContent = `Order ID: ${order.id}`;
+        card.appendChild(idLine);
+
+
         const table = document.createElement("table");
         table.className = "details-table";
         const submittedDate = new Date(order.submitted_at);
