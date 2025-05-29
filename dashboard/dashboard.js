@@ -183,6 +183,10 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   }
 });
 
+app.get("/dashboard/whoami", requireLogin, (req, res) => {
+  res.json({ username: req.session.user });
+});
+
 // 🏁 Launch server
 const PORT = 3300;
 app.listen(PORT, () => {

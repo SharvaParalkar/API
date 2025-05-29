@@ -21,7 +21,6 @@
 
     .search-container {
       max-width: 700px;
-      /* or whatever width you prefer */
       margin-left: auto;
       margin-right: auto;
       margin-bottom: 2rem;
@@ -29,6 +28,8 @@
       gap: 1rem;
       align-items: center;
       justify-content: center;
+      width: 100%;
+      padding: 0 1rem;
     }
 
     .search-container input {
@@ -92,7 +93,7 @@
       text-align: center;
       font-size: 0.8rem;
       color: #666;
-      font-weight: 500;
+      font-weight: bold;
     }
 
     .stl-header {
@@ -135,27 +136,6 @@
       text-decoration: none;
       border-radius: 6px;
       font-size: 0.85rem;
-    }
-
-    .order-id {
-      margin-top: 1rem;
-      text-align: center;
-      font-size: 0.85rem;
-      color: #888;
-      font-weight: bold;
-    }
-
-    .status-badge {
-      display: inline-block;
-      padding: 0.2rem 0.6rem;
-      border-radius: 1rem;
-      font-size: 0.75rem;
-      margin-top: 0.25rem;
-      color: white;
-    }
-
-    .card h2 div {
-      margin-top: 0.25rem;
     }
 
     .status-submitted {
@@ -305,15 +285,6 @@
       flex-direction: column;
     }
 
-    .search-container {
-      width: 100%;
-      max-width: 700px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-    }
-
     .toggle-group {
       display: flex;
       align-items: center;
@@ -331,7 +302,6 @@
       display: flex;
       justify-content: center;
       align-items: center;
-
     }
 
     .login-box {
@@ -379,29 +349,128 @@
       margin-bottom: 1rem;
       justify-content: left;
     }
+
+    .toggles-wrapper {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .search-input-wrapper {
+      flex-grow: 1;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .search-bar-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 2rem;
+      height: 3.5rem;
+    }
+
+    .toggles-wrapper {
+      position: absolute;
+      left: 0;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      padding-left: 1rem;
+    }
+
+    .centered-search {
+      max-width: 700px;
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5rem;
+    }
+
+    .search-bar-flex {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+      width: 100%;
+      max-width: 800px;
+      /* cap total width */
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .left-toggles {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .center-search {
+      flex-grow: 1;
+      max-width: 700px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .center-search input {
+      width: 100%;
+      max-width: 700px;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5rem;
+    }
   </style>
 </head>
 
 <body>
   <h1>FilamentBros Order Dashboard</h1>
 
+  <div style="display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem;">
+    <button id="tabAll"
+      style="padding: 0.6rem 1rem; border-radius: 1rem; background: #1f6463; color: white; border: none;">All
+      Orders</button>
+    <button id="tabClaimed"
+      style="padding: 0.6rem 1rem; border-radius: 1rem; background: #ccc; color: black; border: none;">Claimed
+      Orders</button>
+  </div>
+
   <div class="top-bar">
-    <div class="search-container">
-      <div class="toggle-group">
-        <span class="toggle-label">Old Orders</span>
-        <label class="toggle-wrapper">
-          <input type="checkbox" id="showOldToggle" />
-          <span class="slider"></span>
-        </label>
+    <div class="search-bar-flex">
+      <div class="left-toggles">
+        <div class="toggle-group">
+          <span class="toggle-label">Old Orders</span>
+          <label class="toggle-wrapper">
+            <input type="checkbox" id="showOldToggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-group">
+          <span class="toggle-label">Completed</span>
+          <label class="toggle-wrapper">
+            <input type="checkbox" id="showCompletedToggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
       </div>
 
-      <input type="text" id="searchInput" placeholder="Search by name, email, phone, or order ID..." />
+      <div class="center-search">
+        <input type="text" id="searchInput" placeholder="Search by name, email, phone, or order ID..." />
+      </div>
     </div>
   </div>
+
 
   <div class="grid" id="orderGrid"></div>
 
   <script>
+
+
     let allOrders = [];
     const VALID_STATUSES = [
       "pending",
@@ -410,6 +479,10 @@
       "printing pay later",
       "completed",
     ];
+
+    let currentUser = null;
+    let currentTab = "all"; // "all" or "claimed"
+
 
     async function renderOrders(
       orders,
@@ -605,10 +678,68 @@
               }
             }
 
-            const idTag = document.createElement("div");
-            idTag.className = "order-id";
-            idTag.textContent = `ID: ${order.id || "N/A"}`;
-            card.appendChild(idTag);
+            const isClaimed = order.claimed === true;
+            const isCompleted = order.status?.toLowerCase() === "completed";
+
+            if (currentTab === "claimed") {
+              // Show "Unclaim" button in Claimed tab
+              const unclaimBtn = document.createElement("button");
+              unclaimBtn.textContent = "Unclaim";
+              unclaimBtn.style.backgroundColor = "#ccc";
+              unclaimBtn.style.border = "none";
+              unclaimBtn.style.color = "#333";
+              unclaimBtn.style.padding = "0.5rem 1rem";
+              unclaimBtn.style.borderRadius = "0.5rem";
+              unclaimBtn.style.marginTop = "0.5rem";
+              unclaimBtn.style.cursor = "pointer";
+
+              unclaimBtn.addEventListener("click", () => {
+                order.claimed = false;
+                const query = document.getElementById("searchInput").value;
+                filterOrders(query);
+              });
+
+              card.appendChild(unclaimBtn);
+            } else {
+              // Don't show claim button for completed orders
+              if (isCompleted) {
+                const completedLabel = document.createElement("button");
+                completedLabel.textContent = "Completed";
+                completedLabel.disabled = true;
+                completedLabel.style.backgroundColor = "#999";
+                completedLabel.style.border = "none";
+                completedLabel.style.color = "#666";
+                completedLabel.style.padding = "0.5rem 1rem";
+                completedLabel.style.borderRadius = "0.5rem";
+                completedLabel.style.marginTop = "0.5rem";
+                completedLabel.style.cursor = "not-allowed";
+                card.appendChild(completedLabel);
+              } else {
+                // Show "Claim" or "Claimed" for eligible orders
+                const claimBtn = document.createElement("button");
+                claimBtn.textContent = isClaimed ? "Claimed" : "Claim Order";
+                claimBtn.disabled = isClaimed;
+                claimBtn.style.backgroundColor = isClaimed ? "#999" : "#ccc";
+                claimBtn.style.border = "none";
+                claimBtn.style.color = "#333";
+                claimBtn.style.padding = "0.5rem 1rem";
+                claimBtn.style.borderRadius = "0.5rem";
+                claimBtn.style.marginTop = "0.5rem";
+                claimBtn.style.cursor = isClaimed ? "not-allowed" : "pointer";
+
+                if (!isClaimed) {
+                  claimBtn.addEventListener("click", () => {
+                    order.claimed = true;
+                    const query = document.getElementById("searchInput").value;
+                    filterOrders(query);
+                  });
+                }
+
+                card.appendChild(claimBtn);
+              }
+            }
+
+
           })
 
           .catch((err) => {
@@ -639,6 +770,8 @@
       const isSearchActive = q.trim().length > 0; // ✅ only expand if non-empty
 
       const showOld = document.getElementById("showOldToggle").checked;
+      const showCompleted = document.getElementById("showCompletedToggle").checked;
+
       const now = new Date();
       const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -646,6 +779,9 @@
         const submittedAt = new Date(order.submitted_at);
         const isRecent = submittedAt >= oneWeekAgo;
         if (!showOld && !isRecent) return false;
+        if (!showCompleted && (order.status || "").toLowerCase() === "completed") return false;
+        if (currentTab === "claimed" && !order.claimed) return false;
+
         return (
           (order.name && order.name.toLowerCase().includes(q)) ||
           (order.email && order.email.toLowerCase().includes(q)) ||
@@ -711,7 +847,7 @@
     async function refreshOrderStatuses() {
       try {
         const response = await fetch("/dashboard/data", {
-          credentials: "include" // ✅ Ensures session cookie is sent
+          credentials: "include", // ✅ Ensures session cookie is sent
         });
 
         if (!response.ok) {
@@ -737,7 +873,7 @@
               "pre print",
               "printing",
               "printing pay later",
-              "completed"
+              "completed",
             ];
             if (!allowedStatuses.includes(newStatus)) {
               newStatus = "pending";
@@ -754,10 +890,13 @@
       }
     }
 
-
     // First full load
     function loadInitialOrders() {
-      fetch("/dashboard/data", { credentials: "include" })
+      const now = new Date();
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const sinceParam = encodeURIComponent(oneWeekAgo.toISOString());
+
+      fetch(`/dashboard/data?since=${sinceParam}`, { credentials: "include" })
         .then(async (res) => {
           if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
           const data = await res.json();
@@ -769,7 +908,10 @@
           for (const order of data) {
             if (
               (order.est_price == null || order.est_price === 0) &&
-              !(order.order_notes && order.order_notes.includes("Print estimate failed"))
+              !(
+                order.order_notes &&
+                order.order_notes.includes("Print estimate failed")
+              )
             ) {
               await autoEstimateOrder(order);
             }
@@ -777,10 +919,10 @@
         })
         .catch((err) => {
           allOrders = [];
-          document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
+          document.getElementById("orderGrid").innerHTML =
+            "<p>⚠️ Failed to load orders.</p>";
           console.error("❌ Failed to loadInitialOrders:", err);
         });
-
     }
 
     // Only get orders submitted after the latest known one
@@ -812,13 +954,6 @@
         filterOrders(query); // Run the actual filtering after 200ms pause
       }, 200);
     });
-
-    document
-      .getElementById("showOldToggle")
-      .addEventListener("change", () => {
-        const query = document.getElementById("searchInput").value;
-        filterOrders(query);
-      });
 
     async function autoEstimateOrder(order, card) {
       try {
@@ -939,15 +1074,27 @@
 
       // Auto-login if remembered
       if (localStorage.getItem("rememberedUser")) {
-        loginOverlay.style.display = "none";
-        loadInitialOrders();
-        setInterval(fetchNewOrders, 10000);
-        setInterval(refreshOrderStatuses, 10000);
+        fetch("/dashboard/whoami", { credentials: "include" })
+          .then((res) => res.json())
+          .then((data) => {
+            currentUser = data.username;
+            loginOverlay.style.display = "none";
+            loadInitialOrders();
+            setInterval(fetchNewOrders, 10000);
+            setInterval(refreshOrderStatuses, 10000);
+          })
+          .catch(() => {
+            console.warn("Failed to auto-login");
+            localStorage.removeItem("rememberedUser");
+          });
       }
 
       loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const username = document.getElementById("username").value.trim().toLowerCase();
+        const username = document
+          .getElementById("username")
+          .value.trim()
+          .toLowerCase();
         const password = document.getElementById("password").value.trim();
         const remember = document.getElementById("rememberMe").checked;
 
@@ -965,12 +1112,19 @@
 
           if (res.ok) {
             if (remember) localStorage.setItem("rememberedUser", "true");
+
+            // 🔄 Get the actual username from backend session
+            const userRes = await fetch("/dashboard/whoami", {
+              credentials: "include",
+            });
+            const data = await userRes.json();
+            currentUser = data.username;
+
             loginOverlay.style.display = "none";
 
             loadInitialOrders();
             setInterval(fetchNewOrders, 10000);
             setInterval(refreshOrderStatuses, 10000);
-
           } else {
             let errorText = "Login failed.";
             try {
@@ -984,8 +1138,6 @@
             loginError.textContent = errorText;
             loginError.style.display = "block";
           }
-
-
         } catch (err) {
           loginError.textContent = "Login error. Try again.";
           loginError.style.display = "block";
@@ -993,8 +1145,129 @@
       });
     });
 
+    document.getElementById("tabAll").addEventListener("click", () => {
+      currentTab = "all";
+      updateTabStyles();
+      const query = document.getElementById("searchInput").value;
+      filterOrders(query);
+    });
+
+    document.getElementById("tabClaimed").addEventListener("click", () => {
+      currentTab = "claimed";
+      updateTabStyles();
+      const query = document.getElementById("searchInput").value;
+      filterOrders(query);
+    });
+
+    function updateTabStyles() {
+      document.getElementById("tabAll").style.backgroundColor = currentTab === "all" ? "#1f6463" : "#ccc";
+      document.getElementById("tabAll").style.color = currentTab === "all" ? "white" : "black";
+      document.getElementById("tabClaimed").style.backgroundColor = currentTab === "claimed" ? "#1f6463" : "#ccc";
+      document.getElementById("tabClaimed").style.color = currentTab === "claimed" ? "white" : "black";
+    }
+
+
+    document.getElementById("showOldToggle").addEventListener("change", async () => {
+      const showOld = document.getElementById("showOldToggle").checked;
+
+      if (showOld) {
+        try {
+          const res = await fetch("/dashboard/data", { credentials: "include" });
+          const data = await res.json();
+          allOrders = Array.isArray(data) ? data : [];
+        } catch (err) {
+          console.error("❌ Failed to load old orders:", err);
+          allOrders = [];
+        }
+      } else {
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const sinceParam = encodeURIComponent(oneWeekAgo.toISOString());
+
+        try {
+          const res = await fetch(`/dashboard/data?since=${sinceParam}`, {
+            credentials: "include",
+          });
+          const data = await res.json();
+          allOrders = Array.isArray(data) ? data : [];
+        } catch (err) {
+          console.error("❌ Failed to load recent orders:", err);
+          allOrders = [];
+        }
+      }
+
+      const query = document.getElementById("searchInput").value;
+      filterOrders(query);
+    });
+
+    document.getElementById("showCompletedToggle").addEventListener("change", () => {
+      const query = document.getElementById("searchInput").value;
+      filterOrders(query);
+    });
+
+
+    // optional: call loadInitialOrders() on DOMContentLoaded
+    window.addEventListener("DOMContentLoaded", () => {
+      loadInitialOrders();
+    });
+
+    document.getElementById("showOldToggle").addEventListener("change", async () => {
+      const showOld = document.getElementById("showOldToggle").checked;
+
+      if (showOld) {
+        try {
+          const res = await fetch("/dashboard/data", { credentials: "include" });
+          const data = await res.json();
+          allOrders = Array.isArray(data) ? data : [];
+
+          // 🧠 Estimate missing orders
+          for (const order of allOrders) {
+            if (
+              (order.est_price == null || order.est_price === 0) &&
+              !(order.order_notes && order.order_notes.includes("Print estimate failed"))
+            ) {
+              await autoEstimateOrder(order);
+            }
+          }
+        } catch (err) {
+          console.error("❌ Failed to load old orders:", err);
+          allOrders = [];
+        }
+      } else {
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const sinceParam = encodeURIComponent(oneWeekAgo.toISOString());
+
+        try {
+          const res = await fetch(`/dashboard/data?since=${sinceParam}`, {
+            credentials: "include",
+          });
+          const data = await res.json();
+          allOrders = Array.isArray(data) ? data : [];
+
+          // 🧠 Estimate missing orders
+          for (const order of allOrders) {
+            if (
+              (order.est_price == null || order.est_price === 0) &&
+              !(order.order_notes && order.order_notes.includes("Print estimate failed"))
+            ) {
+              await autoEstimateOrder(order);
+            }
+          }
+        } catch (err) {
+          console.error("❌ Failed to load recent orders:", err);
+          allOrders = [];
+        }
+      }
+
+      const query = document.getElementById("searchInput").value;
+      filterOrders(query);
+    });
+
 
   </script>
+
+
 
   <div id="loginOverlay" class="login-overlay">
     <div class="login-box">
@@ -1007,12 +1280,10 @@
           Remember Me
         </label>
         <button type="submit">Login</button>
-        <p id="loginError" style="color: red; display: none; font-size: 0.85rem;"></p>
+        <p id="loginError" style="color: red; display: none; font-size: 0.85rem"></p>
       </form>
     </div>
   </div>
-
-
 </body>
 
 </html>
