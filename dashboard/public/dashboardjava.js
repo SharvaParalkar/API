@@ -441,7 +441,7 @@ async function appendNewOrders(newOrders) {
 async function refreshOrderStatuses() {
   try {
     const response = await fetch("/dashboard/data", {
-      credentials: "include", // ✅ Ensures session cookie is sent
+      credentials: "include",
     });
 
     if (!response.ok) {
@@ -452,23 +452,30 @@ async function refreshOrderStatuses() {
     const grid = document.getElementById("orderGrid");
     const cards = grid.querySelectorAll(".card");
 
+    // Update local state first
+    latestData.forEach((latestOrder) => {
+      const existingOrderIndex = DashboardState.allOrders.findIndex(o => o.id === latestOrder.id);
+      if (existingOrderIndex !== -1) {
+        DashboardState.allOrders[existingOrderIndex] = {
+          ...DashboardState.allOrders[existingOrderIndex],
+          ...latestOrder
+        };
+      }
+    });
+
+    // Then update UI
     latestData.forEach((latestOrder) => {
       const matchingCard = [...cards].find((card) =>
         card.innerText.includes(latestOrder.id)
       );
 
       if (matchingCard) {
+        // Update status dropdown
         const dropdown = matchingCard.querySelector("select");
         const currentStatus = dropdown.value.toLowerCase();
         let newStatus = (latestOrder.status || "pending").toLowerCase();
 
-        const allowedStatuses = [
-          "pending",
-          "pre print",
-          "printing",
-          "printing pay later",
-          "completed",
-        ];
+        const allowedStatuses = DashboardState.VALID_STATUSES;
         if (!allowedStatuses.includes(newStatus)) {
           newStatus = "pending";
         }
@@ -476,6 +483,65 @@ async function refreshOrderStatuses() {
         if (currentStatus !== newStatus) {
           dropdown.value = newStatus;
           applyStatusColor(dropdown, newStatus);
+        }
+
+        // Update claim status
+        const existingClaimBtn = matchingCard.querySelector("button:not(.details-toggle)");
+        const existingClaimLabel = matchingCard.querySelector("div:not(.order-id):not(.details-section)");
+        
+        if (existingClaimBtn) existingClaimBtn.remove();
+        if (existingClaimLabel) existingClaimLabel.remove();
+
+        // Re-add claim/unclaim UI
+        if (latestOrder.status?.toLowerCase() !== "completed") {
+          if (latestOrder.assigned_staff === DashboardState.currentUser) {
+            const unclaimBtn = document.createElement("button");
+            unclaimBtn.textContent = "Unclaim";
+            unclaimBtn.style.backgroundColor = "#ccc";
+            unclaimBtn.style.border = "none";
+            unclaimBtn.style.color = "#333";
+            unclaimBtn.style.padding = "0.5rem 1rem";
+            unclaimBtn.style.borderRadius = "0.5rem";
+            unclaimBtn.style.marginTop = "0.5rem";
+            unclaimBtn.style.cursor = "pointer";
+
+            unclaimBtn.addEventListener("click", async () => {
+              const success = await unclaimOrder(latestOrder);
+              if (success) {
+                const query = document.getElementById("searchInput").value;
+                filterOrders(query);
+              }
+            });
+
+            matchingCard.appendChild(unclaimBtn);
+          } else if (latestOrder.assigned_staff) {
+            const claimedLabel = document.createElement("div");
+            claimedLabel.textContent = `Claimed by: ${latestOrder.assigned_staff}`;
+            claimedLabel.style.marginTop = "0.5rem";
+            claimedLabel.style.fontSize = "0.9rem";
+            claimedLabel.style.color = "#666";
+            matchingCard.appendChild(claimedLabel);
+          } else {
+            const claimBtn = document.createElement("button");
+            claimBtn.textContent = "Claim Order";
+            claimBtn.style.backgroundColor = "#ccc";
+            claimBtn.style.border = "none";
+            claimBtn.style.color = "#333";
+            claimBtn.style.padding = "0.5rem 1rem";
+            claimBtn.style.borderRadius = "0.5rem";
+            claimBtn.style.marginTop = "0.5rem";
+            claimBtn.style.cursor = "pointer";
+
+            claimBtn.addEventListener("click", async () => {
+              const success = await claimOrder(latestOrder);
+              if (success) {
+                const query = document.getElementById("searchInput").value;
+                filterOrders(query);
+              }
+            });
+
+            matchingCard.appendChild(claimBtn);
+          }
         }
       }
     });
@@ -735,13 +801,17 @@ async function claimOrder(order) {
     }
 
     // Update local state
-    order.claimed = true;
-    order.assigned_staff = data.assignedTo;
+    const orderIndex = DashboardState.allOrders.findIndex(o => o.id === order.id);
+    if (orderIndex !== -1) {
+      DashboardState.allOrders[orderIndex] = {
+        ...DashboardState.allOrders[orderIndex],
+        claimed: true,
+        assigned_staff: DashboardState.currentUser
+      };
+    }
     
-    // Refresh the display
-    const query = document.getElementById("searchInput").value;
-    filterOrders(query);
-    
+    // Force refresh to ensure UI is updated
+    await refreshOrderStatuses();
     return true;
   } catch (err) {
     handleError(err, `Failed to claim order: ${err.message}`);
@@ -767,13 +837,17 @@ async function unclaimOrder(order) {
     }
 
     // Update local state
-    order.claimed = false;
-    order.assigned_staff = null;
+    const orderIndex = DashboardState.allOrders.findIndex(o => o.id === order.id);
+    if (orderIndex !== -1) {
+      DashboardState.allOrders[orderIndex] = {
+        ...DashboardState.allOrders[orderIndex],
+        claimed: false,
+        assigned_staff: null
+      };
+    }
     
-    // Refresh the display
-    const query = document.getElementById("searchInput").value;
-    filterOrders(query);
-    
+    // Force refresh to ensure UI is updated
+    await refreshOrderStatuses();
     return true;
   } catch (err) {
     handleError(err, `Failed to unclaim order: ${err.message}`);
