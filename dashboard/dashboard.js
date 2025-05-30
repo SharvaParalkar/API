@@ -8,10 +8,12 @@ const session = require("express-session");
 
 const app = express();
 
-// Updated CORS configuration to accept all origins in development
+// CORS configuration for Cloudflare tunnel
 app.use(cors({
-  origin: true, // Allow all origins
-  credentials: true // Allow credentials
+  origin: ['https://api.filamentbros.com', 'https://filamentbros.com'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
@@ -35,11 +37,13 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
   resave: true,
   saveUninitialized: true,
+  proxy: true, // Trust the reverse proxy
   cookie: {
-    secure: false, // Set to false for HTTP
+    secure: true, // Required for Cloudflare HTTPS
     httpOnly: true,
-    sameSite: 'lax', // Changed from strict to lax
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    sameSite: 'none', // Required for cross-site cookies with Cloudflare
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    domain: '.filamentbros.com' // Include subdomain
   }
 }));
 

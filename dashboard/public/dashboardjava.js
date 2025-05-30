@@ -33,6 +33,9 @@ function handleError(error, userMessage = "An error occurred") {
   alert(userMessage);
 }
 
+// Add base URL for API calls
+const API_BASE_URL = 'https://api.filamentbros.com';
+
 async function renderOrders(orders, expandDetails = false, container = null) {
   try {
     const grid = container || document.getElementById("orderGrid");
@@ -122,7 +125,7 @@ async function renderOrders(orders, expandDetails = false, container = null) {
         toggleBtn.textContent = "Hide ▲";
       }
 
-      fetch(`/dashboard/files/${order.id}`)
+      fetch(`${API_BASE_URL}/dashboard/files/${order.id}`)
         .then((res) => res.json())
         .then((files) => {
           if (files.length > 0) {
@@ -138,7 +141,7 @@ async function renderOrders(orders, expandDetails = false, container = null) {
               const fullFilename = decodeURIComponent(
                 fileUrl.split("/").pop()
               );
-              const downloadUrl = `/dashboard/fileserve/${encodeURIComponent(
+              const downloadUrl = `${API_BASE_URL}/dashboard/fileserve/${encodeURIComponent(
                 fullFilename
               )}`;
               const filename = fullFilename.replace(
@@ -158,7 +161,7 @@ async function renderOrders(orders, expandDetails = false, container = null) {
 
             if (files.length > 0) {
               const downloadAll = document.createElement("a");
-              downloadAll.href = `/dashboard/download-all/${order.id}`;
+              downloadAll.href = `${API_BASE_URL}/dashboard/download-all/${order.id}`;
               downloadAll.className = "download-all-btn";
               downloadAll.textContent = "📦 Download All";
               detailsSection.appendChild(downloadAll); // ✅ append to details section
@@ -326,7 +329,7 @@ function createStatusDropdown(order) {
 
 async function updateOrderStatus(orderId, newStatus) {
   try {
-    const response = await fetch(`/dashboard/status/${orderId}`, {
+    const response = await fetch(`${API_BASE_URL}/dashboard/status/${orderId}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -438,7 +441,7 @@ async function appendNewOrders(newOrders) {
 
 async function refreshOrderStatuses() {
   try {
-    const response = await fetch("/dashboard/data", {
+    const response = await fetch(`${API_BASE_URL}/dashboard/data`, {
       credentials: "include",
     });
 
@@ -556,8 +559,8 @@ async function loadInitialOrders() {
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
     const url = showOld 
-      ? "/dashboard/data"
-      : `/dashboard/data?since=${encodeURIComponent(oneWeekAgo.toISOString())}`;
+      ? `${API_BASE_URL}/dashboard/data`
+      : `${API_BASE_URL}/dashboard/data?since=${encodeURIComponent(oneWeekAgo.toISOString())}`;
 
     const response = await fetch(url, { credentials: "include" });
     
@@ -598,7 +601,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function checkAutoLogin(loginOverlay) {
   try {
-    const response = await fetch("/dashboard/whoami", {
+    const response = await fetch(`${API_BASE_URL}/dashboard/whoami`, {
       credentials: "include",
       headers: {
         "Cache-Control": "no-cache"
@@ -667,7 +670,7 @@ function setupEventListeners() {
 
 async function autoEstimateOrder(order, card) {
   try {
-    const files = await fetch(`/dashboard/files/${order.id}`).then((r) =>
+    const files = await fetch(`${API_BASE_URL}/dashboard/files/${order.id}`).then((r) =>
       r.json()
     );
     if (!files.length) {
@@ -686,7 +689,7 @@ async function autoEstimateOrder(order, card) {
       fileNames.push(filename);
     }
 
-    const sseResponse = await fetch("/stl/upload", {
+    const sseResponse = await fetch(`${API_BASE_URL}/stl/upload`, {
       method: "POST",
       headers: {
         Origin: "https://filamentbros.com",
@@ -721,7 +724,7 @@ async function autoEstimateOrder(order, card) {
     }
 
     if (totalEstimate > 0) {
-      await fetch("/dashboard/update-price", {
+      await fetch(`${API_BASE_URL}/dashboard/update-price`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -749,7 +752,7 @@ async function autoEstimateOrder(order, card) {
         )}`;
 
         // Update in database
-        await fetch("/dashboard/update-notes", {
+        await fetch(`${API_BASE_URL}/dashboard/update-notes`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -798,7 +801,7 @@ function updateTabStyles() {
 
 async function claimOrder(order) {
   try {
-    const response = await fetch('/dashboard/claim', {
+    const response = await fetch(`${API_BASE_URL}/dashboard/claim`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -834,7 +837,7 @@ async function claimOrder(order) {
 
 async function unclaimOrder(order) {
   try {
-    const response = await fetch('/dashboard/unclaim', {
+    const response = await fetch(`${API_BASE_URL}/dashboard/unclaim`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -868,7 +871,7 @@ async function unclaimOrder(order) {
   }
 }
 
-// Add handleLogin function at the top level
+// Update handleLogin function
 async function handleLogin(e) {
   e.preventDefault();
   
@@ -883,7 +886,7 @@ async function handleLogin(e) {
   loginSpinner.style.display = "block";
 
   try {
-    const response = await fetch("/dashboard/login", {
+    const response = await fetch(`${API_BASE_URL}/dashboard/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
