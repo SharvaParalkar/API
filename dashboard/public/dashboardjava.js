@@ -367,7 +367,14 @@ function filterOrders(query) {
     const isRecent = submittedAt >= oneWeekAgo;
     if (!showOld && !isRecent) return false;
     if (!showCompleted && (order.status || "").toLowerCase() === "completed") return false;
-    if (DashboardState.currentTab === "claimed" && (!order.claimed || order.assigned_staff !== DashboardState.currentUser)) return false;
+    
+    // Handle claimed tab
+    if (DashboardState.currentTab === "claimed") {
+      // In claimed tab, only show orders claimed by current user
+      if (!order.claimed || order.assigned_staff !== DashboardState.currentUser) {
+        return false;
+      }
+    }
 
     return (
       (order.name && order.name.toLowerCase().includes(q)) ||
@@ -709,102 +716,6 @@ function updateTabStyles() {
   document.getElementById("tabClaimed").style.backgroundColor = DashboardState.currentTab === "claimed" ? "#1f6463" : "#ccc";
   document.getElementById("tabClaimed").style.color = DashboardState.currentTab === "claimed" ? "white" : "black";
 }
-
-document.getElementById("showOldToggle").addEventListener("change", async () => {
-  const showOld = document.getElementById("showOldToggle").checked;
-
-  if (showOld) {
-    try {
-      const res = await fetch("/dashboard/data", { credentials: "include" });
-      const data = await res.json();
-      DashboardState.allOrders = Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.error("❌ Failed to load old orders:", err);
-      DashboardState.allOrders = [];
-    }
-  } else {
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const sinceParam = encodeURIComponent(oneWeekAgo.toISOString());
-
-    try {
-      const res = await fetch(`/dashboard/data?since=${sinceParam}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      DashboardState.allOrders = Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.error("❌ Failed to load recent orders:", err);
-      DashboardState.allOrders = [];
-    }
-  }
-
-  const query = document.getElementById("searchInput").value;
-  filterOrders(query);
-});
-
-document.getElementById("showCompletedToggle").addEventListener("change", () => {
-  const query = document.getElementById("searchInput").value;
-  filterOrders(query);
-});
-
-// optional: call loadInitialOrders() on DOMContentLoaded
-window.addEventListener("DOMContentLoaded", () => {
-  loadInitialOrders();
-});
-
-document.getElementById("showOldToggle").addEventListener("change", async () => {
-  const showOld = document.getElementById("showOldToggle").checked;
-
-  if (showOld) {
-    try {
-      const res = await fetch("/dashboard/data", { credentials: "include" });
-      const data = await res.json();
-      DashboardState.allOrders = Array.isArray(data) ? data : [];
-
-      // 🧠 Estimate missing orders
-      for (const order of DashboardState.allOrders) {
-        if (
-          (order.est_price == null || order.est_price === 0) &&
-          !(order.order_notes && order.order_notes.includes("Print estimate failed"))
-        ) {
-          await autoEstimateOrder(order);
-        }
-      }
-    } catch (err) {
-      console.error("❌ Failed to load old orders:", err);
-      DashboardState.allOrders = [];
-    }
-  } else {
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const sinceParam = encodeURIComponent(oneWeekAgo.toISOString());
-
-    try {
-      const res = await fetch(`/dashboard/data?since=${sinceParam}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      DashboardState.allOrders = Array.isArray(data) ? data : [];
-
-      // 🧠 Estimate missing orders
-      for (const order of DashboardState.allOrders) {
-        if (
-          (order.est_price == null || order.est_price === 0) &&
-          !(order.order_notes && order.order_notes.includes("Print estimate failed"))
-        ) {
-          await autoEstimateOrder(order);
-        }
-      }
-    } catch (err) {
-      console.error("❌ Failed to load recent orders:", err);
-      DashboardState.allOrders = [];
-    }
-  }
-
-  const query = document.getElementById("searchInput").value;
-  filterOrders(query);
-});
 
 async function claimOrder(order) {
   try {
