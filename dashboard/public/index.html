@@ -424,6 +424,67 @@
       border: 2px solid #ccc;
       border-radius: 5rem;
     }
+
+    .loading-spinner {
+      display: none;
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #1f6463;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      display: none;
+      color: #d9534f;
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      text-align: center;
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+
+    .toast {
+      background: white;
+      border-radius: 4px;
+      padding: 15px 25px;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-width: 200px;
+      max-width: 400px;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .toast.error {
+      border-left: 4px solid #d9534f;
+    }
+
+    .toast.success {
+      border-left: 4px solid #5cb85c;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
   </style>
 </head>
 
@@ -465,12 +526,10 @@
     </div>
   </div>
 
-
-  <div class="grid" id="orderGrid"></div>
-
-<script src="dashboardjava.js"></script>
-
-
+  <div id="loadingSpinner" class="loading-spinner"></div>
+  <div id="errorMessage" class="error-message"></div>
+  <div id="orderGrid" class="grid"></div>
+  <div id="toastContainer" class="toast-container"></div>
 
   <div id="loginOverlay" class="login-overlay">
     <div class="login-box">
@@ -483,10 +542,13 @@
           Remember Me
         </label>
         <button type="submit">Login</button>
+        <div id="loginSpinner" class="loading-spinner"></div>
         <p id="loginError" style="color: red; display: none; font-size: 0.85rem"></p>
       </form>
     </div>
   </div>
+
+  <script src="dashboardjava.js"></script>
 </body>
 
 </html>

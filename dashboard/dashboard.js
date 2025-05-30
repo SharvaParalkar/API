@@ -2,12 +2,15 @@ const express = require("express");
 const Database = require("better-sqlite3");
 const cors = require("cors");
 const path = require("path");
-const fs = require("fs");
+const fs = require("fs").promises;  // Use promises version for async operations
 const archiver = require("archiver");
 const session = require("express-session");
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? 'your-production-domain' : 'http://localhost:3300',
+  credentials: true
+}));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -25,22 +28,23 @@ const USERS = {
 };
 
 // 🛡️ Session setup
-app.use(
-  session({
-    secret: "filamentbros-secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    },
-  })
-);
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 
-// 🧱 Auth middleware
+// 🧱 Auth middleware with improved error handling
 function requireLogin(req, res, next) {
- if (!req.session.user) {
-  return res.status(401).json({ error: "Unauthorized" }); // ✅ valid JSON
-}
+  if (!req.session.user) {
+    return res.status(401).json({ error: "Unauthorized - Please log in" });
+  }
   next();
 }
 
@@ -72,37 +76,59 @@ app.get(["/dashboard", "/dashboard/"], (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// 🔐 Protected route: order data
-app.get("/dashboard/data", requireLogin, (req, res) => {
+// 🔐 Protected route: order data with improved error handling
+app.get("/dashboard/data", requireLogin, async (req, res) => {
   try {
-    const rows = db.prepare("SELECT * FROM orders ORDER BY submitted_at DESC").all();
+    const since = req.query.since;
+    let query = "SELECT * FROM orders";
+    let params = [];
+
+    if (since) {
+      query += " WHERE submitted_at > ?";
+      params.push(since);
+    }
+    query += " ORDER BY submitted_at DESC";
+
+    const rows = db.prepare(query).all(...params);
     res.json(rows);
   } catch (err) {
     console.error("❌ Failed to fetch orders:", err.message);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Failed to fetch orders", details: err.message });
   }
 });
 
-// 📁 Return list of STL file URLs
-app.get("/dashboard/files/:orderId", requireLogin, (req, res) => {
+// 📁 Return list of STL file URLs with improved error handling and async operations
+app.get("/dashboard/files/:orderId", requireLogin, async (req, res) => {
   const orderId = req.params.orderId;
+  
+  if (!orderId || !/^\d+$/.test(orderId)) {
+    return res.status(400).json({ error: "Invalid order ID" });
+  }
+
   try {
-    const files = fs.readdirSync(STLS_DIR);
+    const files = await fs.readdir(STLS_DIR);
     const matchingFiles = files.filter((file) => file.startsWith(orderId));
     const fileUrls = matchingFiles.map((file) => `/dashboard/fileserve/${encodeURIComponent(file)}`);
+    
+    if (fileUrls.length === 0) {
+      return res.status(404).json({ error: "No files found for this order" });
+    }
+    
     res.json(fileUrls);
   } catch (err) {
     console.error("❌ Error reading STL files:", err.message);
-    res.status(500).json({ error: "Failed to read STL files" });
+    res.status(500).json({ error: "Failed to read STL files", details: err.message });
   }
 });
 
-// 📦 Serve STL files
+// 📦 Serve STL files with improved headers
 app.use(
   "/dashboard/fileserve",
   express.static(STLS_DIR, {
     setHeaders: (res) => {
       res.set("Cross-Origin-Resource-Policy", "cross-origin");
+      res.set("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+      res.set("X-Content-Type-Options", "nosniff");
     },
   })
 );
@@ -183,12 +209,29 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   }
 });
 
+// Improved whoami endpoint with error handling
 app.get("/dashboard/whoami", requireLogin, (req, res) => {
-  res.json({ username: req.session.user });
+  try {
+    res.json({ 
+      username: req.session.user,
+      isAuthenticated: true
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Internal server error", details: err.message });
+  }
 });
 
-// 🏁 Launch server
-const PORT = 3300;
+// 🏁 Launch server with error handling
+const PORT = process.env.PORT || 3300;
 app.listen(PORT, () => {
   console.log(`✅ Dashboard running at http://localhost:${PORT}`);
+}).on('error', (err) => {
+  console.error('❌ Failed to start server:', err.message);
+  process.exit(1);
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('❌ Unhandled error:', err);
+  res.status(500).json({ error: "Internal server error" });
 });
