@@ -209,6 +209,66 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   }
 });
 
+// 🤝 Claim order endpoint
+app.post("/dashboard/claim", requireLogin, (req, res) => {
+  const { orderId } = req.body;
+  const username = req.session.user;
+
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId" });
+  }
+
+  try {
+    // Check if already assigned
+    const order = db.prepare("SELECT assigned_staff FROM orders WHERE id = ?").get(orderId);
+    if (order && order.assigned_staff) {
+      return res.status(400).json({ error: `Order already claimed by ${order.assigned_staff}` });
+    }
+
+    // Claim the order by setting assigned_staff and claimed status
+    const stmt = db.prepare("UPDATE orders SET assigned_staff = ?, claimed = 1 WHERE id = ? AND (claimed = 0 OR claimed IS NULL)");
+    const result = stmt.run(username, orderId);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Order not found or already claimed" });
+    }
+    
+    res.json({ success: true, assignedTo: username });
+  } catch (err) {
+    console.error("❌ Failed to claim order:", err.message);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// 🔓 Unclaim order endpoint
+app.post("/dashboard/unclaim", requireLogin, (req, res) => {
+  const { orderId } = req.body;
+  const username = req.session.user;
+
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId" });
+  }
+
+  try {
+    // Only allow unclaiming if the user is the assigned staff
+    const stmt = db.prepare("UPDATE orders SET assigned_staff = NULL, claimed = 0 WHERE id = ? AND assigned_staff = ?");
+    const result = stmt.run(orderId, username);
+    
+    if (result.changes === 0) {
+      const order = db.prepare("SELECT assigned_staff FROM orders WHERE id = ?").get(orderId);
+      if (order && order.assigned_staff && order.assigned_staff !== username) {
+        return res.status(403).json({ error: `Order was claimed by ${order.assigned_staff}` });
+      }
+      return res.status(404).json({ error: "Order not found or not claimed by you" });
+    }
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Failed to unclaim order:", err.message);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 // Improved whoami endpoint with error handling
 app.get("/dashboard/whoami", requireLogin, (req, res) => {
   try {
