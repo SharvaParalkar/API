@@ -587,6 +587,7 @@ const debouncedFilterOrders = debounce((query) => {
 // Login handling
 async function handleLogin(e) {
   e.preventDefault();
+  console.log("Login attempt started");
   
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
@@ -599,6 +600,7 @@ async function handleLogin(e) {
   loginSpinner.style.display = "block";
 
   try {
+    console.log("Sending login request...");
     const response = await fetch(`${API_BASE_URL}/dashboard/login`, {
       method: "POST",
       headers: {
@@ -612,7 +614,12 @@ async function handleLogin(e) {
       })
     });
 
-    if (response.ok) {
+    console.log("Login response status:", response.status);
+    const data = await response.json();
+    console.log("Login response:", data);
+
+    if (response.ok && data.success) {
+      console.log("Login successful");
       // Store username for auto-login
       if (rememberMe) {
         localStorage.setItem("rememberedUser", username);
@@ -621,21 +628,23 @@ async function handleLogin(e) {
       }
       
       // Set current user and hide login overlay
-      DashboardState.currentUser = username;
+      DashboardState.currentUser = data.username;
       loginOverlay.style.display = "none";
+      document.body.style.overflow = "auto"; // Re-enable scrolling
       
       // Load initial data
+      console.log("Loading initial orders...");
       await loadInitialOrders();
       startRefreshTimers();
     } else {
-      const errorText = await response.text();
-      loginError.textContent = errorText || "Login failed";
+      console.error("Login failed:", data.error);
+      loginError.textContent = data.error || "Login failed";
       loginError.style.display = "block";
     }
   } catch (err) {
+    console.error("Login error:", err);
     loginError.textContent = "Network error. Please try again.";
     loginError.style.display = "block";
-    console.error("Login error:", err);
   } finally {
     loginSpinner.style.display = "none";
   }
@@ -643,6 +652,7 @@ async function handleLogin(e) {
 
 async function checkAutoLogin(loginOverlay) {
   try {
+    console.log("Checking auto-login status");
     const response = await fetch(`${API_BASE_URL}/dashboard/whoami`, {
       credentials: "include",
       headers: {
@@ -650,19 +660,23 @@ async function checkAutoLogin(loginOverlay) {
       }
     });
     
+    console.log("Auto-login response status:", response.status);
+    
     if (!response.ok) {
       throw new Error("Not authenticated");
     }
 
     const data = await response.json();
+    console.log("Auto-login response:", data);
     
     if (data.username) {
+      console.log("Auto-login successful");
       DashboardState.currentUser = data.username;
       loginOverlay.style.display = "none";
       await loadInitialOrders();
       startRefreshTimers();
     } else {
-      // Clear remembered user if session is invalid
+      console.log("Auto-login failed - no username");
       localStorage.removeItem("rememberedUser");
       loginOverlay.style.display = "flex";
     }
@@ -674,6 +688,7 @@ async function checkAutoLogin(loginOverlay) {
 }
 
 function setupEventListeners() {
+  console.log("Setting up event listeners");
   // Search input with debouncing
   document.getElementById("searchInput").addEventListener("input", (e) => {
     debouncedFilterOrders(e.target.value);
@@ -687,32 +702,48 @@ function setupEventListeners() {
     filterOrders(query);
   });
 
+  document.getElementById("tabClaimed")?.addEventListener("click", () => {
+    DashboardState.currentTab = "claimed";
+    updateTabStyles();
+    const query = document.getElementById("searchInput").value;
+    filterOrders(query);
+  });
+
   // Toggle handlers
-  document.getElementById("showOldToggle").addEventListener("change", loadInitialOrders);
-  document.getElementById("showCompletedToggle").addEventListener("change", () => {
+  document.getElementById("showOldToggle")?.addEventListener("change", loadInitialOrders);
+  document.getElementById("showCompletedToggle")?.addEventListener("change", () => {
     const query = document.getElementById("searchInput").value;
     filterOrders(query);
   });
 
   // Login form handler
-  document.getElementById("loginForm").addEventListener("submit", handleLogin);
+  const loginForm = document.getElementById("loginForm");
+  if (loginForm) {
+    console.log("Adding login form submit handler");
+    loginForm.addEventListener("submit", handleLogin);
+  } else {
+    console.error("Login form not found!");
+  }
 }
 
 // Initialize dashboard
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("DOM Content Loaded");
   const loginOverlay = document.getElementById("loginOverlay");
   const loginForm = document.getElementById("loginForm");
   const loginError = document.getElementById("loginError");
 
+  // Setup event listeners first
+  setupEventListeners();
+
   // Auto-login if remembered
   if (localStorage.getItem("rememberedUser")) {
+    console.log("Attempting auto-login");
     checkAutoLogin(loginOverlay);
   } else {
+    console.log("No remembered user, showing login form");
     loginOverlay.style.display = "flex";
   }
-
-  // Setup event listeners
-  setupEventListeners();
 });
 
 async function autoEstimateOrder(order, card) {

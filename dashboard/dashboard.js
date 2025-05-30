@@ -61,21 +61,32 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // 🧾 Login route
 app.post("/dashboard/login", (req, res) => {
+  console.log("Login attempt received:", req.body.username);
+  
   const username = (req.body.username || "").trim().toLowerCase();
   const password = (req.body.password || "").trim();
   const validPassword = USERS[username];
 
   if (validPassword && password === validPassword) {
+    console.log("Login successful for:", username);
     req.session.user = username;
 
     if (req.body.remember === "on") {
       req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000;
     }
 
-    return res.sendStatus(200);
+    // Send back user info
+    return res.json({
+      success: true,
+      username: username
+    });
   }
 
-  return res.status(401).send("Invalid username or password.");
+  console.log("Login failed for:", username);
+  return res.status(401).json({
+    success: false,
+    error: "Invalid username or password."
+  });
 });
 
 
