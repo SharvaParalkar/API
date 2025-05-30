@@ -7,12 +7,15 @@ const archiver = require("archiver");
 const session = require("express-session");
 
 const app = express();
+
+// Updated CORS configuration to accept all origins in development
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'your-production-domain' : 'http://localhost:3300',
-  credentials: true
+  origin: true, // Allow all origins
+  credentials: true // Allow credentials
 }));
-app.use(express.urlencoded({ extended: true }));
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
 const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
@@ -27,15 +30,15 @@ const USERS = {
   evan: "print123",
 };
 
-// 🛡️ Session setup
+// 🛡️ Updated Session setup
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // Set to false for HTTP
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: 'lax', // Changed from strict to lax
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));

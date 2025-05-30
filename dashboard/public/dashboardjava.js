@@ -26,8 +26,6 @@ function debounce(func, wait) {
   };
 }
 
-
-
 // Error handling utility
 function handleError(error, userMessage = "An error occurred") {
   console.error("❌ Error:", error);
@@ -600,7 +598,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function checkAutoLogin(loginOverlay) {
   try {
-    const response = await fetch("/dashboard/whoami", { credentials: "include" });
+    const response = await fetch("/dashboard/whoami", {
+      credentials: "include",
+      headers: {
+        "Cache-Control": "no-cache"
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error("Not authenticated");
+    }
+
     const data = await response.json();
     
     if (data.username) {
@@ -608,10 +616,15 @@ async function checkAutoLogin(loginOverlay) {
       loginOverlay.style.display = "none";
       await loadInitialOrders();
       startRefreshTimers();
+    } else {
+      // Clear remembered user if session is invalid
+      localStorage.removeItem("rememberedUser");
+      loginOverlay.style.display = "flex";
     }
   } catch (err) {
-    console.warn("Failed to auto-login");
+    console.warn("Auto-login failed:", err);
     localStorage.removeItem("rememberedUser");
+    loginOverlay.style.display = "flex";
   }
 }
 
@@ -852,5 +865,62 @@ async function unclaimOrder(order) {
   } catch (err) {
     handleError(err, `Failed to unclaim order: ${err.message}`);
     return false;
+  }
+}
+
+// Add handleLogin function at the top level
+async function handleLogin(e) {
+  e.preventDefault();
+  
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  const rememberMe = document.getElementById("rememberMe").checked;
+  const loginError = document.getElementById("loginError");
+  const loginSpinner = document.getElementById("loginSpinner");
+  const loginOverlay = document.getElementById("loginOverlay");
+
+  loginError.style.display = "none";
+  loginSpinner.style.display = "block";
+
+  try {
+    const response = await fetch("/dashboard/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        username,
+        password,
+        remember: rememberMe ? "on" : "off"
+      })
+    });
+
+    if (response.ok) {
+      // Store username for auto-login
+      if (rememberMe) {
+        localStorage.setItem("rememberedUser", username);
+      } else {
+        localStorage.removeItem("rememberedUser");
+      }
+      
+      // Set current user and hide login overlay
+      DashboardState.currentUser = username;
+      loginOverlay.style.display = "none";
+      
+      // Load initial data
+      await loadInitialOrders();
+      startRefreshTimers();
+    } else {
+      const errorText = await response.text();
+      loginError.textContent = errorText || "Login failed";
+      loginError.style.display = "block";
+    }
+  } catch (err) {
+    loginError.textContent = "Network error. Please try again.";
+    loginError.style.display = "block";
+    console.error("Login error:", err);
+  } finally {
+    loginSpinner.style.display = "none";
   }
 }
