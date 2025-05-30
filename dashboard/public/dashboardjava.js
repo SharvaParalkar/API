@@ -26,6 +26,8 @@ function debounce(func, wait) {
   };
 }
 
+
+
 // Error handling utility
 function handleError(error, userMessage = "An error occurred") {
   console.error("❌ Error:", error);
