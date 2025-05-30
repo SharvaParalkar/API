@@ -798,4 +798,3 @@
       const query = document.getElementById("searchInput").value;
       filterOrders(query);
     });
-
