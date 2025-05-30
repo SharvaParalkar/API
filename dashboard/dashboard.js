@@ -2,22 +2,14 @@ const express = require("express");
 const Database = require("better-sqlite3");
 const cors = require("cors");
 const path = require("path");
-const fs = require("fs").promises;  // Use promises version for async operations
+const fs = require("fs");
 const archiver = require("archiver");
 const session = require("express-session");
 
 const app = express();
-
-// CORS configuration for Cloudflare tunnel
-app.use(cors({
-  origin: ['https://api.filamentbros.com', 'https://filamentbros.com'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-app.use(express.json());
+app.use(cors());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
 const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
@@ -32,26 +24,23 @@ const USERS = {
   evan: "print123",
 };
 
-// 🛡️ Updated Session setup
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
-  resave: true,
-  saveUninitialized: true,
-  proxy: true, // Trust the reverse proxy
-  cookie: {
-    secure: true, // Required for Cloudflare HTTPS
-    httpOnly: true,
-    sameSite: 'none', // Required for cross-site cookies with Cloudflare
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    domain: '.filamentbros.com' // Include subdomain
-  }
-}));
+// 🛡️ Session setup
+app.use(
+  session({
+    secret: "filamentbros-secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    },
+  })
+);
 
-// 🧱 Auth middleware with improved error handling
+// 🧱 Auth middleware
 function requireLogin(req, res, next) {
-  if (!req.session.user) {
-    return res.status(401).json({ error: "Unauthorized - Please log in" });
-  }
+ if (!req.session.user) {
+  return res.status(401).json({ error: "Unauthorized" }); // ✅ valid JSON
+}
   next();
 }
 
@@ -61,32 +50,21 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // 🧾 Login route
 app.post("/dashboard/login", (req, res) => {
-  console.log("Login attempt received:", req.body.username);
-  
   const username = (req.body.username || "").trim().toLowerCase();
   const password = (req.body.password || "").trim();
   const validPassword = USERS[username];
 
   if (validPassword && password === validPassword) {
-    console.log("Login successful for:", username);
     req.session.user = username;
 
     if (req.body.remember === "on") {
       req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000;
     }
 
-    // Send back user info
-    return res.json({
-      success: true,
-      username: username
-    });
+    return res.sendStatus(200);
   }
 
-  console.log("Login failed for:", username);
-  return res.status(401).json({
-    success: false,
-    error: "Invalid username or password."
-  });
+  return res.status(401).send("Invalid username or password.");
 });
 
 
@@ -94,59 +72,37 @@ app.get(["/dashboard", "/dashboard/"], (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// 🔐 Protected route: order data with improved error handling
-app.get("/dashboard/data", requireLogin, async (req, res) => {
+// 🔐 Protected route: order data
+app.get("/dashboard/data", requireLogin, (req, res) => {
   try {
-    const since = req.query.since;
-    let query = "SELECT * FROM orders";
-    let params = [];
-
-    if (since) {
-      query += " WHERE submitted_at > ?";
-      params.push(since);
-    }
-    query += " ORDER BY submitted_at DESC";
-
-    const rows = db.prepare(query).all(...params);
+    const rows = db.prepare("SELECT * FROM orders ORDER BY submitted_at DESC").all();
     res.json(rows);
   } catch (err) {
     console.error("❌ Failed to fetch orders:", err.message);
-    res.status(500).json({ error: "Failed to fetch orders", details: err.message });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// 📁 Return list of STL file URLs with improved error handling and async operations
-app.get("/dashboard/files/:orderId", requireLogin, async (req, res) => {
+// 📁 Return list of STL file URLs
+app.get("/dashboard/files/:orderId", requireLogin, (req, res) => {
   const orderId = req.params.orderId;
-  
-  if (!orderId || !/^\d+$/.test(orderId)) {
-    return res.status(400).json({ error: "Invalid order ID" });
-  }
-
   try {
-    const files = await fs.readdir(STLS_DIR);
+    const files = fs.readdirSync(STLS_DIR);
     const matchingFiles = files.filter((file) => file.startsWith(orderId));
     const fileUrls = matchingFiles.map((file) => `/dashboard/fileserve/${encodeURIComponent(file)}`);
-    
-    if (fileUrls.length === 0) {
-      return res.status(404).json({ error: "No files found for this order" });
-    }
-    
     res.json(fileUrls);
   } catch (err) {
     console.error("❌ Error reading STL files:", err.message);
-    res.status(500).json({ error: "Failed to read STL files", details: err.message });
+    res.status(500).json({ error: "Failed to read STL files" });
   }
 });
 
-// 📦 Serve STL files with improved headers
+// 📦 Serve STL files
 app.use(
   "/dashboard/fileserve",
   express.static(STLS_DIR, {
     setHeaders: (res) => {
       res.set("Cross-Origin-Resource-Policy", "cross-origin");
-      res.set("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
-      res.set("X-Content-Type-Options", "nosniff");
     },
   })
 );
@@ -227,89 +183,8 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   }
 });
 
-// 🤝 Claim order endpoint
-app.post("/dashboard/claim", requireLogin, (req, res) => {
-  const { orderId } = req.body;
-  const username = req.session.user;
-
-  if (!orderId) {
-    return res.status(400).json({ error: "Missing orderId" });
-  }
-
-  try {
-    // Check if already assigned
-    const order = db.prepare("SELECT assigned_staff FROM orders WHERE id = ?").get(orderId);
-    if (order && order.assigned_staff) {
-      return res.status(400).json({ error: `Order already claimed by ${order.assigned_staff}` });
-    }
-
-    // Claim the order by setting assigned_staff and claimed status
-    const stmt = db.prepare("UPDATE orders SET assigned_staff = ?, claimed = 1 WHERE id = ? AND (claimed = 0 OR claimed IS NULL)");
-    const result = stmt.run(username, orderId);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ error: "Order not found or already claimed" });
-    }
-    
-    res.json({ success: true, assignedTo: username });
-  } catch (err) {
-    console.error("❌ Failed to claim order:", err.message);
-    res.status(500).json({ error: "Database error" });
-  }
-});
-
-// 🔓 Unclaim order endpoint
-app.post("/dashboard/unclaim", requireLogin, (req, res) => {
-  const { orderId } = req.body;
-  const username = req.session.user;
-
-  if (!orderId) {
-    return res.status(400).json({ error: "Missing orderId" });
-  }
-
-  try {
-    // Only allow unclaiming if the user is the assigned staff
-    const stmt = db.prepare("UPDATE orders SET assigned_staff = NULL, claimed = 0 WHERE id = ? AND assigned_staff = ?");
-    const result = stmt.run(orderId, username);
-    
-    if (result.changes === 0) {
-      const order = db.prepare("SELECT assigned_staff FROM orders WHERE id = ?").get(orderId);
-      if (order && order.assigned_staff && order.assigned_staff !== username) {
-        return res.status(403).json({ error: `Order was claimed by ${order.assigned_staff}` });
-      }
-      return res.status(404).json({ error: "Order not found or not claimed by you" });
-    }
-    
-    res.json({ success: true });
-  } catch (err) {
-    console.error("❌ Failed to unclaim order:", err.message);
-    res.status(500).json({ error: "Database error" });
-  }
-});
-
-// Improved whoami endpoint with error handling
-app.get("/dashboard/whoami", requireLogin, (req, res) => {
-  try {
-    res.json({ 
-      username: req.session.user,
-      isAuthenticated: true
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Internal server error", details: err.message });
-  }
-});
-
-// 🏁 Launch server with error handling
-const PORT = process.env.PORT || 3300;
+// 🏁 Launch server
+const PORT = 3300;
 app.listen(PORT, () => {
   console.log(`✅ Dashboard running at http://localhost:${PORT}`);
-}).on('error', (err) => {
-  console.error('❌ Failed to start server:', err.message);
-  process.exit(1);
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('❌ Unhandled error:', err);
-  res.status(500).json({ error: "Internal server error" });
 });
