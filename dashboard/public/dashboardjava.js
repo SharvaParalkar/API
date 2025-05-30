@@ -13,6 +13,9 @@ const DashboardState = {
   ]
 };
 
+// Add base URL for API calls
+const API_BASE_URL = 'https://api.filamentbros.com';
+
 // Debounce function
 function debounce(func, wait) {
   let timeout;
@@ -32,9 +35,6 @@ function handleError(error, userMessage = "An error occurred") {
   // You can implement a toast or notification system here
   alert(userMessage);
 }
-
-// Add base URL for API calls
-const API_BASE_URL = 'https://api.filamentbros.com';
 
 async function renderOrders(orders, expandDetails = false, container = null) {
   try {
@@ -584,20 +584,62 @@ const debouncedFilterOrders = debounce((query) => {
   filterOrders(query);
 }, 300);
 
-// Initialize dashboard
-document.addEventListener("DOMContentLoaded", () => {
-  const loginOverlay = document.getElementById("loginOverlay");
-  const loginForm = document.getElementById("loginForm");
+// Login handling
+async function handleLogin(e) {
+  e.preventDefault();
+  
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  const rememberMe = document.getElementById("rememberMe").checked;
   const loginError = document.getElementById("loginError");
+  const loginSpinner = document.getElementById("loginSpinner");
+  const loginOverlay = document.getElementById("loginOverlay");
 
-  // Auto-login if remembered
-  if (localStorage.getItem("rememberedUser")) {
-    checkAutoLogin(loginOverlay);
+  loginError.style.display = "none";
+  loginSpinner.style.display = "block";
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/dashboard/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        username,
+        password,
+        remember: rememberMe ? "on" : "off"
+      })
+    });
+
+    if (response.ok) {
+      // Store username for auto-login
+      if (rememberMe) {
+        localStorage.setItem("rememberedUser", username);
+      } else {
+        localStorage.removeItem("rememberedUser");
+      }
+      
+      // Set current user and hide login overlay
+      DashboardState.currentUser = username;
+      loginOverlay.style.display = "none";
+      
+      // Load initial data
+      await loadInitialOrders();
+      startRefreshTimers();
+    } else {
+      const errorText = await response.text();
+      loginError.textContent = errorText || "Login failed";
+      loginError.style.display = "block";
+    }
+  } catch (err) {
+    loginError.textContent = "Network error. Please try again.";
+    loginError.style.display = "block";
+    console.error("Login error:", err);
+  } finally {
+    loginSpinner.style.display = "none";
   }
-
-  // Setup event listeners
-  setupEventListeners();
-});
+}
 
 async function checkAutoLogin(loginOverlay) {
   try {
@@ -631,18 +673,6 @@ async function checkAutoLogin(loginOverlay) {
   }
 }
 
-function startRefreshTimers() {
-  // Clear existing timers
-  DashboardState.refreshTimers.forEach(clearInterval);
-  DashboardState.refreshTimers = [];
-
-  // Start new timers
-  DashboardState.refreshTimers.push(
-    setInterval(fetchNewOrders, 10000),
-    setInterval(refreshOrderStatuses, 10000)
-  );
-}
-
 function setupEventListeners() {
   // Search input with debouncing
   document.getElementById("searchInput").addEventListener("input", (e) => {
@@ -667,6 +697,23 @@ function setupEventListeners() {
   // Login form handler
   document.getElementById("loginForm").addEventListener("submit", handleLogin);
 }
+
+// Initialize dashboard
+document.addEventListener("DOMContentLoaded", () => {
+  const loginOverlay = document.getElementById("loginOverlay");
+  const loginForm = document.getElementById("loginForm");
+  const loginError = document.getElementById("loginError");
+
+  // Auto-login if remembered
+  if (localStorage.getItem("rememberedUser")) {
+    checkAutoLogin(loginOverlay);
+  } else {
+    loginOverlay.style.display = "flex";
+  }
+
+  // Setup event listeners
+  setupEventListeners();
+});
 
 async function autoEstimateOrder(order, card) {
   try {
@@ -871,59 +918,14 @@ async function unclaimOrder(order) {
   }
 }
 
-// Update handleLogin function
-async function handleLogin(e) {
-  e.preventDefault();
-  
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-  const rememberMe = document.getElementById("rememberMe").checked;
-  const loginError = document.getElementById("loginError");
-  const loginSpinner = document.getElementById("loginSpinner");
-  const loginOverlay = document.getElementById("loginOverlay");
+function startRefreshTimers() {
+  // Clear existing timers
+  DashboardState.refreshTimers.forEach(clearInterval);
+  DashboardState.refreshTimers = [];
 
-  loginError.style.display = "none";
-  loginSpinner.style.display = "block";
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/dashboard/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        username,
-        password,
-        remember: rememberMe ? "on" : "off"
-      })
-    });
-
-    if (response.ok) {
-      // Store username for auto-login
-      if (rememberMe) {
-        localStorage.setItem("rememberedUser", username);
-      } else {
-        localStorage.removeItem("rememberedUser");
-      }
-      
-      // Set current user and hide login overlay
-      DashboardState.currentUser = username;
-      loginOverlay.style.display = "none";
-      
-      // Load initial data
-      await loadInitialOrders();
-      startRefreshTimers();
-    } else {
-      const errorText = await response.text();
-      loginError.textContent = errorText || "Login failed";
-      loginError.style.display = "block";
-    }
-  } catch (err) {
-    loginError.textContent = "Network error. Please try again.";
-    loginError.style.display = "block";
-    console.error("Login error:", err);
-  } finally {
-    loginSpinner.style.display = "none";
-  }
+  // Start new timers
+  DashboardState.refreshTimers.push(
+    setInterval(fetchNewOrders, 10000),
+    setInterval(refreshOrderStatuses, 10000)
+  );
 }
