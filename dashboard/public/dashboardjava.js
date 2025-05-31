@@ -99,7 +99,7 @@ async function renderOrders(
         );
       }
 
-      // ── Re‐filter the entire grid immediately, so “Completed” cards hide/show
+      // ── Re‐filter the entire grid immediately, so "Completed" cards hide/show
       const query = document.getElementById("searchInput").value;
       filterOrders(query);
 
@@ -249,7 +249,7 @@ function filterOrders(query) {
     const isRecent = submittedAt >= oneWeekAgo;
     if (!showOld && !isRecent) return false;
 
-    // If “Completed” is unchecked, skip orders whose status is “completed”
+    // If "Completed" is unchecked, skip orders whose status is "completed"
     const statusLower = (order.status || "").toLowerCase().trim();
     if (!showCompleted && statusLower === "completed") return false;
 
@@ -524,78 +524,102 @@ async function autoEstimateOrder(order, card) {
 
 //setInterval(refreshOrderStatuses, 10000); // every 10 seconds
 
-document.getElementById("searchInput").addEventListener("input", () => {
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    const query = document.getElementById("searchInput").value;
-    filterOrders(query);
-  }, 200);
-});
+// Initialize UI elements and event listeners when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById("searchInput");
+  const showOldToggle = document.getElementById("showOldToggle");
+  const showCompletedToggle = document.getElementById("showCompletedToggle");
+  const loginOverlay = document.getElementById("loginOverlay");
+  const loginForm = document.getElementById("loginForm");
+  const loginError = document.getElementById("loginError");
 
-document.getElementById("showOldToggle").addEventListener("change", () => {
-  const query = document.getElementById("searchInput").value;
-  filterOrders(query);
-});
-
-document.getElementById("showCompletedToggle").addEventListener("change", () => {
-  const query = document.getElementById("searchInput").value;
-  filterOrders(query);
-});
-
-filterOrders("");
-
-// ─── Login overlay logic (unchanged) ───────────────────────────────────
-const loginOverlay = document.getElementById("loginOverlay");
-const loginForm = document.getElementById("loginForm");
-const loginError = document.getElementById("loginError");
-
-// Auto-login if remembered
-if (localStorage.getItem("rememberedUser")) {
-  loginOverlay.style.display = "none";
-  loadInitialOrders();
-  setInterval(fetchNewOrders, 10000);
-  setInterval(refreshOrderStatuses, 10000);
-}
-
-loginForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const username = document.getElementById("username").value.trim().toLowerCase();
-  const password = document.getElementById("password").value.trim();
-  const remember = document.getElementById("rememberMe").checked;
-
-  const formData = new URLSearchParams();
-  formData.append("username", username);
-  formData.append("password", password);
-  if (remember) formData.append("remember", "on");
-
-  try {
-    const res = await fetch("/dashboard/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formData.toString(),
+  // Initialize search input handler
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        filterOrders(searchInput.value);
+      }, 200);
     });
+  }
 
-    if (res.ok) {
-      if (remember) localStorage.setItem("rememberedUser", "true");
+  // Initialize toggle handlers
+  if (showOldToggle) {
+    showOldToggle.addEventListener("change", () => {
+      const query = searchInput ? searchInput.value : "";
+      filterOrders(query);
+    });
+  }
+
+  if (showCompletedToggle) {
+    showCompletedToggle.addEventListener("change", () => {
+      const query = searchInput ? searchInput.value : "";
+      filterOrders(query);
+    });
+  }
+
+  // Initialize login form
+  if (loginForm && loginOverlay) {
+    // Auto-login if remembered
+    if (localStorage.getItem("rememberedUser")) {
       loginOverlay.style.display = "none";
-
       loadInitialOrders();
       setInterval(fetchNewOrders, 10000);
       setInterval(refreshOrderStatuses, 10000);
-    } else {
-      let errorText = "Login failed.";
-      try {
-        const data = await res.json();
-        errorText = data.error || errorText;
-      } catch {
-        const fallbackText = await res.text();
-        errorText = fallbackText || errorText;
-      }
-      loginError.textContent = errorText;
-      loginError.style.display = "block";
     }
-  } catch (err) {
-    loginError.textContent = "Login error. Try again.";
-    loginError.style.display = "block";
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username")?.value.trim().toLowerCase() || "";
+      const password = document.getElementById("password")?.value.trim() || "";
+      const remember = document.getElementById("rememberMe")?.checked || false;
+
+      const formData = new URLSearchParams();
+      formData.append("username", username);
+      formData.append("password", password);
+      if (remember) formData.append("remember", "on");
+
+      try {
+        const res = await fetch("/dashboard/login", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          credentials: 'include',
+          body: formData.toString(),
+        });
+
+        if (res.ok) {
+          if (remember) localStorage.setItem("rememberedUser", "true");
+          loginOverlay.style.display = "none";
+
+          loadInitialOrders();
+          setInterval(fetchNewOrders, 10000);
+          setInterval(refreshOrderStatuses, 10000);
+        } else {
+          let errorText = "Login failed.";
+          try {
+            const data = await res.json();
+            errorText = data.error || errorText;
+          } catch {
+            const fallbackText = await res.text();
+            errorText = fallbackText || errorText;
+          }
+          if (loginError) {
+            loginError.textContent = errorText;
+            loginError.style.display = "block";
+          }
+        }
+      } catch (err) {
+        console.error("Login error:", err);
+        if (loginError) {
+          loginError.textContent = "Login error. Try again.";
+          loginError.style.display = "block";
+        }
+      }
+    });
   }
+
+  // Initial filter
+  filterOrders("");
 });
