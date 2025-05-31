@@ -7,24 +7,30 @@ const archiver = require("archiver");
 const session = require("express-session");
 
 const app = express();
-app.use(cors());
+
+// ✅ CORS config
+const allowedOrigins = ["https://filamentbros.com", "https://api.filamentbros.com"];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    console.log("🌐 Incoming origin:", origin); // 👈 add this
+    if (!origin) return callback(null, true); // allow no-origin requests (like curl, Postman)
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn("❌ Rejected CORS origin:", origin);
+    callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true
+}));
+
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
-const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
-const db = new Database(dbPath);
-
-// 🔒 Simple credentials
-const USERS = {
-  sharva: "filbros8532",
-  pablo: "print123",
-  peter: "print123",
-  nathan: "print123",
-  evan: "print123",
-};
-
-// 🛡️ Session setup
+// ✅ Sessions (must be before routes or static)
 app.use(
   session({
     secret: "filamentbros-secret",
@@ -36,17 +42,26 @@ app.use(
   })
 );
 
-// 🧱 Auth middleware
+const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
+const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
+const db = new Database(dbPath);
+
+// 🔒 Users
+const USERS = {
+  sharva: "filbros8532",
+  pablo: "print123",
+  peter: "print123",
+  nathan: "print123",
+  evan: "print123",
+};
+
+// 🔐 Auth middleware
 function requireLogin(req, res, next) {
- if (!req.session.user) {
-  return res.status(401).json({ error: "Unauthorized" }); // ✅ valid JSON
-}
+  if (!req.session.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
   next();
 }
-
-// 🌐 Serve static frontend
-app.use(express.static(path.join(__dirname, "public")));
-
 
 // 🧾 Login route
 app.post("/dashboard/login", (req, res) => {
@@ -67,12 +82,20 @@ app.post("/dashboard/login", (req, res) => {
   return res.status(401).send("Invalid username or password.");
 });
 
-
-app.get(["/dashboard", "/dashboard/"], (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+// 🧠 Whoami
+app.get("/dashboard/whoami", requireLogin, (req, res) => {
+  res.json({ username: req.session.user });
 });
 
-// 🔐 Protected route: order data
+// 🐞 Debug route
+app.get("/dashboard/debug/cookies", (req, res) => {
+  res.json({
+    cookies: req.headers.cookie,
+    sessionUser: req.session.user || null,
+  });
+});
+
+// 🔐 Orders route
 app.get("/dashboard/data", requireLogin, (req, res) => {
   try {
     const rows = db.prepare("SELECT * FROM orders ORDER BY submitted_at DESC").all();
@@ -83,7 +106,7 @@ app.get("/dashboard/data", requireLogin, (req, res) => {
   }
 });
 
-// 📁 Return list of STL file URLs
+// 📁 STL list
 app.get("/dashboard/files/:orderId", requireLogin, (req, res) => {
   const orderId = req.params.orderId;
   try {
@@ -97,7 +120,7 @@ app.get("/dashboard/files/:orderId", requireLogin, (req, res) => {
   }
 });
 
-// 📦 Serve STL files
+// 🗂 Serve STL
 app.use(
   "/dashboard/fileserve",
   express.static(STLS_DIR, {
@@ -107,7 +130,7 @@ app.use(
   })
 );
 
-// 📂 Zip & download all STL files for an order
+// 📦 Download ZIP
 app.get("/dashboard/download-all/:orderId", requireLogin, (req, res) => {
   const orderId = req.params.orderId;
   try {
@@ -137,7 +160,7 @@ app.get("/dashboard/download-all/:orderId", requireLogin, (req, res) => {
   }
 });
 
-// 🛠️ Update estimate price
+// 💵 Update price
 app.post("/dashboard/update-price", requireLogin, (req, res) => {
   const { orderId, est_price } = req.body;
   try {
@@ -150,7 +173,7 @@ app.post("/dashboard/update-price", requireLogin, (req, res) => {
   }
 });
 
-// 📝 Update staff notes
+// 📝 Update notes
 app.post("/dashboard/update-notes", requireLogin, (req, res) => {
   const { orderId, order_notes } = req.body;
   try {
@@ -163,7 +186,7 @@ app.post("/dashboard/update-notes", requireLogin, (req, res) => {
   }
 });
 
-// 🔄 Update order status
+// 🔄 Update status
 app.post("/dashboard/update-status", requireLogin, (req, res) => {
   const { orderId, status } = req.body;
   if (!orderId || !status) {
@@ -183,11 +206,15 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   }
 });
 
-app.get("/dashboard/whoami", requireLogin, (req, res) => {
-  res.json({ username: req.session.user });
+// 📄 Serve dashboard HTML
+app.get(["/dashboard", "/dashboard/"], (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// 🏁 Launch server
+// 🧊 Serve static last
+app.use(express.static(path.join(__dirname, "public")));
+
+// ✅ Launch
 const PORT = 3300;
 app.listen(PORT, () => {
   console.log(`✅ Dashboard running at http://localhost:${PORT}`);
