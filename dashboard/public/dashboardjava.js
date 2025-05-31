@@ -364,31 +364,51 @@ async function refreshOrderStatuses() {
 
 
 // First full load
-function loadInitialOrders() {
-  fetch("/dashboard/data", { credentials: "include" })
-    .then(async (res) => {
-      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-      const data = await res.json();
-      allOrders = Array.isArray(data) ? data : [];
-      if (data.length > 0) latestTimestamp = data[0].submitted_at;
-      const query = document.getElementById("searchInput").value;
-      filterOrders(query);
-
-      for (const order of data) {
-        if (
-          (order.est_price == null || order.est_price === 0) &&
-          !(order.order_notes && order.order_notes.includes("Print estimate failed"))
-        ) {
-          await autoEstimateOrder(order);
-        }
-      }
-    })
-    .catch((err) => {
-      allOrders = [];
-      document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
-      console.error("❌ Failed to loadInitialOrders:", err);
+async function loadInitialOrders() {
+  try {
+    const res = await fetch("/dashboard/data", { 
+      credentials: "include"
     });
 
+    if (!res.ok) {
+      throw new Error(`Failed to fetch orders: ${res.status}`);
+    }
+
+    const data = await res.json();
+    
+    // Update global orders array
+    allOrders = Array.isArray(data) ? data : [];
+    
+    // Update latest timestamp if we have orders
+    if (allOrders.length > 0) {
+      latestTimestamp = allOrders[0].submitted_at;
+    }
+
+    // Clear and render orders
+    const orderGrid = document.getElementById("orderGrid");
+    if (orderGrid) {
+      orderGrid.innerHTML = allOrders.length ? "" : "<p>No orders found.</p>";
+      const query = document.getElementById("searchInput")?.value || "";
+      filterOrders(query);
+    }
+
+    // Auto-estimate prices for orders that need it
+    for (const order of allOrders) {
+      if (
+        (order.est_price == null || order.est_price === 0) &&
+        !(order.order_notes && order.order_notes.includes("Print estimate failed"))
+      ) {
+        await autoEstimateOrder(order);
+      }
+    }
+  } catch (err) {
+    console.error("❌ Failed to load initial orders:", err);
+    const orderGrid = document.getElementById("orderGrid");
+    if (orderGrid) {
+      orderGrid.innerHTML = "<p>⚠️ Failed to load orders. Please refresh the page.</p>";
+    }
+    allOrders = [];
+  }
 }
 
 // Only get orders submitted after the latest known one
@@ -532,6 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginOverlay = document.getElementById("loginOverlay");
   const loginForm = document.getElementById("loginForm");
   const loginError = document.getElementById("loginError");
+  const orderGrid = document.getElementById("orderGrid");
 
   // Initialize search input handler
   if (searchInput) {
@@ -560,24 +581,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize login form
   if (loginForm && loginOverlay) {
-    // Auto-login if remembered
-    if (localStorage.getItem("rememberedUser")) {
-      loginOverlay.style.display = "none";
-      loadInitialOrders();
-      setInterval(fetchNewOrders, 10000);
-      setInterval(refreshOrderStatuses, 10000);
-    }
+    // Check if already logged in
+    fetch('/dashboard/whoami', {
+      credentials: 'include'
+    })
+    .then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.username) {
+          loginOverlay.style.display = 'none';
+          loadInitialOrders();
+          startRefreshTimers();
+        }
+      }
+    })
+    .catch(err => {
+      console.error('Failed to check login status:', err);
+    });
 
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const username = document.getElementById("username")?.value.trim().toLowerCase() || "";
       const password = document.getElementById("password")?.value.trim() || "";
       const remember = document.getElementById("rememberMe")?.checked || false;
-
-      const formData = new URLSearchParams();
-      formData.append("username", username);
-      formData.append("password", password);
-      if (remember) formData.append("remember", "on");
 
       try {
         const res = await fetch("/dashboard/login", {
@@ -586,25 +612,34 @@ document.addEventListener('DOMContentLoaded', () => {
             "Content-Type": "application/x-www-form-urlencoded"
           },
           credentials: 'include',
-          body: formData.toString(),
+          body: new URLSearchParams({
+            username,
+            password,
+            remember: remember ? "on" : "off"
+          }).toString()
         });
 
-        if (res.ok) {
-          if (remember) localStorage.setItem("rememberedUser", "true");
-          loginOverlay.style.display = "none";
+        const data = await res.json();
 
-          loadInitialOrders();
-          setInterval(fetchNewOrders, 10000);
-          setInterval(refreshOrderStatuses, 10000);
-        } else {
-          let errorText = "Login failed.";
-          try {
-            const data = await res.json();
-            errorText = data.error || errorText;
-          } catch {
-            const fallbackText = await res.text();
-            errorText = fallbackText || errorText;
+        if (res.ok && data.success) {
+          if (remember) {
+            localStorage.setItem("rememberedUser", "true");
           }
+          
+          // Hide login overlay
+          loginOverlay.style.display = "none";
+          document.body.style.overflow = 'auto';
+
+          // Clear any existing orders
+          if (orderGrid) {
+            orderGrid.innerHTML = '';
+          }
+
+          // Start dashboard functionality
+          loadInitialOrders();
+          startRefreshTimers();
+        } else {
+          const errorText = data.error || "Login failed. Please try again.";
           if (loginError) {
             loginError.textContent = errorText;
             loginError.style.display = "block";
@@ -613,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         console.error("Login error:", err);
         if (loginError) {
-          loginError.textContent = "Login error. Try again.";
+          loginError.textContent = "Network error. Please try again.";
           loginError.style.display = "block";
         }
       }
@@ -623,3 +658,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initial filter
   filterOrders("");
 });
+
+// Helper function to start refresh timers
+function startRefreshTimers() {
+  // Clear any existing intervals
+  if (window._refreshIntervals) {
+    window._refreshIntervals.forEach(clearInterval);
+  }
+  
+  // Start new intervals
+  window._refreshIntervals = [
+    setInterval(fetchNewOrders, 10000),
+    setInterval(refreshOrderStatuses, 10000)
+  ];
+}
