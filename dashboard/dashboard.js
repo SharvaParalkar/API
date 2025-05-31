@@ -7,15 +7,7 @@ const archiver = require("archiver");
 const session = require("express-session");
 
 const app = express();
-
-// CORS configuration for Cloudflare tunnel
-app.use(cors({
-  origin: ['https://api.filamentbros.com', 'https://filamentbros.com'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
+app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -32,20 +24,17 @@ const USERS = {
   evan: "print123",
 };
 
-// 🛡️ Updated Session setup
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'filamentbros-secret',
-  resave: true,
-  saveUninitialized: true,
-  proxy: true, // Trust the reverse proxy
-  cookie: {
-    secure: true, // Required for Cloudflare HTTPS
-    httpOnly: true,
-    sameSite: 'none', // Required for cross-site cookies with Cloudflare
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    domain: '.filamentbros.com' // Include subdomain
-  }
-}));
+// 🛡️ Session setup
+app.use(
+  session({
+    secret: "filamentbros-secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    },
+  })
+);
 
 // 🧱 Auth middleware
 function requireLogin(req, res, next) {
@@ -69,33 +58,15 @@ app.post("/dashboard/login", (req, res) => {
     req.session.user = username;
 
     if (req.body.remember === "on") {
-      req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+      req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000;
     }
 
-    // Send back user info
-    return res.json({
-      success: true,
-      username: username
-    });
+    return res.sendStatus(200);
   }
 
-  return res.status(401).json({
-    success: false,
-    error: "Invalid username or password."
-  });
+  return res.status(401).send("Invalid username or password.");
 });
 
-// Add whoami endpoint for session verification
-app.get("/dashboard/whoami", requireLogin, (req, res) => {
-  try {
-    res.json({ 
-      username: req.session.user,
-      isAuthenticated: true
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Internal server error", details: err.message });
-  }
-});
 
 app.get(["/dashboard", "/dashboard/"], (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
