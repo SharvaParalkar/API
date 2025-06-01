@@ -57,10 +57,14 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   },
   allowEIO3: true,
-  // Add path to match client
   path: '/socket.io/',
-  // Add transport options
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  // Add secure configuration
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax'
+  }
 });
 
 // Share session with socket.io - IMPORTANT: this must come before other socket middleware

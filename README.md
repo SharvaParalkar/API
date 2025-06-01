@@ -38,3 +38,7 @@ FEATURE LOG
 
 
 npm install socket.io express-socket.io-session
+
+
+sqlite3 DB/db/filamentbros.sqlite "ALTER TABLE orders ADD COLUMN updated_by TEXT;"
+
