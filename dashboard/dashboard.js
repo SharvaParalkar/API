@@ -7,8 +7,6 @@ const archiver = require("archiver");
 const session = require("express-session");
 const helmet = require("helmet");
 const http = require('http');
-const { Server } = require('socket.io');
-const sharedsession = require('express-socket.io-session');
 
 // Constants and Database setup
 const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
@@ -48,158 +46,6 @@ const sessionMiddleware = session({
 
 // Apply session middleware to Express
 app.use(sessionMiddleware);
-
-// Initialize Socket.IO with CORS and session sharing
-const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ["GET", "POST"]
-  },
-  allowEIO3: true,
-  path: '/socket.io/',
-  transports: ['websocket', 'polling'],
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  cookie: {
-    name: 'io',
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
-  }
-});
-
-// Share session with socket.io - IMPORTANT: this must come before other socket middleware
-io.use(sharedsession(sessionMiddleware, {
-  autoSave: true
-}));
-
-// Debug middleware to log session data
-io.use((socket, next) => {
-  console.log('🔍 Socket handshake session:', {
-    id: socket.id,
-    session: socket.handshake.session,
-    user: socket.handshake.session?.user
-  });
-  next();
-});
-
-// Socket.io authentication middleware
-io.use((socket, next) => {
-  const session = socket.handshake.session;
-  if (!session?.user) {
-    console.log('❌ Socket authentication failed:', {
-      sessionExists: !!session,
-      sessionId: session?.id,
-      user: session?.user
-    });
-    return next(new Error('Authentication error'));
-  }
-  
-  // Store user in socket data for easy access
-  socket.user = session.user;
-  console.log(`✅ Socket authenticated for user: ${socket.user}`);
-  next();
-});
-
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  // Get user from socket data (set in auth middleware)
-  const username = socket.user;
-  
-  if (!username) {
-    console.error('❌ No username in socket data');
-    socket.disconnect();
-    return;
-  }
-
-  console.log(`🔌 WebSocket client connected: ${username}`);
-
-  // Join a user-specific room
-  const userRoom = `user_${username}`;
-  socket.join(userRoom);
-  console.log(`👥 User ${username} joined room: ${userRoom}`);
-
-  // Log active connections
-  const connectedSockets = io.sockets.sockets.size;
-  const connectedUsers = new Set(
-    Array.from(io.sockets.sockets.values())
-      .map(s => s.user)
-      .filter(Boolean)
-  );
-  
-  console.log(`📊 Active connections: ${connectedSockets} (${Array.from(connectedUsers).join(', ')})`);
-
-  socket.on('disconnect', () => {
-    console.log(`🔌 WebSocket client disconnected: ${username}`);
-  });
-
-  // Handle status updates from clients
-  socket.on('status-update', async (data) => {
-    try {
-      const { orderId, status } = data;
-      // Use the username stored in socket data
-      const updatingUser = socket.user;
-      
-      if (!updatingUser) {
-        throw new Error('No user found in socket data');
-      }
-      
-      console.log(`📥 Status update request from ${updatingUser} for order ${orderId}: ${status}`);
-      
-      const stmt = db.prepare("UPDATE orders SET status = ?, updated_by = ? WHERE id = ?");
-      const result = stmt.run(status, updatingUser, orderId);
-      
-      if (result.changes > 0) {
-        // Fetch the complete updated order
-        const updatedOrder = db.prepare(`
-          SELECT *, updated_by 
-          FROM orders 
-          WHERE id = ?
-        `).get(orderId);
-
-        if (updatedOrder) {
-          const updateMessage = {
-            type: 'status-update',
-            data: {
-              ...updatedOrder,
-              updatedBy: updatingUser
-            },
-            timestamp: new Date().toISOString()
-          };
-          
-          // Broadcast to all clients
-          io.emit('order-updated', updateMessage);
-          console.log(`📢 Broadcasting update from ${updatingUser}:`, updateMessage);
-        }
-      }
-    } catch (err) {
-      console.error('❌ Failed to process status update:', err);
-      socket.emit('update-error', {
-        orderId: data?.orderId,
-        error: err.message
-      });
-    }
-  });
-});
-
-// Broadcast updates to all connected clients
-function broadcastOrderUpdate(orderId) {
-  try {
-    const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
-    if (order) {
-      io.emit('order-updated', {
-        type: 'order-update',
-        data: order,
-        timestamp: new Date().toISOString()
-      });
-      console.log(`📢 Broadcasting update for order ${orderId}`);
-    }
-  } catch (err) {
-    console.error('❌ Failed to broadcast order update:', err);
-  }
-}
 
 // Security headers
 app.use(helmet({
@@ -402,13 +248,12 @@ app.get("/dashboard/download-all/:orderId", requireLogin, (req, res) => {
   }
 });
 
-// 💵 Update price with WebSocket broadcast
+// 💵 Update price
 app.post("/dashboard/update-price", requireLogin, (req, res) => {
   const { orderId, est_price } = req.body;
   try {
     const stmt = db.prepare("UPDATE orders SET est_price = ? WHERE id = ?");
     stmt.run(est_price, orderId);
-    broadcastOrderUpdate(orderId);
     res.status(200).send("Updated estimate.");
   } catch (err) {
     console.error("❌ Failed to update est_price:", err.message);
@@ -416,13 +261,12 @@ app.post("/dashboard/update-price", requireLogin, (req, res) => {
   }
 });
 
-// 📝 Update notes with WebSocket broadcast
+// 📝 Update notes
 app.post("/dashboard/update-notes", requireLogin, (req, res) => {
   const { orderId, order_notes } = req.body;
   try {
     const stmt = db.prepare("UPDATE orders SET order_notes = ? WHERE id = ?");
     stmt.run(order_notes, orderId);
-    broadcastOrderUpdate(orderId);
     res.status(200).send("Updated staff notes.");
   } catch (err) {
     console.error("❌ Failed to update staff notes:", err.message);
@@ -430,7 +274,7 @@ app.post("/dashboard/update-notes", requireLogin, (req, res) => {
   }
 });
 
-// 🔄 Update status with WebSocket broadcast
+// 🔄 Update status
 app.post("/dashboard/update-status", requireLogin, (req, res) => {
   const { orderId, status } = req.body;
   const username = req.session.user;
@@ -457,21 +301,6 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
       FROM orders 
       WHERE id = ?
     `).get(orderId);
-
-    if (updatedOrder) {
-      const updateMessage = {
-        type: 'status-update',
-        data: {
-          ...updatedOrder,
-          updatedBy: username
-        },
-        timestamp: new Date().toISOString()
-      };
-
-      // Broadcast through WebSocket
-      io.emit('order-updated', updateMessage);
-      console.log(`📢 Broadcasting HTTP update from ${username}:`, updateMessage);
-    }
 
     res.json({ 
       success: true,

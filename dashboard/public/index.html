@@ -5,10 +5,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FilamentBros Order Dashboard</title>
-  <!-- Load Socket.IO client from CDN as backup -->
-  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-  <!-- Load local Socket.IO client as primary -->
-  <script src="/socket.io/socket.io.js"></script>
   <style>
     body {
       font-family: "Roboto", sans-serif;
@@ -469,28 +465,9 @@
     </div>
   </div>
 
-
   <div class="grid" id="orderGrid"></div>
 
   <script>
-    // Verify Socket.IO is loaded
-    if (typeof io === 'undefined') {
-      console.error('❌ Socket.IO client failed to load');
-      // Try to reload the script
-      const script = document.createElement('script');
-      script.src = 'https://cdn.socket.io/4.7.4/socket.io.min.js';
-      script.onload = () => {
-        console.log('✅ Socket.IO client loaded from CDN');
-        initialize();
-      };
-      script.onerror = () => {
-        console.error('❌ Failed to load Socket.IO client from CDN');
-      };
-      document.head.appendChild(script);
-    } else {
-      console.log('✅ Socket.IO client loaded successfully');
-    }
-
     // Constants
     const REFRESH_INTERVAL = 10000; // 10 seconds
     const SEARCH_DEBOUNCE = 200; // 200ms
@@ -501,54 +478,13 @@
       allOrders: [],
       currentUser: null,
       currentTab: "all",
-      socket: null,
       retryCount: 0,
       filters: {
         showOld: false,
         showCompleted: false
-      }
+      },
+      intervals: []
     };
-
-    // Socket.IO setup with better error handling
-    const socket = io({
-      path: '/socket.io/',
-      transports: ['polling', 'websocket'], // Prefer polling over websocket
-      autoConnect: false,
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-      withCredentials: true,
-      forceNew: true,
-      rejectUnauthorized: false
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('❌ WebSocket connection error:', error);
-      console.log('🔍 Connection details:', {
-        protocol: window.location.protocol,
-        host: window.location.host,
-        hostname: window.location.hostname,
-        port: window.location.port,
-        readyState: socket.connected ? 'connected' : 'disconnected',
-        transport: socket.io.engine.transport.name
-      });
-    });
-
-    socket.on('connect', () => {
-      console.log('✅ WebSocket connected');
-      state.socket = socket;
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('🔌 WebSocket disconnected:', reason);
-    });
-
-    socket.on('order-updated', (data) => {
-      console.log('📥 Received order update:', data);
-      handleOrderUpdate(data);
-    });
 
     // Handle incoming order updates
     function handleOrderUpdate(updatedOrder) {
@@ -700,6 +636,7 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ orderId, status }),
+            credentials: 'include'
           });
           if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
           return await res.json();
@@ -707,9 +644,7 @@
           await handleError(err, 'updateStatus');
           throw err;
         }
-      },
-
-      // Add other API functions here...
+      }
     };
 
     // UI update functions
@@ -748,12 +683,9 @@
           
           console.log(`🔄 Initiating status change for ${orderId}: ${newStatus}`);
           
-          // Emit via WebSocket first
-          socket.emit('status-update', { orderId, status });
-          
-          // Backup HTTP request
+          // Send HTTP request
           const response = await api.updateStatus(orderId, newStatus);
-          console.log('✅ HTTP update response:', response);
+          console.log('✅ Status update response:', response);
           
         } catch (err) {
           console.error(`❌ Failed to update status:`, err);
@@ -767,7 +699,8 @@
       onTabClick(tab) {
         state.currentTab = tab;
         ui.updateTabStyles();
-        filterOrders(document.getElementById("searchInput").value);
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
       },
 
       onSearchInput: debounce((event) => {
@@ -789,11 +722,13 @@
             ui.hideLoginOverlay();
             console.log('👤 Logged in as:', state.currentUser);
             
-            // Initialize WebSocket first
-            socket.connect();
-            
-            // Then load orders
+            // Load initial orders
             await loadInitialOrders();
+            
+            // Start polling intervals
+            const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
+            const statusInterval = setInterval(refreshOrderStatuses, REFRESH_INTERVAL);
+            state.intervals.push(orderInterval, statusInterval);
           } else {
             localStorage.removeItem("rememberedUser");
             console.log('❌ Remembered login invalid');
@@ -804,21 +739,71 @@
         document.getElementById("searchInput").addEventListener("input", handlers.onSearchInput);
         document.getElementById("tabAll").addEventListener("click", () => handlers.onTabClick("all"));
         document.getElementById("tabClaimed").addEventListener("click", () => handlers.onTabClick("claimed"));
-        
-        // Add socket reconnection on visibility change
-        document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible') {
-            if (!state.socket?.connected) {
-              console.log('🔄 Page became visible, reconnecting socket');
-              socket.connect();
-            }
-          }
-        });
 
         console.log('✅ Dashboard initialized successfully');
       } catch (err) {
         console.error('❌ Failed to initialize dashboard:', err);
         await handleError(err, 'initialization');
+      }
+    }
+
+    // Polling functions
+    async function refreshOrders() {
+      try {
+        const data = await api.fetchOrders();
+        if (Array.isArray(data)) {
+          state.allOrders = data;
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
+        }
+      } catch (err) {
+        console.error('❌ Failed to refresh orders:', err);
+      }
+    }
+
+    async function refreshOrderStatuses() {
+      try {
+        const response = await fetch("/dashboard/data", {
+          credentials: "include"
+        });
+
+        if (!response.ok) {
+          throw new Error(`Request failed: ${response.status}`);
+        }
+
+        const latestData = await response.json();
+        const grid = document.getElementById("orderGrid");
+        const cards = grid.querySelectorAll(".card");
+
+        latestData.forEach((latestOrder) => {
+          const matchingCard = [...cards].find((card) =>
+            card.innerText.includes(latestOrder.id)
+          );
+
+          if (matchingCard) {
+            const dropdown = matchingCard.querySelector("select");
+            const currentStatus = dropdown.value.toLowerCase();
+            let newStatus = (latestOrder.status || "pending").toLowerCase();
+
+            const allowedStatuses = [
+              "pending",
+              "pre print",
+              "printing",
+              "printing pay later",
+              "completed",
+            ];
+            if (!allowedStatuses.includes(newStatus)) {
+              newStatus = "pending";
+            }
+
+            if (currentStatus !== newStatus) {
+              dropdown.value = newStatus;
+              applyStatusColor(dropdown, newStatus);
+            }
+          }
+        });
+      } catch (err) {
+        console.error("❌ Failed to refresh statuses:", err);
       }
     }
 
@@ -836,7 +821,6 @@
 
     let currentUser = null;
     let currentTab = "all"; // "all" or "claimed"
-
 
     async function renderOrders(
       orders,
@@ -956,7 +940,6 @@
         idLine.className = "order-id";
         idLine.textContent = `Order ID: ${order.id}`;
         card.appendChild(idLine);
-
 
         const table = document.createElement("table");
         table.className = "details-table";
@@ -1099,10 +1082,7 @@
                 card.appendChild(claimBtn);
               }
             }
-
-
           })
-
           .catch((err) => {
             console.error(`❌ Failed to load STL files for ${order.id}`, err);
           });
@@ -1145,145 +1125,6 @@
 
       renderOrders(filtered, isSearchActive);
     }
-
-    let latestTimestamp = null;
-
-    // Append new orders to the list and render
-
-    function renderOrdersToContainer(orders, container) {
-      renderOrders(orders, false, container);
-    }
-
-    async function appendNewOrders(newOrders) {
-      if (newOrders.length === 0) return;
-
-      const existingIds = new Set(allOrders.map((order) => order.id));
-      const uniqueNewOrders = newOrders.filter(
-        (order) => !existingIds.has(order.id)
-      );
-
-      if (uniqueNewOrders.length === 0) return;
-
-      for (const order of uniqueNewOrders) {
-        allOrders.unshift(order);
-        const query = document.getElementById("searchInput").value;
-        if (!query.trim()) {
-          // Only append if not in a filtered search view
-          const grid = document.getElementById("orderGrid");
-          const tempOrders = [order];
-          const tempHTML = document.createElement("div");
-          renderOrdersToContainer(tempOrders, tempHTML); // custom helper
-          grid.prepend(...tempHTML.children);
-        } // Reuse main render function to show correctly
-
-        // Trigger auto estimate if missing
-        if (
-          (order.est_price == null || order.est_price === 0) &&
-          !(
-            order.order_notes &&
-            order.order_notes.includes("Print estimate failed")
-          )
-        ) {
-          await autoEstimateOrder(order);
-        }
-      }
-
-      // Update latest timestamp
-      allOrders.sort(
-        (a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)
-      );
-      latestTimestamp = allOrders[0].submitted_at;
-    }
-
-    async function refreshOrderStatuses() {
-      try {
-        const response = await fetch("/dashboard/data", {
-          credentials: "include", // ✅ Ensures session cookie is sent
-        });
-
-        if (!response.ok) {
-          throw new Error(`Request failed: ${response.status}`);
-        }
-
-        const latestData = await response.json();
-        const grid = document.getElementById("orderGrid");
-        const cards = grid.querySelectorAll(".card");
-
-        latestData.forEach((latestOrder) => {
-          const matchingCard = [...cards].find((card) =>
-            card.innerText.includes(latestOrder.id)
-          );
-
-          if (matchingCard) {
-            const dropdown = matchingCard.querySelector("select");
-            const currentStatus = dropdown.value.toLowerCase();
-            let newStatus = (latestOrder.status || "pending").toLowerCase();
-
-            const allowedStatuses = [
-              "pending",
-              "pre print",
-              "printing",
-              "printing pay later",
-              "completed",
-            ];
-            if (!allowedStatuses.includes(newStatus)) {
-              newStatus = "pending";
-            }
-
-            if (currentStatus !== newStatus) {
-              dropdown.value = newStatus;
-              applyStatusColor(dropdown, newStatus);
-            }
-          }
-        });
-      } catch (err) {
-        console.error("❌ Failed to refresh statuses:", err);
-      }
-    }
-
-    // First full load
-    async function loadInitialOrders() {
-      try {
-        const data = await api.fetchOrders();
-        state.allOrders = Array.isArray(data) ? data : [];
-        const query = document.getElementById("searchInput").value;
-        filterOrders(query);
-      } catch (err) {
-        state.allOrders = [];
-        document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
-        console.error("❌ Failed to load initial orders:", err);
-      }
-    }
-
-    // Only get orders submitted after the latest known one
-    function fetchNewOrders() {
-      if (!latestTimestamp) return;
-
-      fetch(`/dashboard/data?since=${encodeURIComponent(latestTimestamp)}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.length > 0) {
-            appendNewOrders(data);
-          }
-        })
-        .catch((err) => {
-          console.error("❌ Failed to fetch new orders:", err);
-        });
-    }
-
-    //loadInitialOrders();
-    //setInterval(fetchNewOrders, 10000); // Check for new orders every 30s
-
-    let searchTimeout; // Holds the timer reference
-
-    document.getElementById("searchInput").addEventListener("input", () => {
-      clearTimeout(searchTimeout); // Cancel the previous timer if user types again
-
-      searchTimeout = setTimeout(() => {
-        const query = document.getElementById("searchInput").value;
-        filterOrders(query); // Run the actual filtering after 200ms pause
-      }, 200);
-    });
 
     async function autoEstimateOrder(order, card) {
       try {
@@ -1395,8 +1236,6 @@
       }
     }
 
-    //setInterval(refreshOrderStatuses, 10000); // every 10 seconds
-
     document.addEventListener("DOMContentLoaded", () => {
       const loginOverlay = document.getElementById("loginOverlay");
       const loginForm = document.getElementById("loginForm");
@@ -1410,7 +1249,6 @@
             currentUser = data.username;
             loginOverlay.style.display = "none";
             loadInitialOrders();
-            socket.connect(); // Connect WebSocket after successful auth
           })
           .catch(() => {
             console.warn("Failed to auto-login");
@@ -1452,7 +1290,6 @@
             loginOverlay.style.display = "none";
 
             loadInitialOrders();
-            socket.connect(); // Connect WebSocket after successful auth
           } else {
             let errorText = "Login failed.";
             try {
@@ -1494,7 +1331,6 @@
       document.getElementById("tabClaimed").style.color = currentTab === "claimed" ? "white" : "black";
     }
 
-
     document.getElementById("showOldToggle").addEventListener("change", async () => {
       try {
         // Fetch new data with current filters
@@ -1522,10 +1358,7 @@
         console.error("❌ Failed to update orders:", err);
       }
     });
-
   </script>
-
-
 
   <div id="loginOverlay" class="login-overlay">
     <div class="login-box">
