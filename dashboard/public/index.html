@@ -397,9 +397,9 @@
       margin-bottom: 2rem;
       width: 100%;
       max-width: 800px;
-      /* cap total width */
       margin-left: auto;
       margin-right: auto;
+      padding: 0 1rem;
     }
 
     .left-toggles {
@@ -423,6 +423,11 @@
       font-size: 1rem;
       border: 2px solid #ccc;
       border-radius: 5rem;
+      outline: none;
+    }
+
+    .center-search input:focus {
+      border-color: #1f6463;
     }
   </style>
 </head>
@@ -439,35 +444,33 @@
       Orders</button>
   </div>
 
-  <div class="top-bar">
-    <div class="search-bar-flex">
-      <div class="left-toggles">
-        <div class="toggle-group">
-          <span class="toggle-label">Old Orders</span>
-          <label class="toggle-wrapper">
-            <input type="checkbox" id="showOldToggle" />
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="toggle-group">
-          <span class="toggle-label">Completed</span>
-          <label class="toggle-wrapper">
-            <input type="checkbox" id="showCompletedToggle" />
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="toggle-group">
-          <select id="staffFilter" style="padding: 0.4rem; border-radius: 0.3rem; border: 1px solid #ccc;">
-            <option value="">All Staff</option>
-          </select>
-        </div>
+  <div class="search-bar-flex">
+    <div class="left-toggles">
+      <div class="toggle-group">
+        <span class="toggle-label">Old Orders</span>
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="showOldToggle" />
+          <span class="slider"></span>
+        </label>
       </div>
 
-      <div class="center-search">
-        <input type="text" id="searchInput" placeholder="Search by name, email, phone, or order ID..." />
+      <div class="toggle-group">
+        <span class="toggle-label">Completed</span>
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="showCompletedToggle" />
+          <span class="slider"></span>
+        </label>
       </div>
+
+      <div class="toggle-group">
+        <select id="staffFilter" style="padding: 0.4rem; border-radius: 0.3rem; border: 1px solid #ccc;">
+          <option value="">All Staff</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="center-search">
+      <input type="text" id="searchInput" placeholder="Search by name, email, phone, or order ID..." />
     </div>
   </div>
 
@@ -903,7 +906,14 @@
         }, 1000);
 
         // Setup event listeners
-        document.getElementById("searchInput").addEventListener("input", handlers.onSearchInput);
+        const searchInput = document.getElementById("searchInput");
+        if (searchInput) {
+          searchInput.addEventListener("input", handlers.onSearchInput);
+          console.log('✅ Search input listener attached');
+        } else {
+          console.error('❌ Search input element not found');
+        }
+        
         document.getElementById("tabAll").addEventListener("click", () => handlers.onTabClick("all"));
         document.getElementById("tabClaimed").addEventListener("click", () => handlers.onTabClick("claimed"));
 
