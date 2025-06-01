@@ -92,9 +92,14 @@ io.on('connection', (socket) => {
       const result = stmt.run(status, orderId);
       
       if (result.changes > 0) {
-        const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+        // Fetch the complete updated order
+        const updatedOrder = db.prepare(`
+          SELECT * FROM orders 
+          WHERE id = ?
+        `).get(orderId);
+
         if (updatedOrder) {
-          // Broadcast to all clients
+          // Broadcast to all clients including sender
           io.emit('order-updated', {
             type: 'status-update',
             data: updatedOrder,
@@ -370,17 +375,30 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   try {
     const stmt = db.prepare("UPDATE orders SET status = ? WHERE id = ?");
     const result = stmt.run(status, orderId);
+    
     if (result.changes === 0) {
       return res.status(404).json({ error: "Order not found" });
     }
-    
-    // Enhanced broadcast with immediate confirmation
-    broadcastOrderUpdate(orderId);
-    console.log(`✅ Status updated and broadcast for order ${orderId}`);
-    
+
+    // Fetch the complete updated order
+    const updatedOrder = db.prepare(`
+      SELECT * FROM orders 
+      WHERE id = ?
+    `).get(orderId);
+
+    if (updatedOrder) {
+      // Broadcast through WebSocket
+      io.emit('order-updated', {
+        type: 'status-update',
+        data: updatedOrder,
+        timestamp: new Date().toISOString(),
+        updatedBy: req.session.user
+      });
+    }
+
     res.json({ 
       success: true,
-      message: `Status updated to ${status}`,
+      order: updatedOrder,
       timestamp: new Date().toISOString()
     });
   } catch (err) {

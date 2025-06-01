@@ -481,7 +481,11 @@
       currentUser: null,
       currentTab: "all",
       socket: null,
-      retryCount: 0
+      retryCount: 0,
+      filters: {
+        showOld: false,
+        showCompleted: false
+      }
     };
 
     // WebSocket connection management
@@ -518,44 +522,8 @@
 
         state.socket.on('order-updated', (message) => {
           console.log('📥 Received order update:', message);
-          if (message && message.data) {
-            const updatedOrder = message.data;
-            console.log(`🔄 Processing update for order ${updatedOrder.id}`);
-            
-            // Find the order in our state
-            const index = state.allOrders.findIndex(order => order.id === updatedOrder.id);
-            if (index !== -1) {
-              // Update state
-              state.allOrders[index] = updatedOrder;
-              
-              // Update UI
-              const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
-              if (orderCard) {
-                // Update status dropdown
-                const statusDropdown = orderCard.querySelector('.status-dropdown');
-                if (statusDropdown) {
-                  const currentStatus = statusDropdown.value;
-                  const newStatus = updatedOrder.status;
-                  
-                  if (currentStatus !== newStatus) {
-                    console.log(`📝 Updating status from ${currentStatus} to ${newStatus}`);
-                    statusDropdown.value = newStatus;
-                    applyStatusColor(statusDropdown, newStatus);
-                  }
-                }
-                
-                // Update price if changed
-                const priceElement = orderCard.querySelector('p');
-                if (priceElement) {
-                  const newPrice = updatedOrder.est_price 
-                    ? `<strong>Est. Price:</strong> $${updatedOrder.est_price.toFixed(2)}`
-                    : '<strong>Est. Price:</strong> —';
-                  if (priceElement.innerHTML !== newPrice) {
-                    priceElement.innerHTML = newPrice;
-                  }
-                }
-              }
-            }
+          if (message?.data) {
+            handleOrderUpdate(message.data);
           }
         });
 
@@ -585,50 +553,77 @@
     // Handle incoming order updates
     function handleOrderUpdate(updatedOrder) {
       console.log('🔄 Processing order update:', updatedOrder);
-      
+
+      // Update order in state
       const index = state.allOrders.findIndex(order => order.id === updatedOrder.id);
-      
       if (index !== -1) {
-        // Update existing order in state
         state.allOrders[index] = updatedOrder;
-        
-        // Find and update the status dropdown if it exists
-        const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
-        if (orderCard) {
-          console.log('🎯 Updating existing card:', updatedOrder.id);
-          
-          // Update status dropdown
-          const statusDropdown = orderCard.querySelector('.status-dropdown');
-          if (statusDropdown && statusDropdown.value !== updatedOrder.status) {
-            statusDropdown.value = updatedOrder.status;
-            applyStatusColor(statusDropdown, updatedOrder.status);
-            console.log('🔄 Updated status dropdown to:', updatedOrder.status);
-          }
-
-          // Update other card elements
-          const priceElement = orderCard.querySelector('p strong');
-          if (priceElement) {
-            priceElement.textContent = updatedOrder.est_price ? 
-              `Est. Price: $${updatedOrder.est_price.toFixed(2)}` : 
-              'Est. Price: —';
-          }
-
-          // Update notes if they're visible
-          const notesElement = orderCard.querySelector('td:contains("Staff Notes:")');
-          if (notesElement) {
-            notesElement.nextElementSibling.textContent = updatedOrder.order_notes || '—';
-          }
-        }
       } else {
-        // New order
-        console.log('➕ Adding new order to list');
-        state.allOrders.unshift(updatedOrder);
+        // If the order isn't in our state, check if it should be based on current filters
+        const shouldInclude = shouldShowOrder(updatedOrder);
+        if (shouldInclude) {
+          state.allOrders.unshift(updatedOrder);
+        }
+      }
+
+      // Update UI if the order is currently visible
+      const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
+      if (orderCard) {
+        // Update status dropdown
+        const statusDropdown = orderCard.querySelector('.status-dropdown');
+        if (statusDropdown) {
+          statusDropdown.value = updatedOrder.status || 'pending';
+          applyStatusColor(statusDropdown, updatedOrder.status || 'pending');
+        }
+
+        // Update other card elements
+        updateCardElements(orderCard, updatedOrder);
+      } else {
+        // If the card isn't visible but should be, reapply current filters
         const query = document.getElementById("searchInput").value;
-        if (!query.trim()) {
-          const grid = document.getElementById("orderGrid");
-          const tempContainer = document.createElement('div');
-          renderOrders([updatedOrder], false, tempContainer);
-          grid.prepend(tempContainer.firstChild);
+        filterOrders(query);
+      }
+    }
+
+    // Helper function to check if an order should be shown based on current filters
+    function shouldShowOrder(order) {
+      const showOld = document.getElementById("showOldToggle").checked;
+      const showCompleted = document.getElementById("showCompletedToggle").checked;
+      
+      // Check completed status
+      if (!showCompleted && order.status?.toLowerCase() === 'completed') {
+        return false;
+      }
+
+      // Check age
+      if (!showOld) {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const orderDate = new Date(order.submitted_at);
+        if (orderDate < oneWeekAgo) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    // Helper function to update card elements
+    function updateCardElements(card, order) {
+      // Update price
+      const priceElement = card.querySelector('p');
+      if (priceElement) {
+        priceElement.innerHTML = `<strong>Est. Price:</strong> ${
+          order.est_price ? `$${order.est_price.toFixed(2)}` : '—'
+        }`;
+      }
+
+      // Update notes if visible
+      const detailsSection = card.querySelector('.details-section');
+      if (detailsSection?.classList.contains('visible')) {
+        const notesElement = detailsSection.querySelector('td:contains("Staff Notes:")');
+        if (notesElement?.nextElementSibling) {
+          notesElement.nextElementSibling.textContent = order.order_notes || '—';
         }
       }
     }
