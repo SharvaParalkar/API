@@ -1,4 +1,5 @@
 STL-UPLOADER/logs/
 STL-UPLOADER/uploads/
 Order-Form/STLS/
- 
+DB/db/filamentbros.sqlite-shm
+DB/db/filamentbros.sqlite-wal
