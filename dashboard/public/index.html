@@ -868,24 +868,29 @@
         // Initialize staff list from USERS object
         try {
           const staffList = await api.getStaffList();
+          console.log('📋 Fetched staff list:', staffList);
           state.staffMembers = staffList;
           
           // Populate staff filter
           const staffFilter = document.getElementById("staffFilter");
+          console.log('🔍 Found staff filter element:', staffFilter);
           staffFilter.innerHTML = '<option value="">All Staff</option>'; // Reset
           state.staffMembers.forEach(staff => {
+            console.log('👤 Adding staff member:', staff);
             const option = document.createElement("option");
             option.value = staff.username;
             option.textContent = staff.displayName;
             staffFilter.appendChild(option);
           });
 
+          console.log('✅ Staff filter populated:', staffFilter.innerHTML);
+
           staffFilter.addEventListener("change", () => {
             const query = document.getElementById("searchInput").value;
             filterOrders(query);
           });
         } catch (err) {
-          console.error('Failed to load staff list:', err);
+          console.error('❌ Failed to load staff list:', err);
         }
 
         // Load initial orders
@@ -1492,6 +1497,30 @@
           // Get session info
           const data = await api.checkSession();
           state.currentUser = data.username;
+
+          // Initialize staff list
+          try {
+            console.log('🔄 Fetching staff list...');
+            const staffList = await api.getStaffList();
+            console.log('📋 Fetched staff list:', staffList);
+            state.staffMembers = staffList;
+            
+            // Populate staff filter
+            const staffFilter = document.getElementById("staffFilter");
+            console.log('🔍 Found staff filter element:', staffFilter);
+            staffFilter.innerHTML = '<option value="">All Staff</option>'; // Reset
+            state.staffMembers.forEach(staff => {
+              console.log('👤 Adding staff member:', staff);
+              const option = document.createElement("option");
+              option.value = staff.username;
+              option.textContent = staff.displayName;
+              staffFilter.appendChild(option);
+            });
+
+            console.log('✅ Staff filter populated:', staffFilter.innerHTML);
+          } catch (err) {
+            console.error('❌ Failed to load staff list:', err);
+          }
 
           // Hide login and load orders
           ui.hideLoginOverlay();
