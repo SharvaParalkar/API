@@ -472,6 +472,13 @@
     const REFRESH_INTERVAL = 10000; // 10 seconds
     const SEARCH_DEBOUNCE = 200; // 200ms
     const MAX_RETRY_ATTEMPTS = 3;
+    const VALID_STATUSES = [
+      "pending",
+      "pre print",
+      "printing",
+      "printing pay later",
+      "completed",
+    ];
 
     // State management
     const state = {
@@ -485,6 +492,20 @@
       },
       intervals: []
     };
+
+    // First full load
+    async function loadInitialOrders() {
+      try {
+        const data = await api.fetchOrders();
+        state.allOrders = Array.isArray(data) ? data : [];
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+      } catch (err) {
+        state.allOrders = [];
+        document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
+        console.error("❌ Failed to load initial orders:", err);
+      }
+    }
 
     // Handle incoming order updates
     function handleOrderUpdate(updatedOrder) {
@@ -811,14 +832,6 @@
     document.addEventListener("DOMContentLoaded", initialize);
 
     let allOrders = [];
-    const VALID_STATUSES = [
-      "pending",
-      "pre print",
-      "printing",
-      "printing pay later",
-      "completed",
-    ];
-
     let currentUser = null;
     let currentTab = "all"; // "all" or "claimed"
 
@@ -1111,7 +1124,7 @@
       const isSearchActive = q.trim().length > 0;
 
       const filtered = state.allOrders.filter((order) => {
-        if (currentTab === "claimed" && !order.claimed) return false;
+        if (state.currentTab === "claimed" && !order.claimed) return false;
 
         return (
           (order.name && order.name.toLowerCase().includes(q)) ||
@@ -1246,7 +1259,7 @@
         fetch("/dashboard/whoami", { credentials: "include" })
           .then((res) => res.json())
           .then((data) => {
-            currentUser = data.username;
+            state.currentUser = data.username;
             loginOverlay.style.display = "none";
             loadInitialOrders();
           })
@@ -1285,10 +1298,9 @@
               credentials: "include",
             });
             const data = await userRes.json();
-            currentUser = data.username;
+            state.currentUser = data.username;
 
             loginOverlay.style.display = "none";
-
             loadInitialOrders();
           } else {
             let errorText = "Login failed.";
