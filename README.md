@@ -37,4 +37,4 @@ FEATURE LOG
 05/26/2025 - Dashboard, shows all cards, collapses cards, download functionality works, and styling is better
 
 
-
+npm install socket.io express-socket.io-session
