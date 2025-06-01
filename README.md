@@ -2,26 +2,6 @@
 
 This repository contains the API and dashboard for FilamentBros 3D printing service.
 
-## Installation
-
-1. Clone the repository
-2. Install dependencies:
-```bash
-npm install
-```
-
-## Configuration
-
-1. Set up your environment variables in `.env`
-2. Configure your database connection in `config.js`
-
-## Running the Application
-
-```bash
-npm start
-```
-
-The application will be available at `http://localhost:3300`
 
 ## Features
 
@@ -85,4 +65,6 @@ npm install socket.io express-socket.io-session
 
 
 sqlite3 DB/db/filamentbros.sqlite "ALTER TABLE orders ADD COLUMN updated_by TEXT;"
+
+sqlite3 DB/db/filamentbros.sqlite "ALTER TABLE orders ADD COLUMN last_updated DATETIME;"
 

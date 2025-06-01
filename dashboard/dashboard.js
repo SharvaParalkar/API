@@ -317,10 +317,14 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   try {
     // Start a transaction
     const transaction = db.transaction(() => {
-      // Update the order
-      const updateStmt = db.prepare(
-        "UPDATE orders SET status = ?, updated_by = ?, last_updated = ? WHERE id = ?"
-      );
+      // Update the order - handle case where last_updated might not exist
+      const updateStmt = db.prepare(`
+        UPDATE orders 
+        SET status = ?,
+            updated_by = ?,
+            last_updated = COALESCE(?, last_updated)
+        WHERE id = ?
+      `);
       const result = updateStmt.run(status, username, timestamp, orderId);
       
       if (result.changes === 0) {
@@ -329,7 +333,9 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
 
       // Fetch the updated order
       const updatedOrder = db.prepare(`
-        SELECT *, updated_by, last_updated 
+        SELECT *,
+               updated_by,
+               COALESCE(last_updated, submitted_at) as last_updated
         FROM orders 
         WHERE id = ?
       `).get(orderId);
