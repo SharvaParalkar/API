@@ -968,13 +968,14 @@
       // First, filter based on the current tab
       let filtered = [...state.allOrders];
 
-      // For claimed tab, only show orders claimed by current user
+      // For claimed tab, ONLY show orders claimed by current user
       if (state.currentTab === "claimed") {
         console.log('Filtering for claimed orders by:', state.currentUser);
         filtered = filtered.filter(order => {
-          const isClaimedByUser = order.claimed_by === state.currentUser;
-          console.log(`Order ${order.id} claimed by: ${order.claimed_by}, matches current user: ${isClaimedByUser}`);
-          return isClaimedByUser;
+          // Only show orders that are:
+          // 1. Claimed by the current user
+          // 2. Have the current user as assigned staff
+          return order.claimed_by === state.currentUser && order.assigned_staff === state.currentUser;
         });
       }
 
@@ -1004,7 +1005,11 @@
       const grid = document.getElementById("orderGrid");
       if (grid) {
         grid.innerHTML = "";
-        renderOrders(filtered, isSearchActive);
+        if (state.currentTab === "claimed") {
+          renderClaimedOrders(filtered, isSearchActive);
+        } else {
+          renderOrders(filtered, isSearchActive);
+        }
       }
     }
 
@@ -1512,11 +1517,10 @@
       const grid = document.getElementById("orderGrid");
       grid.innerHTML = "";
       
-      // Filter for orders that are properly claimed (both claimed_by and assigned_staff must be set)
+      // Filter for orders that are properly claimed by the current user
       const claimedOrders = orders.filter(order => 
         order.claimed_by === state.currentUser && 
-        order.assigned_staff != null && 
-        order.assigned_staff !== ""
+        order.assigned_staff === state.currentUser
       );
       
       console.log(`📋 Rendering ${claimedOrders.length} claimed orders for user ${state.currentUser}`);
