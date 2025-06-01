@@ -10,6 +10,21 @@ const http = require('http');
 const { Server } = require('socket.io');
 const sharedsession = require('express-socket.io-session');
 
+// Constants and Database setup
+const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
+const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
+
+// Database connection with better error handling
+let db;
+try {
+  db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  console.log('✅ Database connected successfully');
+} catch (err) {
+  console.error('❌ Database connection failed:', err);
+  process.exit(1);
+}
+
 // ✅ CORS config
 const allowedOrigins = ["https://filamentbros.com", "https://api.filamentbros.com"];
 
@@ -381,17 +396,3 @@ server.listen(PORT, () => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-
-const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
-const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
-
-// Database connection with better error handling
-let db;
-try {
-  db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  console.log('✅ Database connected successfully');
-} catch (err) {
-  console.error('❌ Database connection failed:', err);
-  process.exit(1);
-}
