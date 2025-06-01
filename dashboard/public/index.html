@@ -999,12 +999,20 @@
 
         // Get current search query
         const query = document.getElementById("searchInput").value;
+        console.log('Current tab after click:', state.currentTab); // Debug log
 
         // Use appropriate render function based on tab
         if (tab === "claimed") {
           console.log('Rendering claimed orders');
           const isSearchActive = query.length > 0;
-          renderClaimedOrders(state.allOrders, isSearchActive);
+          const validStaffMembers = state.staffMembers.map(staff => staff.username);
+          const claimedOrders = state.allOrders.filter(order =>
+            order.claimed_by === state.currentUser &&
+            order.assigned_staff === state.currentUser &&
+            validStaffMembers.includes(order.assigned_staff) &&
+            order.status?.toLowerCase() !== "completed"
+          );
+          renderClaimedOrders(claimedOrders, isSearchActive);
         } else {
           console.log('Filtering all orders');
           filterOrders(query);
@@ -1140,19 +1148,21 @@
       const allTab = document.getElementById("tabAll");
       const claimedTab = document.getElementById("tabClaimed");
 
-      if (allTab) {
-        allTab.addEventListener("click", () => {
-          console.log('Switching to All Orders tab');
-          handlers.onTabClick("all");
-        });
-      }
+      // Remove any existing listeners first
+      const newAllTab = allTab.cloneNode(true);
+      const newClaimedTab = claimedTab.cloneNode(true);
+      allTab.parentNode.replaceChild(newAllTab, allTab);
+      claimedTab.parentNode.replaceChild(newClaimedTab, claimedTab);
 
-      if (claimedTab) {
-        claimedTab.addEventListener("click", () => {
-          console.log('Switching to Claimed Orders tab');
-          handlers.onTabClick("claimed");
-        });
-      }
+      newAllTab.addEventListener("click", () => {
+        console.log('Switching to All Orders tab');
+        handlers.onTabClick("all");
+      });
+
+      newClaimedTab.addEventListener("click", () => {
+        console.log('Switching to Claimed Orders tab');
+        handlers.onTabClick("claimed");
+      });
 
       // Filter listeners
       const oldOrdersToggle = document.getElementById("showOldToggle");
@@ -1162,12 +1172,16 @@
 
       [oldOrdersToggle, completedToggle, staffFilter].forEach(element => {
         if (element) {
-          element.addEventListener("change", handlers.onFilterChange);
+          const newElement = element.cloneNode(true);
+          element.parentNode.replaceChild(newElement, element);
+          newElement.addEventListener("change", handlers.onFilterChange);
         }
       });
 
       if (searchInput) {
-        searchInput.addEventListener("input", handlers.onSearchInput);
+        const newSearchInput = searchInput.cloneNode(true);
+        searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+        newSearchInput.addEventListener("input", handlers.onSearchInput);
       }
 
       // Window event listeners
@@ -1952,10 +1966,10 @@
     });
 
     function updateTabStyles() {
-      document.getElementById("tabAll").style.backgroundColor = currentTab === "all" ? "#1f6463" : "#ccc";
-      document.getElementById("tabAll").style.color = currentTab === "all" ? "white" : "black";
-      document.getElementById("tabClaimed").style.backgroundColor = currentTab === "claimed" ? "#1f6463" : "#ccc";
-      document.getElementById("tabClaimed").style.color = currentTab === "claimed" ? "white" : "black";
+      document.getElementById("tabAll").style.backgroundColor = state.currentTab === "all" ? "#1f6463" : "#ccc";
+      document.getElementById("tabAll").style.color = state.currentTab === "all" ? "white" : "black";
+      document.getElementById("tabClaimed").style.backgroundColor = state.currentTab === "claimed" ? "#1f6463" : "#ccc";
+      document.getElementById("tabClaimed").style.color = state.currentTab === "claimed" ? "white" : "black";
     }
 
     document.getElementById("showOldToggle").addEventListener("change", async () => {
