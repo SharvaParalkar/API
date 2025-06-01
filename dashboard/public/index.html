@@ -431,12 +431,27 @@
     }
 
     @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
     }
+
     @keyframes slideOut {
-      from { transform: translateX(0); opacity: 1; }
-      to { transform: translateX(100%); opacity: 0; }
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
     }
   </style>
 </head>
@@ -522,10 +537,10 @@
         const data = await api.fetchOrders();
         state.allOrders = Array.isArray(data) ? data : [];
         console.log('📦 Initial orders loaded:', state.allOrders.length);
-        
+
         // Initialize search immediately after orders load
         initializeSearch();
-        
+
         // Apply any existing search query
         const query = document.getElementById("searchInput").value;
         filterOrders(query);
@@ -572,7 +587,7 @@
     function shouldShowOrder(order) {
       const showOld = document.getElementById("showOldToggle").checked;
       const showCompleted = document.getElementById("showCompletedToggle").checked;
-      
+
       // Check completed status
       if (!showCompleted && order.status?.toLowerCase() === 'completed') {
         return false;
@@ -596,9 +611,8 @@
       // Update price
       const priceElement = card.querySelector('p');
       if (priceElement) {
-        priceElement.innerHTML = `<strong>Est. Price:</strong> ${
-          order.est_price ? `$${order.est_price.toFixed(2)}` : '—'
-        }`;
+        priceElement.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : '—'
+          }`;
       }
 
       // Update notes if visible
@@ -626,7 +640,7 @@
 
     const handleError = async (err, operation) => {
       console.error(`❌ Error during ${operation}:`, err);
-      
+
       if (err.status === 401) {
         clearAllIntervals();
         showLoginOverlay();
@@ -638,7 +652,7 @@
         await new Promise(resolve => setTimeout(resolve, 1000 * state.retryCount));
         return true; // Retry
       }
-      
+
       state.retryCount = 0;
       return false; // Don't retry
     };
@@ -655,20 +669,20 @@
           // Get current filter states
           const showOld = document.getElementById("showOldToggle").checked;
           const showCompleted = document.getElementById("showCompletedToggle").checked;
-          
+
           // Build query string
           const params = new URLSearchParams({
             showOld: showOld.toString(),
             showCompleted: showCompleted.toString(),
             showClaimed: (state.currentTab === "claimed").toString()
           });
-          
+
           const url = `/dashboard/data?${params.toString()}`;
           console.log('🔍 Fetching orders with filters:', { showOld, showCompleted, showClaimed: state.currentTab === "claimed" });
-          
+
           const res = await fetch(url, { credentials: 'include' });
           if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-          
+
           const data = await res.json();
           console.log(`📦 Received ${data.length} orders`);
           return data;
@@ -787,8 +801,8 @@
 
       async getStaffList() {
         try {
-          const res = await fetch("/dashboard/staff", { 
-            credentials: 'include' 
+          const res = await fetch("/dashboard/staff", {
+            credentials: 'include'
           });
           if (!res.ok) throw new Error("Failed to fetch staff list");
           return await res.json();
@@ -804,7 +818,7 @@
       updateTabStyles() {
         const allTab = document.getElementById("tabAll");
         const claimedTab = document.getElementById("tabClaimed");
-        
+
         if (allTab && claimedTab) {
           allTab.style.backgroundColor = state.currentTab === "all" ? "#1f6463" : "#ccc";
           allTab.style.color = state.currentTab === "all" ? "white" : "black";
@@ -851,18 +865,18 @@
       async onStatusChange(event, orderId) {
         const newStatus = event.target.value;
         const previousValue = event.target.dataset.previousValue;
-        
+
         try {
           // Update UI immediately
           applyStatusColor(event.target, newStatus);
           event.target.dataset.previousValue = newStatus;
-          
+
           console.log(`🔄 Initiating status change for ${orderId}: ${newStatus}`);
-          
+
           // Send HTTP request
           const response = await api.updateStatus(orderId, newStatus);
           console.log('✅ Status update response:', response);
-          
+
         } catch (err) {
           console.error(`❌ Failed to update status:`, err);
           // Revert on error
@@ -877,10 +891,10 @@
         console.log('Tab clicked:', tab);
         state.currentTab = tab;
         ui.updateTabStyles();
-        
+
         // Get current search query
         const query = document.getElementById("searchInput").value;
-        
+
         // Use appropriate render function based on tab
         if (tab === "claimed") {
           console.log('Rendering claimed orders');
@@ -920,7 +934,7 @@
       // Clear any existing listeners
       const newSearchInput = searchInput.cloneNode(true);
       searchInput.parentNode.replaceChild(newSearchInput, searchInput);
-      
+
       // Add new listener for immediate search
       newSearchInput.addEventListener("input", (e) => {
         const query = e.target.value;
@@ -970,12 +984,13 @@
 
       // For claimed tab, ONLY show orders claimed by current user
       if (state.currentTab === "claimed") {
-        console.log('Filtering for claimed orders by:', state.currentUser);
-        filtered = filtered.filter(order => {
-          // Only show orders that are:
-          // 1. Claimed by the current user
-          // 2. Have the current user as assigned staff
-          return order.claimed_by === state.currentUser && order.assigned_staff === state.currentUser;
+        filtered = filtered.filtr(order => {
+          return (
+            order.claimed_by &&
+            order.claimed_by === state.currentUser &&
+            order.assigned_staff === state.currentUser &&
+            order.status?.toLowerCase() !== "completed"
+          );
         });
       }
 
@@ -1000,7 +1015,7 @@
       }
 
       console.log(`✨ Found ${filtered.length} matching orders after all filters`);
-      
+
       // Clear the grid before rendering
       const grid = document.getElementById("orderGrid");
       if (grid) {
@@ -1068,7 +1083,7 @@
     async function initialize() {
       try {
         console.log('🚀 Initializing dashboard...');
-        
+
         // Auto-login check
         if (localStorage.getItem("rememberedUser")) {
           try {
@@ -1089,12 +1104,12 @@
 
         // Load initial orders
         await loadInitialOrders();
-        
+
         // Initialize staff list
         try {
           const staffList = await api.getStaffList();
           state.staffMembers = staffList;
-          
+
           const staffFilter = document.getElementById("staffFilter");
           if (staffFilter) {
             staffFilter.innerHTML = '<option value="">All Staff</option>';
@@ -1109,10 +1124,10 @@
           console.error('❌ Failed to load staff list:', err);
           ui.showError('Failed to load staff list');
         }
-        
+
         // Initialize event listeners
         initializeEventListeners();
-        
+
         // Initialize SSE connection
         initializeSSE();
 
@@ -1140,7 +1155,7 @@
         eventSource.onerror = (error) => {
           console.error('❌ SSE connection error:', error);
           eventSource.close();
-          
+
           if (retryCount < maxRetries) {
             retryCount++;
             setTimeout(connect, retryDelay * retryCount);
@@ -1198,7 +1213,7 @@
     async function renderOrders(orders, expandDetails = false, container = null) {
       const grid = container || document.getElementById("orderGrid");
       if (!container) grid.innerHTML = "";
-      
+
       for (const order of orders) {
         const card = document.createElement("div");
         card.className = "card";
@@ -1239,18 +1254,18 @@
         statusDropdown.addEventListener("change", async () => {
           const newStatus = statusDropdown.value;
           const previousValue = statusDropdown.dataset.previousValue;
-          
+
           try {
             // Update UI immediately
             applyStatusColor(statusDropdown, newStatus);
             statusDropdown.dataset.previousValue = newStatus;
-            
+
             console.log(`🔄 Initiating status change for ${order.id}: ${newStatus}`);
-            
+
             // Send HTTP request
             const response = await api.updateStatus(order.id, newStatus);
             console.log('✅ Status update response:', response);
-            
+
           } catch (err) {
             console.error(`❌ Failed to update status:`, err);
             // Revert on error
@@ -1268,9 +1283,8 @@
 
         // Show estimated price right under heading
         const price = document.createElement("p");
-        price.innerHTML = `<strong>Est. Price:</strong> ${
-          order.est_price ? `$${order.est_price.toFixed(2)}` : "—"
-        }`;
+        price.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : "—"
+          }`;
         card.appendChild(price);
 
         const toggleBtn = document.createElement("button");
@@ -1411,90 +1425,90 @@
 
             // Add unclaim button if the order is claimed by current user (regardless of tab)
             if (isClaimedByCurrentUser && !isCompleted) {
-                const unclaimBtn = document.createElement("button");
-                unclaimBtn.textContent = "Unclaim";
-                unclaimBtn.style.backgroundColor = "#ccc";
-                unclaimBtn.style.border = "none";
-                unclaimBtn.style.color = "#333";
-                unclaimBtn.style.padding = "0.5rem 1rem";
-                unclaimBtn.style.borderRadius = "0.5rem";
-                unclaimBtn.style.marginTop = "0.5rem";
-                unclaimBtn.style.cursor = "pointer";
+              const unclaimBtn = document.createElement("button");
+              unclaimBtn.textContent = "Unclaim";
+              unclaimBtn.style.backgroundColor = "#ccc";
+              unclaimBtn.style.border = "none";
+              unclaimBtn.style.color = "#333";
+              unclaimBtn.style.padding = "0.5rem 1rem";
+              unclaimBtn.style.borderRadius = "0.5rem";
+              unclaimBtn.style.marginTop = "0.5rem";
+              unclaimBtn.style.cursor = "pointer";
 
-                unclaimBtn.addEventListener("click", async () => {
-                    try {
-                        await api.unclaimOrder(order.id);
-                        // Remove the order from the current view if we're in claimed tab
-                        if (state.currentTab === "claimed") {
-                            const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
-                            if (orderCard) {
-                                orderCard.remove();
-                            }
-                        }
-                        // Update the order in state
-                        const index = state.allOrders.findIndex(o => o.id === order.id);
-                        if (index !== -1) {
-                            state.allOrders[index] = {
-                                ...state.allOrders[index],
-                                claimed_by: null,
-                                assigned_staff: null
-                            };
-                        }
-                        // Refresh the view
-                        const query = document.getElementById("searchInput").value;
-                        filterOrders(query);
-                    } catch (err) {
-                        console.error(`Failed to unclaim order ${order.id}:`, err);
-                        ui.showError(err.message || "Failed to unclaim order");
+              unclaimBtn.addEventListener("click", async () => {
+                try {
+                  await api.unclaimOrder(order.id);
+                  // Remove the order from the current view if we're in claimed tab
+                  if (state.currentTab === "claimed") {
+                    const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
+                    if (orderCard) {
+                      orderCard.remove();
                     }
-                });
+                  }
+                  // Update the order in state
+                  const index = state.allOrders.findIndex(o => o.id === order.id);
+                  if (index !== -1) {
+                    state.allOrders[index] = {
+                      ...state.allOrders[index],
+                      claimed_by: null,
+                      assigned_staff: null
+                    };
+                  }
+                  // Refresh the view
+                  const query = document.getElementById("searchInput").value;
+                  filterOrders(query);
+                } catch (err) {
+                  console.error(`Failed to unclaim order ${order.id}:`, err);
+                  ui.showError(err.message || "Failed to unclaim order");
+                }
+              });
 
-                card.appendChild(unclaimBtn);
+              card.appendChild(unclaimBtn);
             }
 
             // Only show claim button in "All Orders" tab
             if (state.currentTab === "all") {
-                if (isCompleted) {
-                    const completedLabel = document.createElement("button");
-                    completedLabel.textContent = "Completed";
-                    completedLabel.disabled = true;
-                    completedLabel.style.backgroundColor = "#999";
-                    completedLabel.style.border = "none";
-                    completedLabel.style.color = "#666";
-                    completedLabel.style.padding = "0.5rem 1rem";
-                    completedLabel.style.borderRadius = "0.5rem";
-                    completedLabel.style.marginTop = "0.5rem";
-                    completedLabel.style.cursor = "not-allowed";
-                    card.appendChild(completedLabel);
-                } else if (!isClaimedByCurrentUser) {
-                    const claimBtn = document.createElement("button");
-                    claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : "Claim Order";
-                    claimBtn.disabled = isClaimed;
-                    claimBtn.style.backgroundColor = isClaimed ? '#999' : '#ccc';
-                    claimBtn.style.border = "none";
-                    claimBtn.style.color = "#333";
-                    claimBtn.style.padding = "0.5rem 1rem";
-                    claimBtn.style.borderRadius = "0.5rem";
-                    claimBtn.style.marginTop = "0.5rem";
-                    claimBtn.style.cursor = isClaimed ? "not-allowed" : "pointer";
+              if (isCompleted) {
+                const completedLabel = document.createElement("button");
+                completedLabel.textContent = "Completed";
+                completedLabel.disabled = true;
+                completedLabel.style.backgroundColor = "#999";
+                completedLabel.style.border = "none";
+                completedLabel.style.color = "#666";
+                completedLabel.style.padding = "0.5rem 1rem";
+                completedLabel.style.borderRadius = "0.5rem";
+                completedLabel.style.marginTop = "0.5rem";
+                completedLabel.style.cursor = "not-allowed";
+                card.appendChild(completedLabel);
+              } else if (!isClaimedByCurrentUser) {
+                const claimBtn = document.createElement("button");
+                claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : "Claim Order";
+                claimBtn.disabled = isClaimed;
+                claimBtn.style.backgroundColor = isClaimed ? '#999' : '#ccc';
+                claimBtn.style.border = "none";
+                claimBtn.style.color = "#333";
+                claimBtn.style.padding = "0.5rem 1rem";
+                claimBtn.style.borderRadius = "0.5rem";
+                claimBtn.style.marginTop = "0.5rem";
+                claimBtn.style.cursor = isClaimed ? "not-allowed" : "pointer";
 
-                    if (!isClaimed) {
-                        claimBtn.addEventListener("click", async () => {
-                            try {
-                                await api.claimOrder(order.id);
-                                order.claimed_by = state.currentUser;
-                                order.assigned_staff = state.currentUser; // Also set assigned staff
-                                const query = document.getElementById("searchInput").value;
-                                filterOrders(query);
-                            } catch (err) {
-                                console.error(`Failed to claim order ${order.id}:`, err);
-                                ui.showError(err.message || "Failed to claim order");
-                            }
-                        });
+                if (!isClaimed) {
+                  claimBtn.addEventListener("click", async () => {
+                    try {
+                      await api.claimOrder(order.id);
+                      order.claimed_by = state.currentUser;
+                      order.assigned_staff = state.currentUser; // Also set assigned staff
+                      const query = document.getElementById("searchInput").value;
+                      filterOrders(query);
+                    } catch (err) {
+                      console.error(`Failed to claim order ${order.id}:`, err);
+                      ui.showError(err.message || "Failed to claim order");
                     }
-
-                    card.appendChild(claimBtn);
+                  });
                 }
+
+                card.appendChild(claimBtn);
+              }
             }
           })
           .catch((err) => {
@@ -1516,13 +1530,13 @@
     async function renderClaimedOrders(orders, expandDetails = false) {
       const grid = document.getElementById("orderGrid");
       grid.innerHTML = "";
-      
+
       // Filter for orders that are properly claimed by the current user
-      const claimedOrders = orders.filter(order => 
-        order.claimed_by === state.currentUser && 
+      const claimedOrders = orders.filter(order =>
+        order.claimed_by === state.currentUser &&
         order.assigned_staff === state.currentUser
       );
-      
+
       console.log(`📋 Rendering ${claimedOrders.length} claimed orders for user ${state.currentUser}`);
 
       for (const order of claimedOrders) {
@@ -1566,7 +1580,7 @@
         statusDropdown.addEventListener("change", async () => {
           const newStatus = statusDropdown.value;
           const previousValue = statusDropdown.dataset.previousValue;
-          
+
           try {
             applyStatusColor(statusDropdown, newStatus);
             statusDropdown.dataset.previousValue = newStatus;
@@ -1587,9 +1601,8 @@
 
         // Show estimated price
         const price = document.createElement("p");
-        price.innerHTML = `<strong>Est. Price:</strong> ${
-          order.est_price ? `$${order.est_price.toFixed(2)}` : "—"
-        }`;
+        price.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : "—"
+          }`;
         card.appendChild(price);
 
         // Add details toggle
@@ -1774,7 +1787,7 @@
 
         try {
           await api.login(username, password, remember);
-          
+
           if (remember) {
             localStorage.setItem("rememberedUser", "true");
           }
@@ -1788,7 +1801,7 @@
             console.log('🔄 Fetching staff list...');
             const staffList = await api.getStaffList();
             state.staffMembers = staffList;
-            
+
             // Populate staff filter
             const staffFilter = document.getElementById("staffFilter");
             staffFilter.innerHTML = '<option value="">All Staff</option>';
@@ -1841,7 +1854,7 @@
         // Fetch new data with current filters
         const data = await api.fetchOrders();
         state.allOrders = Array.isArray(data) ? data : [];
-        
+
         // Apply current search filter
         const query = document.getElementById("searchInput").value;
         filterOrders(query);
@@ -1855,7 +1868,7 @@
         // Fetch new data with current filters
         const data = await api.fetchOrders();
         state.allOrders = Array.isArray(data) ? data : [];
-        
+
         // Apply current search filter
         const query = document.getElementById("searchInput").value;
         filterOrders(query);
@@ -2017,9 +2030,8 @@
       // Update price
       const priceElement = card.querySelector('p');
       if (priceElement) {
-        priceElement.innerHTML = `<strong>Est. Price:</strong> ${
-          order.est_price ? `$${order.est_price.toFixed(2)}` : '—'
-        }`;
+        priceElement.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : '—'
+          }`;
       }
 
       // Update staff assignment
