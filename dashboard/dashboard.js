@@ -6,8 +6,18 @@ const fs = require("fs");
 const archiver = require("archiver");
 const session = require("express-session");
 const helmet = require("helmet");
+const http = require('http');
+const { Server } = require('socket.io');
+const sharedsession = require('express-socket.io-session');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
+  }
+});
 
 // Security headers
 app.use(helmet({
@@ -47,19 +57,54 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.json({ limit: '10mb' }));
 
 // ✅ Sessions config with better security
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "filamentbros-secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      sameSite: 'lax'
-    },
-  })
-);
+const sessionMiddleware = session({
+  secret: process.env.SESSION_SECRET || "filamentbros-secret",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax'
+  },
+});
+
+app.use(sessionMiddleware);
+
+// Share session with socket.io
+io.use(sharedsession(sessionMiddleware, {
+  autoSave: true
+}));
+
+// Socket.io authentication middleware
+io.use((socket, next) => {
+  if (socket.handshake.session.user) {
+    next();
+  } else {
+    next(new Error('Authentication error'));
+  }
+});
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log(`🔌 WebSocket client connected: ${socket.handshake.session.user}`);
+
+  socket.on('disconnect', () => {
+    console.log(`🔌 WebSocket client disconnected: ${socket.handshake.session.user}`);
+  });
+});
+
+// Broadcast updates to all connected clients
+function broadcastOrderUpdate(orderId) {
+  try {
+    const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    if (order) {
+      io.emit('order-updated', order);
+    }
+  } catch (err) {
+    console.error('❌ Failed to broadcast order update:', err);
+  }
+}
 
 const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
 const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
@@ -213,12 +258,13 @@ app.get("/dashboard/download-all/:orderId", requireLogin, (req, res) => {
   }
 });
 
-// 💵 Update price
+// 💵 Update price with WebSocket broadcast
 app.post("/dashboard/update-price", requireLogin, (req, res) => {
   const { orderId, est_price } = req.body;
   try {
     const stmt = db.prepare("UPDATE orders SET est_price = ? WHERE id = ?");
     stmt.run(est_price, orderId);
+    broadcastOrderUpdate(orderId);
     res.status(200).send("Updated estimate.");
   } catch (err) {
     console.error("❌ Failed to update est_price:", err.message);
@@ -226,12 +272,13 @@ app.post("/dashboard/update-price", requireLogin, (req, res) => {
   }
 });
 
-// 📝 Update notes
+// 📝 Update notes with WebSocket broadcast
 app.post("/dashboard/update-notes", requireLogin, (req, res) => {
   const { orderId, order_notes } = req.body;
   try {
     const stmt = db.prepare("UPDATE orders SET order_notes = ? WHERE id = ?");
     stmt.run(order_notes, orderId);
+    broadcastOrderUpdate(orderId);
     res.status(200).send("Updated staff notes.");
   } catch (err) {
     console.error("❌ Failed to update staff notes:", err.message);
@@ -239,7 +286,7 @@ app.post("/dashboard/update-notes", requireLogin, (req, res) => {
   }
 });
 
-// 🔄 Update status
+// 🔄 Update status with WebSocket broadcast
 app.post("/dashboard/update-status", requireLogin, (req, res) => {
   const { orderId, status } = req.body;
   if (!orderId || !status) {
@@ -252,6 +299,7 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
     if (result.changes === 0) {
       return res.status(404).json({ error: "Order not found" });
     }
+    broadcastOrderUpdate(orderId);
     res.json({ success: true });
   } catch (err) {
     console.error("❌ Failed to update status:", err.message);
@@ -286,7 +334,7 @@ process.on('SIGTERM', () => {
 
 // ✅ Launch with health check
 const PORT = process.env.PORT || 3300;
-const server = app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`✅ Dashboard running at http://localhost:${PORT}`);
 });
 

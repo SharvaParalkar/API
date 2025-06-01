@@ -425,6 +425,7 @@
       border-radius: 5rem;
     }
   </style>
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 
 <body>
@@ -479,10 +480,75 @@
       allOrders: [],
       currentUser: null,
       currentTab: "all",
-      latestTimestamp: null,
-      intervals: [],
+      socket: null,
       retryCount: 0
     };
+
+    // WebSocket connection management
+    const socket = {
+      connect() {
+        state.socket = io({
+          withCredentials: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000
+        });
+
+        state.socket.on('connect', () => {
+          console.log('✅ WebSocket connected');
+        });
+
+        state.socket.on('connect_error', (error) => {
+          console.error('❌ WebSocket connection error:', error);
+          if (error.message === 'Authentication error') {
+            ui.showLoginOverlay();
+          }
+        });
+
+        state.socket.on('disconnect', () => {
+          console.log('🔌 WebSocket disconnected');
+        });
+
+        state.socket.on('order-updated', (order) => {
+          handleOrderUpdate(order);
+        });
+      },
+
+      disconnect() {
+        if (state.socket) {
+          state.socket.disconnect();
+          state.socket = null;
+        }
+      }
+    };
+
+    // Handle incoming order updates
+    function handleOrderUpdate(updatedOrder) {
+      const index = state.allOrders.findIndex(order => order.id === updatedOrder.id);
+      
+      if (index !== -1) {
+        // Update existing order
+        state.allOrders[index] = updatedOrder;
+        
+        // Update UI if the order is currently visible
+        const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
+        if (orderCard) {
+          const tempContainer = document.createElement('div');
+          renderOrders([updatedOrder], false, tempContainer);
+          orderCard.replaceWith(tempContainer.firstChild);
+        }
+      } else {
+        // New order
+        state.allOrders.unshift(updatedOrder);
+        const query = document.getElementById("searchInput").value;
+        if (!query.trim()) {
+          const grid = document.getElementById("orderGrid");
+          const tempContainer = document.createElement('div');
+          renderOrders([updatedOrder], false, tempContainer);
+          grid.prepend(tempContainer.firstChild);
+        }
+      }
+    }
 
     // Utility functions
     const debounce = (func, wait) => {
@@ -613,7 +679,7 @@
             state.currentUser = data.username;
             ui.hideLoginOverlay();
             await loadInitialOrders();
-            setupIntervals();
+            socket.connect(); // Connect WebSocket after successful auth
           } else {
             localStorage.removeItem("rememberedUser");
           }
@@ -623,18 +689,9 @@
         document.getElementById("searchInput").addEventListener("input", handlers.onSearchInput);
         document.getElementById("tabAll").addEventListener("click", () => handlers.onTabClick("all"));
         document.getElementById("tabClaimed").addEventListener("click", () => handlers.onTabClick("claimed"));
-        
-        // Setup other event listeners...
       } catch (err) {
         await handleError(err, 'initialization');
       }
-    }
-
-    function setupIntervals() {
-      state.intervals.push(
-        setInterval(fetchNewOrders, REFRESH_INTERVAL),
-        setInterval(refreshOrderStatuses, REFRESH_INTERVAL)
-      );
     }
 
     // Start the app
@@ -663,6 +720,7 @@
       for (const order of orders) {
         const card = document.createElement("div");
         card.className = "card";
+        card.dataset.orderId = order.id; // Add order ID to card
 
         const heading = document.createElement("h2");
         heading.textContent = order.name || "Unnamed Order";
@@ -1255,8 +1313,7 @@
             currentUser = data.username;
             loginOverlay.style.display = "none";
             loadInitialOrders();
-            setInterval(fetchNewOrders, 10000);
-            setInterval(refreshOrderStatuses, 10000);
+            socket.connect(); // Connect WebSocket after successful auth
           })
           .catch(() => {
             console.warn("Failed to auto-login");
@@ -1298,8 +1355,7 @@
             loginOverlay.style.display = "none";
 
             loadInitialOrders();
-            setInterval(fetchNewOrders, 10000);
-            setInterval(refreshOrderStatuses, 10000);
+            socket.connect(); // Connect WebSocket after successful auth
           } else {
             let errorText = "Login failed.";
             try {
