@@ -857,6 +857,47 @@
       try {
         console.log('🚀 Initializing dashboard...');
         
+        // Setup login form
+        const loginOverlay = document.getElementById("loginOverlay");
+        const loginForm = document.getElementById("loginForm");
+        const loginError = document.getElementById("loginError");
+
+        if (loginForm) {
+          loginForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            loginError.style.display = "none";
+
+            const username = document.getElementById("username").value.trim().toLowerCase();
+            const password = document.getElementById("password").value.trim();
+            const remember = document.getElementById("rememberMe").checked;
+
+            try {
+              await api.login(username, password, remember);
+              
+              if (remember) {
+                localStorage.setItem("rememberedUser", "true");
+              }
+
+              // Get session info
+              const data = await api.checkSession();
+              state.currentUser = data.username;
+
+              // Hide login and load orders
+              ui.hideLoginOverlay();
+              await loadInitialOrders();
+
+              // Start polling
+              const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
+              state.intervals.push(orderInterval);
+
+            } catch (err) {
+              loginError.textContent = err.message || "Login failed. Please try again.";
+              loginError.style.display = "block";
+              console.error("Login failed:", err);
+            }
+          });
+        }
+        
         // Auto-login if remembered
         if (localStorage.getItem("rememberedUser")) {
           try {
@@ -1461,60 +1502,6 @@
         );
       }
     }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      const loginOverlay = document.getElementById("loginOverlay");
-      const loginForm = document.getElementById("loginForm");
-      const loginError = document.getElementById("loginError");
-
-      // Auto-login if remembered
-      if (localStorage.getItem("rememberedUser")) {
-        api.checkSession()
-          .then(data => {
-            state.currentUser = data.username;
-            ui.hideLoginOverlay();
-            loadInitialOrders();
-          })
-          .catch(() => {
-            console.warn("Failed to auto-login");
-            localStorage.removeItem("rememberedUser");
-          });
-      }
-
-      loginForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        loginError.style.display = "none";
-
-        const username = document.getElementById("username").value.trim().toLowerCase();
-        const password = document.getElementById("password").value.trim();
-        const remember = document.getElementById("rememberMe").checked;
-
-        try {
-          await api.login(username, password, remember);
-          
-          if (remember) {
-            localStorage.setItem("rememberedUser", "true");
-          }
-
-          // Get session info
-          const data = await api.checkSession();
-          state.currentUser = data.username;
-
-          // Hide login and load orders
-          ui.hideLoginOverlay();
-          await loadInitialOrders();
-
-          // Start polling
-          const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
-          state.intervals.push(orderInterval);
-
-        } catch (err) {
-          loginError.textContent = err.message || "Login failed. Please try again.";
-          loginError.style.display = "block";
-          console.error("Login failed:", err);
-        }
-      });
-    });
   </script>
 </body>
 
