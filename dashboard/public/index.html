@@ -991,36 +991,31 @@
     let currentUser = null;
     let currentTab = "all"; // "all" or "claimed"
 
-    async function renderOrders(
-      orders,
-      expandDetails = false,
-      container = null
-    ) {
+    async function renderOrders(orders, expandDetails = false, container = null) {
       const grid = container || document.getElementById("orderGrid");
       if (!container) grid.innerHTML = "";
       for (const order of orders) {
         const card = document.createElement("div");
         card.className = "card";
-        card.dataset.orderId = order.id; // Add order ID to card
+        card.dataset.orderId = order.id;
 
         const heading = document.createElement("h2");
         heading.textContent = order.name || "Unnamed Order";
-        card.appendChild(heading); // Only append ONCE
+        card.appendChild(heading);
 
         const statusOptions = [
           "pending",
           "pre print",
           "printing",
-          "printing pay later", // 🔁 fix casing here
+          "printing pay later",
           "completed",
         ];
         const currentStatus = (order.status || "pending").toLowerCase();
 
         const statusDropdown = document.createElement("select");
         statusDropdown.className = "status-dropdown";
+        statusDropdown.dataset.previousValue = currentStatus;
         applyStatusColor(statusDropdown, currentStatus);
-
-        let matched = false;
 
         statusOptions.forEach((status) => {
           const option = document.createElement("option");
@@ -1031,64 +1026,46 @@
             .join(" ");
           if (status.toLowerCase() === currentStatus.toLowerCase()) {
             option.selected = true;
-            matched = true;
           }
           statusDropdown.appendChild(option);
         });
 
-        // If nothing matched, fallback to 'pending'
-        if (!matched) {
-          statusDropdown.value = "pending";
-          applyStatusColor(statusDropdown, "pending");
-        } else {
-          applyStatusColor(statusDropdown, currentStatus);
-        }
-
-        // If the original status is missing, push 'pending' to database
-        if (!order.status || order.status.trim() === "") {
-          try {
-            await fetch("/dashboard/update-status", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ orderId: order.id, status: "pending" }),
-            });
-            console.log(
-              `⏳ Auto-updated blank status to 'pending' for ${order.id}`
-            );
-            order.status = "pending"; // ✅ Ensure memory copy is updated too
-          } catch (err) {
-            console.error(
-              `❌ Failed to save 'pending' status for ${order.id}`,
-              err
-            );
-          }
-        }
-
-        // Update status in backend when changed
+        // Single event handler for status changes
         statusDropdown.addEventListener("change", async () => {
           const newStatus = statusDropdown.value;
-          applyStatusColor(statusDropdown, newStatus); // 🔁 update color immediately
+          const previousValue = statusDropdown.dataset.previousValue;
+          
           try {
-            await fetch("/dashboard/update-status", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ orderId: order.id, status: newStatus }),
-            });
-            console.log(
-              `✅ Status for order ${order.id} updated to ${newStatus}`
-            );
+            // Update UI immediately
+            applyStatusColor(statusDropdown, newStatus);
+            statusDropdown.dataset.previousValue = newStatus;
+            
+            console.log(`🔄 Initiating status change for ${order.id}: ${newStatus}`);
+            
+            // Send HTTP request
+            const response = await api.updateStatus(order.id, newStatus);
+            console.log('✅ Status update response:', response);
+            
+            // Update the order in state
+            const orderIndex = state.allOrders.findIndex(o => o.id === order.id);
+            if (orderIndex !== -1) {
+              state.allOrders[orderIndex] = response.order;
+            }
+            
           } catch (err) {
-            console.error(
-              `❌ Failed to update status for order ${order.id}:`,
-              err
-            );
+            console.error(`❌ Failed to update status:`, err);
+            // Revert on error
+            statusDropdown.value = previousValue;
+            applyStatusColor(statusDropdown, previousValue);
+            statusDropdown.dataset.previousValue = previousValue;
+            alert(`Failed to update status: ${err.message}`);
           }
         });
 
         const statusWrapper = document.createElement("div");
         statusWrapper.style.marginTop = "0.5rem";
         statusWrapper.appendChild(statusDropdown);
-        card.appendChild(statusWrapper); // Place dropdown below the name
+        card.appendChild(statusWrapper);
 
         // Show estimated price right under heading
         const price = document.createElement("p");

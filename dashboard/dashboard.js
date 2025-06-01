@@ -295,37 +295,79 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   const username = req.session.user;
   const timestamp = new Date().toISOString();
 
+  console.log('📝 Status update request:', { orderId, status, username });
+
   if (!orderId || !status) {
+    console.warn('❌ Missing required fields:', { orderId, status });
     return res.status(400).json({ error: "Missing orderId or status" });
   }
 
   if (!username) {
+    console.warn('❌ No user in session');
     return res.status(401).json({ error: "No user in session" });
   }
 
-  try {
-    const stmt = db.prepare("UPDATE orders SET status = ?, updated_by = ?, last_updated = ? WHERE id = ?");
-    const result = stmt.run(status, username, timestamp, orderId);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ error: "Order not found" });
-    }
+  // Validate status
+  const validStatuses = ["pending", "pre print", "printing", "printing pay later", "completed"];
+  if (!validStatuses.includes(status.toLowerCase())) {
+    console.warn('❌ Invalid status:', status);
+    return res.status(400).json({ error: "Invalid status value" });
+  }
 
-    // Fetch the complete updated order
-    const updatedOrder = db.prepare(`
-      SELECT *, updated_by, last_updated 
-      FROM orders 
-      WHERE id = ?
-    `).get(orderId);
+  try {
+    // Start a transaction
+    const transaction = db.transaction(() => {
+      // Update the order
+      const updateStmt = db.prepare(
+        "UPDATE orders SET status = ?, updated_by = ?, last_updated = ? WHERE id = ?"
+      );
+      const result = updateStmt.run(status, username, timestamp, orderId);
+      
+      if (result.changes === 0) {
+        throw new Error("Order not found");
+      }
+
+      // Fetch the updated order
+      const updatedOrder = db.prepare(`
+        SELECT *, updated_by, last_updated 
+        FROM orders 
+        WHERE id = ?
+      `).get(orderId);
+
+      if (!updatedOrder) {
+        throw new Error("Failed to fetch updated order");
+      }
+
+      return updatedOrder;
+    });
+
+    // Execute the transaction
+    const updatedOrder = transaction();
+    
+    console.log('✅ Status updated successfully:', {
+      orderId,
+      newStatus: status,
+      updatedBy: username
+    });
 
     res.json({ 
       success: true,
       order: updatedOrder,
       timestamp: timestamp
     });
+
   } catch (err) {
     console.error("❌ Failed to update status:", err.message);
-    res.status(500).json({ error: "Database error" });
+    
+    // Send appropriate error response
+    if (err.message === "Order not found") {
+      res.status(404).json({ error: "Order not found" });
+    } else {
+      res.status(500).json({ 
+        error: "Database error",
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
+    }
   }
 });
 
