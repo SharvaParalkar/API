@@ -487,6 +487,11 @@
     // WebSocket connection management
     const socket = {
       connect() {
+        if (state.socket) {
+          console.log('🔌 Socket already exists, disconnecting first');
+          state.socket.disconnect();
+        }
+
         state.socket = io({
           withCredentials: true,
           reconnectionAttempts: 5,
@@ -497,8 +502,6 @@
 
         state.socket.on('connect', () => {
           console.log('✅ WebSocket connected');
-          // Request initial sync after connection
-          fetchInitialData();
         });
 
         state.socket.on('connect_error', (error) => {
@@ -527,7 +530,6 @@
         }
       },
 
-      // New method to emit status updates
       emitStatusUpdate(orderId, status) {
         if (state.socket && state.socket.connected) {
           state.socket.emit('status-update', { orderId, status });
@@ -545,16 +547,35 @@
       const index = state.allOrders.findIndex(order => order.id === updatedOrder.id);
       
       if (index !== -1) {
-        // Update existing order
+        // Update existing order in state
         state.allOrders[index] = updatedOrder;
         
-        // Update UI if the order is currently visible
+        // Find and update the status dropdown if it exists
         const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
         if (orderCard) {
-          console.log('🎯 Updating existing card in UI');
-          const tempContainer = document.createElement('div');
-          renderOrders([updatedOrder], false, tempContainer);
-          orderCard.replaceWith(tempContainer.firstChild);
+          console.log('🎯 Updating existing card:', updatedOrder.id);
+          
+          // Update status dropdown
+          const statusDropdown = orderCard.querySelector('.status-dropdown');
+          if (statusDropdown && statusDropdown.value !== updatedOrder.status) {
+            statusDropdown.value = updatedOrder.status;
+            applyStatusColor(statusDropdown, updatedOrder.status);
+            console.log('🔄 Updated status dropdown to:', updatedOrder.status);
+          }
+
+          // Update other card elements
+          const priceElement = orderCard.querySelector('p strong');
+          if (priceElement) {
+            priceElement.textContent = updatedOrder.est_price ? 
+              `Est. Price: $${updatedOrder.est_price.toFixed(2)}` : 
+              'Est. Price: —';
+          }
+
+          // Update notes if they're visible
+          const notesElement = orderCard.querySelector('td:contains("Staff Notes:")');
+          if (notesElement) {
+            notesElement.nextElementSibling.textContent = updatedOrder.order_notes || '—';
+          }
         }
       } else {
         // New order
@@ -671,17 +692,23 @@
         const previousValue = event.target.dataset.previousValue;
         
         try {
-          // Emit the update through WebSocket
+          // Update UI immediately for responsiveness
+          applyStatusColor(event.target, newStatus);
+          event.target.dataset.previousValue = newStatus;
+
+          // Emit the update through WebSocket first
           socket.emitStatusUpdate(orderId, newStatus);
           
-          // Also send HTTP request as backup
+          // Send HTTP request as backup
           await api.updateStatus(orderId, newStatus);
           
-          console.log(`✅ Status updated for order ${orderId}`);
-          event.target.dataset.previousValue = newStatus;
+          console.log(`✅ Status updated for order ${orderId} to ${newStatus}`);
         } catch (err) {
           console.error(`❌ Failed to update status for ${orderId}:`, err);
+          // Revert UI on error
           event.target.value = previousValue;
+          applyStatusColor(event.target, previousValue);
+          event.target.dataset.previousValue = previousValue;
         }
       },
 
@@ -717,6 +744,14 @@
         document.getElementById("searchInput").addEventListener("input", handlers.onSearchInput);
         document.getElementById("tabAll").addEventListener("click", () => handlers.onTabClick("all"));
         document.getElementById("tabClaimed").addEventListener("click", () => handlers.onTabClick("claimed"));
+        
+        // Add socket reconnection on visibility change
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible' && (!state.socket || !state.socket.connected)) {
+            console.log('🔄 Page became visible, reconnecting socket');
+            socket.connect();
+          }
+        });
       } catch (err) {
         await handleError(err, 'initialization');
       }
