@@ -457,6 +457,12 @@
             <span class="slider"></span>
           </label>
         </div>
+
+        <div class="toggle-group">
+          <select id="staffFilter" style="padding: 0.4rem; border-radius: 0.3rem; border: 1px solid #ccc;">
+            <option value="">All Staff</option>
+          </select>
+        </div>
       </div>
 
       <div class="center-search">
@@ -490,7 +496,8 @@
         showOld: false,
         showCompleted: false
       },
-      intervals: []
+      intervals: [],
+      staffMembers: Object.keys(USERS) // Add staff members list
     };
 
     // First full load
@@ -665,6 +672,60 @@
           await handleError(err, 'updateStatus');
           throw err;
         }
+      },
+
+      async assignStaff(orderId, staffName) {
+        try {
+          const res = await fetch("/dashboard/assign-staff", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId, staffName }),
+            credentials: 'include'
+          });
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'assignStaff');
+          throw err;
+        }
+      },
+
+      async claimOrder(orderId) {
+        try {
+          const res = await fetch("/dashboard/claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId }),
+            credentials: 'include'
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || `HTTP error! status: ${res.status}`);
+          }
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'claimOrder');
+          throw err;
+        }
+      },
+
+      async unclaimOrder(orderId) {
+        try {
+          const res = await fetch("/dashboard/unclaim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId }),
+            credentials: 'include'
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || `HTTP error! status: ${res.status}`);
+          }
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'unclaimOrder');
+          throw err;
+        }
       }
     };
 
@@ -734,6 +795,20 @@
       try {
         console.log('🚀 Initializing dashboard...');
         
+        // Populate staff filter
+        const staffFilter = document.getElementById("staffFilter");
+        state.staffMembers.forEach(staff => {
+          const option = document.createElement("option");
+          option.value = staff;
+          option.textContent = staff.charAt(0).toUpperCase() + staff.slice(1);
+          staffFilter.appendChild(option);
+        });
+
+        staffFilter.addEventListener("change", () => {
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
+        });
+
         // Check for remembered login
         if (localStorage.getItem("rememberedUser")) {
           const res = await fetch("/dashboard/whoami", { credentials: "include" });
@@ -966,16 +1041,65 @@
           hour12: true,
         });
 
+        // Create staff assignment dropdown
+        const staffSelect = document.createElement("select");
+        staffSelect.className = "staff-dropdown";
+        staffSelect.style.padding = "0.4rem";
+        staffSelect.style.borderRadius = "0.3rem";
+        staffSelect.style.border = "1px solid #ccc";
+        staffSelect.style.marginLeft = "0.5rem";
+
+        // Add empty option
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "-- Select Staff --";
+        staffSelect.appendChild(emptyOption);
+
+        // Add staff options
+        state.staffMembers.forEach(staff => {
+          const option = document.createElement("option");
+          option.value = staff;
+          option.textContent = staff.charAt(0).toUpperCase() + staff.slice(1);
+          if (staff === order.assigned_staff) {
+            option.selected = true;
+          }
+          staffSelect.appendChild(option);
+        });
+
+        // Handle staff assignment
+        staffSelect.addEventListener("change", async () => {
+          try {
+            const newStaff = staffSelect.value;
+            await api.assignStaff(order.id, newStaff);
+            order.assigned_staff = newStaff;
+            
+            // Update the staff field in the details table
+            const staffRow = table.querySelector('tr:nth-child(3)');
+            if (staffRow) {
+              staffRow.cells[1].textContent = newStaff || "—";
+            }
+          } catch (err) {
+            console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
+            staffSelect.value = order.assigned_staff || ""; // Revert on error
+          }
+        });
+
         [
           ["Email", order.email],
           ["Phone", order.phone],
-          ["Staff", order.assigned_staff || "—"],
+          ["Staff", order.assigned_staff ? `${order.assigned_staff}` : "—"],
           ["Customer Notes", order.notes || "—"],
           ["Staff Notes", order.order_notes || "—"],
           ["Submitted At", formattedDate],
+          ["Last Updated By", order.updated_by || "—"]
         ].forEach(([label, value]) => {
           const row = document.createElement("tr");
-          row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
+          if (label === "Staff") {
+            row.innerHTML = `<td>${label}:</td><td></td>`;
+            row.cells[1].appendChild(staffSelect);
+          } else {
+            row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
+          }
           table.appendChild(row);
         });
 
@@ -1035,7 +1159,7 @@
               }
             }
 
-            const isClaimed = order.claimed === true;
+            const isClaimed = order.claimed_by !== null;
             const isCompleted = order.status?.toLowerCase() === "completed";
 
             if (currentTab === "claimed") {
@@ -1050,10 +1174,17 @@
               unclaimBtn.style.marginTop = "0.5rem";
               unclaimBtn.style.cursor = "pointer";
 
-              unclaimBtn.addEventListener("click", () => {
-                order.claimed = false;
-                const query = document.getElementById("searchInput").value;
-                filterOrders(query);
+              unclaimBtn.addEventListener("click", async () => {
+                try {
+                  await api.unclaimOrder(order.id);
+                  order.claimed_by = null;
+                  const query = document.getElementById("searchInput").value;
+                  filterOrders(query);
+                } catch (err) {
+                  console.error(`Failed to unclaim order ${order.id}:`, err);
+                  // Show error to user
+                  alert(err.message || "Failed to unclaim order");
+                }
               });
 
               card.appendChild(unclaimBtn);
@@ -1074,7 +1205,8 @@
               } else {
                 // Show "Claim" or "Claimed" for eligible orders
                 const claimBtn = document.createElement("button");
-                claimBtn.textContent = isClaimed ? "Claimed" : "Claim Order";
+                const isClaimed = order.claimed_by !== null;
+                claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : "Claim Order";
                 claimBtn.disabled = isClaimed;
                 claimBtn.style.backgroundColor = isClaimed ? "#999" : "#ccc";
                 claimBtn.style.border = "none";
@@ -1085,10 +1217,17 @@
                 claimBtn.style.cursor = isClaimed ? "not-allowed" : "pointer";
 
                 if (!isClaimed) {
-                  claimBtn.addEventListener("click", () => {
-                    order.claimed = true;
-                    const query = document.getElementById("searchInput").value;
-                    filterOrders(query);
+                  claimBtn.addEventListener("click", async () => {
+                    try {
+                      await api.claimOrder(order.id);
+                      order.claimed_by = state.currentUser;
+                      const query = document.getElementById("searchInput").value;
+                      filterOrders(query);
+                    } catch (err) {
+                      console.error(`Failed to claim order ${order.id}:`, err);
+                      // Show error to user
+                      alert(err.message || "Failed to claim order");
+                    }
                   });
                 }
 
@@ -1122,9 +1261,11 @@
     function filterOrders(query) {
       const q = query.toLowerCase();
       const isSearchActive = q.trim().length > 0;
+      const staffFilter = document.getElementById("staffFilter").value;
 
       const filtered = state.allOrders.filter((order) => {
-        if (state.currentTab === "claimed" && !order.claimed) return false;
+        if (state.currentTab === "claimed" && !order.claimed_by) return false;
+        if (staffFilter && order.assigned_staff !== staffFilter) return false;
 
         return (
           (order.name && order.name.toLowerCase().includes(q)) ||

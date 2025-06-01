@@ -278,6 +278,7 @@ app.post("/dashboard/update-notes", requireLogin, (req, res) => {
 app.post("/dashboard/update-status", requireLogin, (req, res) => {
   const { orderId, status } = req.body;
   const username = req.session.user;
+  const timestamp = new Date().toISOString();
 
   if (!orderId || !status) {
     return res.status(400).json({ error: "Missing orderId or status" });
@@ -288,8 +289,8 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   }
 
   try {
-    const stmt = db.prepare("UPDATE orders SET status = ?, updated_by = ? WHERE id = ?");
-    const result = stmt.run(status, username, orderId);
+    const stmt = db.prepare("UPDATE orders SET status = ?, updated_by = ?, last_updated = ? WHERE id = ?");
+    const result = stmt.run(status, username, timestamp, orderId);
     
     if (result.changes === 0) {
       return res.status(404).json({ error: "Order not found" });
@@ -297,7 +298,7 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
 
     // Fetch the complete updated order
     const updatedOrder = db.prepare(`
-      SELECT *, updated_by 
+      SELECT *, updated_by, last_updated 
       FROM orders 
       WHERE id = ?
     `).get(orderId);
@@ -305,10 +306,120 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
     res.json({ 
       success: true,
       order: updatedOrder,
-      timestamp: new Date().toISOString()
+      timestamp: timestamp
     });
   } catch (err) {
     console.error("❌ Failed to update status:", err.message);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// 👥 Assign staff to order
+app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
+  const { orderId, staffName } = req.body;
+  const username = req.session.user;
+  const timestamp = new Date().toISOString();
+
+  if (!orderId || !staffName) {
+    return res.status(400).json({ error: "Missing orderId or staffName" });
+  }
+
+  try {
+    const stmt = db.prepare("UPDATE orders SET assigned_staff = ?, updated_by = ?, last_updated = ? WHERE id = ?");
+    const result = stmt.run(staffName, username, timestamp, orderId);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.json({ 
+      success: true,
+      staffName,
+      timestamp: timestamp
+    });
+  } catch (err) {
+    console.error("❌ Failed to assign staff:", err.message);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// 🎯 Claim order
+app.post("/dashboard/claim", requireLogin, (req, res) => {
+  const { orderId } = req.body;
+  const username = req.session.user;
+  const timestamp = new Date().toISOString();
+
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId" });
+  }
+
+  try {
+    // Check if already claimed by someone else
+    const current = db.prepare("SELECT claimed_by FROM orders WHERE id = ?").get(orderId);
+    if (current && current.claimed_by && current.claimed_by !== username) {
+      return res.status(409).json({ 
+        error: "Order already claimed",
+        claimedBy: current.claimed_by
+      });
+    }
+
+    const stmt = db.prepare(`
+      UPDATE orders 
+      SET claimed_by = ?, 
+          updated_by = ?, 
+          last_updated = ?,
+          assigned_staff = COALESCE(assigned_staff, ?)
+      WHERE id = ?
+    `);
+    const result = stmt.run(username, username, timestamp, username, orderId);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.json({ 
+      success: true,
+      timestamp: timestamp
+    });
+  } catch (err) {
+    console.error("❌ Failed to claim order:", err.message);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// 🔓 Unclaim order
+app.post("/dashboard/unclaim", requireLogin, (req, res) => {
+  const { orderId } = req.body;
+  const username = req.session.user;
+  const timestamp = new Date().toISOString();
+
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId" });
+  }
+
+  try {
+    // Check if claimed by someone else
+    const current = db.prepare("SELECT claimed_by FROM orders WHERE id = ?").get(orderId);
+    if (current && current.claimed_by && current.claimed_by !== username) {
+      return res.status(403).json({ 
+        error: "Cannot unclaim - order claimed by someone else",
+        claimedBy: current.claimed_by
+      });
+    }
+
+    const stmt = db.prepare("UPDATE orders SET claimed_by = NULL, updated_by = ?, last_updated = ? WHERE id = ? AND claimed_by = ?");
+    const result = stmt.run(username, timestamp, orderId, username);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Order not found or not claimed by you" });
+    }
+
+    res.json({ 
+      success: true,
+      timestamp: timestamp
+    });
+  } catch (err) {
+    console.error("❌ Failed to unclaim order:", err.message);
     res.status(500).json({ error: "Database error" });
   }
 });
