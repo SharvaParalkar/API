@@ -1123,6 +1123,310 @@
       }
     }
 
+    // Add back the renderOrders function
+    async function renderOrders(orders, expandDetails = false, container = null) {
+      const grid = container || document.getElementById("orderGrid");
+      if (!container) grid.innerHTML = "";
+      
+      for (const order of orders) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.orderId = order.id;
+
+        const heading = document.createElement("h2");
+        heading.textContent = order.name || "Unnamed Order";
+        card.appendChild(heading);
+
+        const statusOptions = [
+          "pending",
+          "pre print",
+          "printing",
+          "printing pay later",
+          "completed",
+        ];
+        const currentStatus = (order.status || "pending").toLowerCase();
+
+        const statusDropdown = document.createElement("select");
+        statusDropdown.className = "status-dropdown";
+        statusDropdown.dataset.previousValue = currentStatus;
+        applyStatusColor(statusDropdown, currentStatus);
+
+        statusOptions.forEach((status) => {
+          const option = document.createElement("option");
+          option.value = status;
+          option.textContent = status
+            .split(" ")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+          if (status.toLowerCase() === currentStatus.toLowerCase()) {
+            option.selected = true;
+          }
+          statusDropdown.appendChild(option);
+        });
+
+        // Single event handler for status changes
+        statusDropdown.addEventListener("change", async () => {
+          const newStatus = statusDropdown.value;
+          const previousValue = statusDropdown.dataset.previousValue;
+          
+          try {
+            // Update UI immediately
+            applyStatusColor(statusDropdown, newStatus);
+            statusDropdown.dataset.previousValue = newStatus;
+            
+            console.log(`🔄 Initiating status change for ${order.id}: ${newStatus}`);
+            
+            // Send HTTP request
+            const response = await api.updateStatus(order.id, newStatus);
+            console.log('✅ Status update response:', response);
+            
+          } catch (err) {
+            console.error(`❌ Failed to update status:`, err);
+            // Revert on error
+            statusDropdown.value = previousValue;
+            applyStatusColor(statusDropdown, previousValue);
+            statusDropdown.dataset.previousValue = previousValue;
+            alert(`Failed to update status: ${err.message}`);
+          }
+        });
+
+        const statusWrapper = document.createElement("div");
+        statusWrapper.style.marginTop = "0.5rem";
+        statusWrapper.appendChild(statusDropdown);
+        card.appendChild(statusWrapper);
+
+        // Show estimated price right under heading
+        const price = document.createElement("p");
+        price.innerHTML = `<strong>Est. Price:</strong> ${
+          order.est_price ? `$${order.est_price.toFixed(2)}` : "—"
+        }`;
+        card.appendChild(price);
+
+        const toggleBtn = document.createElement("button");
+        toggleBtn.className = "details-toggle";
+        toggleBtn.textContent = "Show Details ▼";
+        card.appendChild(toggleBtn);
+
+        const detailsSection = document.createElement("div");
+        detailsSection.className = "details-section";
+        card.appendChild(detailsSection);
+
+        const idLine = document.createElement("div");
+        idLine.className = "order-id";
+        idLine.textContent = `Order ID: ${order.id}`;
+        card.appendChild(idLine);
+
+        const table = document.createElement("table");
+        table.className = "details-table";
+        const submittedDate = new Date(order.submitted_at);
+        const formattedDate = submittedDate.toLocaleString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+
+        // Create staff assignment dropdown
+        const staffSelect = document.createElement("select");
+        staffSelect.className = "staff-dropdown";
+        staffSelect.style.padding = "0.4rem";
+        staffSelect.style.borderRadius = "0.3rem";
+        staffSelect.style.border = "1px solid #ccc";
+        staffSelect.style.marginLeft = "0.5rem";
+
+        // Add empty option
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "-- Select Staff --";
+        staffSelect.appendChild(emptyOption);
+
+        // Add staff options
+        state.staffMembers.forEach(staff => {
+          const option = document.createElement("option");
+          option.value = staff.username;
+          option.textContent = staff.displayName;
+          if (staff.username === order.assigned_staff) {
+            option.selected = true;
+          }
+          staffSelect.appendChild(option);
+        });
+
+        // Handle staff assignment
+        staffSelect.addEventListener("change", async () => {
+          try {
+            const newStaff = staffSelect.value;
+            await api.assignStaff(order.id, newStaff);
+            order.assigned_staff = newStaff;
+            
+            // Update the staff field in the details table
+            const staffRow = table.querySelector('tr:nth-child(3)');
+            if (staffRow) {
+              staffRow.cells[1].textContent = newStaff || "—";
+            }
+          } catch (err) {
+            console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
+            staffSelect.value = order.assigned_staff || ""; // Revert on error
+          }
+        });
+
+        [
+          ["Email", order.email],
+          ["Phone", order.phone],
+          ["Staff", order.assigned_staff ? `${order.assigned_staff}` : "—"],
+          ["Customer Notes", order.notes || "—"],
+          ["Staff Notes", order.order_notes || "—"],
+          ["Submitted At", formattedDate],
+          ["Last Updated By", order.updated_by || "—"]
+        ].forEach(([label, value]) => {
+          const row = document.createElement("tr");
+          if (label === "Staff") {
+            row.innerHTML = `<td>${label}:</td><td></td>`;
+            row.cells[1].appendChild(staffSelect);
+          } else {
+            row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
+          }
+          table.appendChild(row);
+        });
+
+        detailsSection.appendChild(table);
+
+        toggleBtn.onclick = () => {
+          const visible = detailsSection.classList.toggle("visible");
+          toggleBtn.textContent = visible ? "Hide ▲" : "Show Details ▼";
+        };
+
+        // Expand by default if search is active
+        if (expandDetails) {
+          detailsSection.classList.add("visible");
+          toggleBtn.textContent = "Hide ▲";
+        }
+
+        fetch(`/dashboard/files/${order.id}`)
+          .then((res) => res.json())
+          .then((files) => {
+            if (files.length > 0) {
+              const stlTitle = document.createElement("p");
+              stlTitle.className = "stl-header";
+              stlTitle.textContent = "STL Files:";
+              detailsSection.appendChild(stlTitle);
+
+              const list = document.createElement("ul");
+              list.className = "stl-list";
+
+              files.forEach((fileUrl) => {
+                const fullFilename = decodeURIComponent(fileUrl.split("/").pop());
+                const downloadUrl = `/dashboard/fileserve/${encodeURIComponent(fullFilename)}`;
+                const filename = fullFilename.replace(/^order[_-]?[a-zA-Z0-9]+[_-]/i, "");
+
+                const li = document.createElement("li");
+                li.innerHTML = `
+                  <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
+                    ${filename}
+                  </a>`;
+                list.appendChild(li);
+              });
+
+              detailsSection.appendChild(list);
+
+              if (files.length > 0) {
+                const downloadAll = document.createElement("a");
+                downloadAll.href = `/dashboard/download-all/${order.id}`;
+                downloadAll.className = "download-all-btn";
+                downloadAll.textContent = "📦 Download All";
+                detailsSection.appendChild(downloadAll);
+              }
+            }
+
+            const isClaimed = order.claimed_by !== null;
+            const isCompleted = order.status?.toLowerCase() === "completed";
+
+            if (state.currentTab === "claimed") {
+              // Show "Unclaim" button in Claimed tab
+              const unclaimBtn = document.createElement("button");
+              unclaimBtn.textContent = "Unclaim";
+              unclaimBtn.style.backgroundColor = "#ccc";
+              unclaimBtn.style.border = "none";
+              unclaimBtn.style.color = "#333";
+              unclaimBtn.style.padding = "0.5rem 1rem";
+              unclaimBtn.style.borderRadius = "0.5rem";
+              unclaimBtn.style.marginTop = "0.5rem";
+              unclaimBtn.style.cursor = "pointer";
+
+              unclaimBtn.addEventListener("click", async () => {
+                try {
+                  await api.unclaimOrder(order.id);
+                  order.claimed_by = null;
+                  const query = document.getElementById("searchInput").value;
+                  filterOrders(query);
+                } catch (err) {
+                  console.error(`Failed to unclaim order ${order.id}:`, err);
+                  alert(err.message || "Failed to unclaim order");
+                }
+              });
+
+              card.appendChild(unclaimBtn);
+            } else {
+              if (isCompleted) {
+                const completedLabel = document.createElement("button");
+                completedLabel.textContent = "Completed";
+                completedLabel.disabled = true;
+                completedLabel.style.backgroundColor = "#999";
+                completedLabel.style.border = "none";
+                completedLabel.style.color = "#666";
+                completedLabel.style.padding = "0.5rem 1rem";
+                completedLabel.style.borderRadius = "0.5rem";
+                completedLabel.style.marginTop = "0.5rem";
+                completedLabel.style.cursor = "not-allowed";
+                card.appendChild(completedLabel);
+              } else {
+                const claimBtn = document.createElement("button");
+                const isClaimed = order.claimed_by !== null;
+                claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : "Claim Order";
+                claimBtn.disabled = isClaimed;
+                claimBtn.style.backgroundColor = isClaimed ? "#999" : "#ccc";
+                claimBtn.style.border = "none";
+                claimBtn.style.color = "#333";
+                claimBtn.style.padding = "0.5rem 1rem";
+                claimBtn.style.borderRadius = "0.5rem";
+                claimBtn.style.marginTop = "0.5rem";
+                claimBtn.style.cursor = isClaimed ? "not-allowed" : "pointer";
+
+                if (!isClaimed) {
+                  claimBtn.addEventListener("click", async () => {
+                    try {
+                      await api.claimOrder(order.id);
+                      order.claimed_by = state.currentUser;
+                      const query = document.getElementById("searchInput").value;
+                      filterOrders(query);
+                    } catch (err) {
+                      console.error(`Failed to claim order ${order.id}:`, err);
+                      alert(err.message || "Failed to claim order");
+                    }
+                  });
+                }
+
+                card.appendChild(claimBtn);
+              }
+            }
+          })
+          .catch((err) => {
+            console.error(`❌ Failed to load STL files for ${order.id}`, err);
+          });
+
+        grid.appendChild(card);
+
+        if (
+          (order.est_price == null || order.est_price === 0) &&
+          !(order.order_notes && order.order_notes.includes("Print estimate failed"))
+        ) {
+          autoEstimateOrder(order, card);
+        }
+      }
+    }
+
+    // Fix the login form handler
     document.addEventListener("DOMContentLoaded", () => {
       const loginOverlay = document.getElementById("loginOverlay");
       const loginForm = document.getElementById("loginForm");
@@ -1134,7 +1438,7 @@
           .then(data => {
             state.currentUser = data.username;
             ui.hideLoginOverlay();
-            loadInitialOrders();
+            loadInitialOrders(); // Use this instead of refreshOrders
           })
           .catch(() => {
             console.warn("Failed to auto-login");
@@ -1165,33 +1469,25 @@
           try {
             console.log('🔄 Fetching staff list...');
             const staffList = await api.getStaffList();
-            console.log('📋 Fetched staff list:', staffList);
             state.staffMembers = staffList;
             
             // Populate staff filter
             const staffFilter = document.getElementById("staffFilter");
-            console.log('🔍 Found staff filter element:', staffFilter);
-            staffFilter.innerHTML = '<option value="">All Staff</option>'; // Reset
+            staffFilter.innerHTML = '<option value="">All Staff</option>';
             state.staffMembers.forEach(staff => {
-              console.log('👤 Adding staff member:', staff);
               const option = document.createElement("option");
               option.value = staff.username;
               option.textContent = staff.displayName;
               staffFilter.appendChild(option);
             });
-
-            console.log('✅ Staff filter populated:', staffFilter.innerHTML);
           } catch (err) {
             console.error('❌ Failed to load staff list:', err);
           }
 
           // Hide login and load orders
           ui.hideLoginOverlay();
-          await loadInitialOrders();
-
-          // Start polling
-          const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
-          state.intervals.push(orderInterval);
+          await loadInitialOrders(); // Use this instead of refreshOrders
+          initializeSSE(); // Initialize SSE after successful login
 
         } catch (err) {
           loginError.textContent = err.message || "Login failed. Please try again.";
