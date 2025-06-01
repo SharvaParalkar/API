@@ -1288,24 +1288,19 @@
         staffSelect.addEventListener("change", async () => {
           try {
             const newStaff = staffSelect.value;
-            await api.assignStaff(order.id, newStaff);
+            const response = await api.assignStaff(order.id, newStaff);
             order.assigned_staff = newStaff;
-            
-            // Update the staff field in the details table
-            const staffRow = table.querySelector('tr:nth-child(3)');
-            if (staffRow) {
-              staffRow.cells[1].textContent = newStaff || "—";
-            }
           } catch (err) {
             console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
             staffSelect.value = order.assigned_staff || ""; // Revert on error
+            ui.showError(`Failed to assign staff: ${err.message}`);
           }
         });
 
         [
           ["Email", order.email],
           ["Phone", order.phone],
-          ["Staff", order.assigned_staff ? `${order.assigned_staff}` : "—"],
+          ["Staff", order.assigned_staff || "—"],
           ["Customer Notes", order.notes || "—"],
           ["Staff Notes", order.order_notes || "—"],
           ["Submitted At", formattedDate],
@@ -1736,9 +1731,19 @@
       }
 
       // Update staff assignment
-      const staffSelect = card.querySelector('.staff-dropdown');
-      if (staffSelect) {
-        staffSelect.value = order.assigned_staff || '';
+      const staffCell = card.querySelector('.details-table tr:nth-child(3) td:last-child');
+      if (staffCell) {
+        // Check if dropdown exists
+        let staffSelect = staffCell.querySelector('.staff-dropdown');
+        if (!staffSelect) {
+          // If no dropdown exists, create a new one
+          staffSelect = createStaffDropdown(order);
+          staffCell.innerHTML = ''; // Clear the cell
+          staffCell.appendChild(staffSelect);
+        } else {
+          // If dropdown exists, just update its value
+          staffSelect.value = order.assigned_staff || '';
+        }
       }
 
       // Update claim status
@@ -1769,6 +1774,48 @@
           }
         }
       }
+    }
+
+    // Create staff assignment dropdown
+    function createStaffDropdown(order) {
+      const staffSelect = document.createElement("select");
+      staffSelect.className = "staff-dropdown";
+      staffSelect.style.padding = "0.4rem";
+      staffSelect.style.borderRadius = "0.3rem";
+      staffSelect.style.border = "1px solid #ccc";
+      staffSelect.style.marginLeft = "0.5rem";
+
+      // Add empty option
+      const emptyOption = document.createElement("option");
+      emptyOption.value = "";
+      emptyOption.textContent = "-- Select Staff --";
+      staffSelect.appendChild(emptyOption);
+
+      // Add staff options
+      state.staffMembers.forEach(staff => {
+        const option = document.createElement("option");
+        option.value = staff.username;
+        option.textContent = staff.displayName;
+        if (staff.username === order.assigned_staff) {
+          option.selected = true;
+        }
+        staffSelect.appendChild(option);
+      });
+
+      // Handle staff assignment
+      staffSelect.addEventListener("change", async () => {
+        try {
+          const newStaff = staffSelect.value;
+          const response = await api.assignStaff(order.id, newStaff);
+          order.assigned_staff = newStaff;
+        } catch (err) {
+          console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
+          staffSelect.value = order.assigned_staff || ""; // Revert on error
+          ui.showError(`Failed to assign staff: ${err.message}`);
+        }
+      });
+
+      return staffSelect;
     }
 
     // Start the app

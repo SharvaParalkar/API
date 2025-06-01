@@ -471,7 +471,7 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
       SET claimed_by = ?, 
           updated_by = ?, 
           last_updated = ?,
-          assigned_staff = COALESCE(assigned_staff, ?)
+          assigned_staff = ?
       WHERE id = ?
     `);
     const result = stmt.run(username, username, timestamp, username, orderId);
@@ -480,7 +480,10 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
+    // Fetch the updated order
     const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    
+    // Broadcast the update
     broadcastUpdate('orderUpdate', {
       type: 'claim',
       order: updatedOrder
