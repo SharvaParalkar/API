@@ -519,23 +519,45 @@
 
         console.log('🔌 Initializing WebSocket connection...');
         
+        // Get the current protocol and host
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        
+        console.log(`🔌 Connecting to WebSocket at ${protocol}//${host}`);
+        
         state.socket = io({
           withCredentials: true,
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 5000,
           timeout: 20000,
-          transports: ['websocket', 'polling']
+          transports: ['websocket', 'polling'],
+          path: '/socket.io/',
+          // Force same origin connection
+          host: window.location.hostname,
+          port: window.location.port || (window.location.protocol === 'https:' ? '443' : '80')
         });
 
         state.socket.on('connect', () => {
           console.log('✅ WebSocket connected successfully');
-          // Test connection by sending a ping
-          state.socket.emit('ping');
+          // Get current user info to verify session
+          fetch('/dashboard/whoami', { credentials: 'include' })
+            .then(res => res.json())
+            .then(data => {
+              console.log('👤 Connected as:', data.username);
+              state.currentUser = data.username;
+            })
+            .catch(err => console.error('❌ Failed to verify user:', err));
         });
 
         state.socket.on('connect_error', (error) => {
           console.error('❌ WebSocket connection error:', error);
+          console.log('🔍 Connection details:', {
+            protocol: window.location.protocol,
+            host: window.location.host,
+            hostname: window.location.hostname,
+            port: window.location.port
+          });
           if (error.message === 'Authentication error') {
             ui.showLoginOverlay();
           }

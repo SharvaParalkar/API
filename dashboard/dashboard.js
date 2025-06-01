@@ -36,15 +36,17 @@ const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || "filamentbros-secret",
   resave: false,
   saveUninitialized: false,
-  name: 'filamentbros.sid', // Custom session ID name
+  name: 'filamentbros.sid',
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'lax'
   },
+  store: new session.MemoryStore() // Explicit memory store for testing
 });
 
+// Apply session middleware to Express
 app.use(sessionMiddleware);
 
 // Initialize Socket.IO with CORS and session sharing
@@ -54,45 +56,73 @@ const io = new Server(server, {
     credentials: true,
     methods: ["GET", "POST"]
   },
-  allowEIO3: true
+  allowEIO3: true,
+  // Add path to match client
+  path: '/socket.io/',
+  // Add transport options
+  transports: ['websocket', 'polling']
 });
 
-// Share session with socket.io
+// Share session with socket.io - IMPORTANT: this must come before other socket middleware
 io.use(sharedsession(sessionMiddleware, {
   autoSave: true
 }));
 
+// Debug middleware to log session data
+io.use((socket, next) => {
+  console.log('🔍 Socket handshake session:', {
+    id: socket.id,
+    session: socket.handshake.session,
+    user: socket.handshake.session?.user
+  });
+  next();
+});
+
 // Socket.io authentication middleware
 io.use((socket, next) => {
   const session = socket.handshake.session;
-  if (!session || !session.user) {
-    console.log('❌ Socket authentication failed - no session user');
+  if (!session?.user) {
+    console.log('❌ Socket authentication failed:', {
+      sessionExists: !!session,
+      sessionId: session?.id,
+      user: session?.user
+    });
     return next(new Error('Authentication error'));
   }
-  console.log(`✅ Socket authenticated for user: ${session.user}`);
+  
+  // Store user in socket data for easy access
+  socket.user = session.user;
+  console.log(`✅ Socket authenticated for user: ${socket.user}`);
   next();
 });
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  const session = socket.handshake.session;
-  const username = session.user;
+  // Get user from socket data (set in auth middleware)
+  const username = socket.user;
   
   if (!username) {
-    console.error('❌ No username in socket session');
+    console.error('❌ No username in socket data');
     socket.disconnect();
     return;
   }
 
   console.log(`🔌 WebSocket client connected: ${username}`);
 
-  // Join a room for this user
-  socket.join(`user_${username}`);
+  // Join a user-specific room
+  const userRoom = `user_${username}`;
+  socket.join(userRoom);
+  console.log(`👥 User ${username} joined room: ${userRoom}`);
 
   // Log active connections
   const connectedSockets = io.sockets.sockets.size;
-  console.log(`📊 Active WebSocket connections: ${connectedSockets}`);
-  console.log(`🔍 Connected users: ${Array.from(io.sockets.sockets.values()).map(s => s.handshake.session.user).join(', ')}`);
+  const connectedUsers = new Set(
+    Array.from(io.sockets.sockets.values())
+      .map(s => s.user)
+      .filter(Boolean)
+  );
+  
+  console.log(`📊 Active connections: ${connectedSockets} (${Array.from(connectedUsers).join(', ')})`);
 
   socket.on('disconnect', () => {
     console.log(`🔌 WebSocket client disconnected: ${username}`);
@@ -102,39 +132,46 @@ io.on('connection', (socket) => {
   socket.on('status-update', async (data) => {
     try {
       const { orderId, status } = data;
-      // Use the username from the socket's session
-      const updatingUser = socket.handshake.session.user;
+      // Use the username stored in socket data
+      const updatingUser = socket.user;
       
-      console.log(`📥 Received status update from ${updatingUser} for order ${orderId}: ${status}`);
+      if (!updatingUser) {
+        throw new Error('No user found in socket data');
+      }
       
-      const stmt = db.prepare("UPDATE orders SET status = ? WHERE id = ?");
-      const result = stmt.run(status, orderId);
+      console.log(`📥 Status update request from ${updatingUser} for order ${orderId}: ${status}`);
+      
+      const stmt = db.prepare("UPDATE orders SET status = ?, updated_by = ? WHERE id = ?");
+      const result = stmt.run(status, updatingUser, orderId);
       
       if (result.changes > 0) {
         // Fetch the complete updated order
         const updatedOrder = db.prepare(`
-          SELECT * FROM orders 
+          SELECT *, updated_by 
+          FROM orders 
           WHERE id = ?
         `).get(orderId);
 
         if (updatedOrder) {
           const updateMessage = {
             type: 'status-update',
-            data: updatedOrder,
-            timestamp: new Date().toISOString(),
-            updatedBy: updatingUser // Use the correct username
+            data: {
+              ...updatedOrder,
+              updatedBy: updatingUser
+            },
+            timestamp: new Date().toISOString()
           };
           
-          // Broadcast to all clients including sender
+          // Broadcast to all clients
           io.emit('order-updated', updateMessage);
-          console.log(`📢 Broadcasting update from ${updatingUser} to ${io.sockets.sockets.size} clients:`, updateMessage);
+          console.log(`📢 Broadcasting update from ${updatingUser}:`, updateMessage);
         }
       }
     } catch (err) {
       console.error('❌ Failed to process status update:', err);
       socket.emit('update-error', {
-        orderId,
-        error: 'Failed to update status'
+        orderId: data?.orderId,
+        error: err.message
       });
     }
   });
@@ -389,13 +426,19 @@ app.post("/dashboard/update-notes", requireLogin, (req, res) => {
 // 🔄 Update status with WebSocket broadcast
 app.post("/dashboard/update-status", requireLogin, (req, res) => {
   const { orderId, status } = req.body;
+  const username = req.session.user;
+
   if (!orderId || !status) {
     return res.status(400).json({ error: "Missing orderId or status" });
   }
 
+  if (!username) {
+    return res.status(401).json({ error: "No user in session" });
+  }
+
   try {
-    const stmt = db.prepare("UPDATE orders SET status = ? WHERE id = ?");
-    const result = stmt.run(status, orderId);
+    const stmt = db.prepare("UPDATE orders SET status = ?, updated_by = ? WHERE id = ?");
+    const result = stmt.run(status, username, orderId);
     
     if (result.changes === 0) {
       return res.status(404).json({ error: "Order not found" });
@@ -403,21 +446,24 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
 
     // Fetch the complete updated order
     const updatedOrder = db.prepare(`
-      SELECT * FROM orders 
+      SELECT *, updated_by 
+      FROM orders 
       WHERE id = ?
     `).get(orderId);
 
     if (updatedOrder) {
       const updateMessage = {
         type: 'status-update',
-        data: updatedOrder,
-        timestamp: new Date().toISOString(),
-        updatedBy: req.session.user // Use the username from the HTTP session
+        data: {
+          ...updatedOrder,
+          updatedBy: username
+        },
+        timestamp: new Date().toISOString()
       };
 
       // Broadcast through WebSocket
       io.emit('order-updated', updateMessage);
-      console.log(`📢 Broadcasting HTTP update from ${req.session.user} to ${io.sockets.sockets.size} clients:`, updateMessage);
+      console.log(`📢 Broadcasting HTTP update from ${username}:`, updateMessage);
     }
 
     res.json({ 
