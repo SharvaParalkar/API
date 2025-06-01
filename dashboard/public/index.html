@@ -510,117 +510,41 @@
     };
 
     // WebSocket connection management
-    const socket = {
-      connect() {
-        if (state.socket) {
-          console.log('🔌 Socket already exists, disconnecting first');
-          state.socket.disconnect();
-        }
+    const socket = io({
+      path: '/socket.io/',
+      transports: ['websocket', 'polling'],
+      autoConnect: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      withCredentials: true
+    });
 
-        console.log('🔌 Initializing WebSocket connection...');
-        
-        // Get the current protocol and host
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host;
-        
-        console.log(`🔌 Connecting to WebSocket at ${protocol}//${host}`);
-        
-        state.socket = io({
-          withCredentials: true,
-          reconnectionAttempts: 5,
-          reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000,
-          timeout: 20000,
-          transports: ['websocket', 'polling'],
-          path: '/socket.io/',
-          // Force same origin connection
-          host: window.location.hostname,
-          port: window.location.port || (window.location.protocol === 'https:' ? '443' : '80')
-        });
+    socket.on('connect_error', (error) => {
+      console.error('❌ WebSocket connection error:', error);
+      console.log('🔍 Connection details:', {
+        protocol: window.location.protocol,
+        host: window.location.host,
+        hostname: window.location.hostname,
+        port: window.location.port
+      });
+    });
 
-        state.socket.on('connect', () => {
-          console.log('✅ WebSocket connected successfully');
-          // Get current user info to verify session
-          fetch('/dashboard/whoami', { credentials: 'include' })
-            .then(res => res.json())
-            .then(data => {
-              console.log('👤 Connected as:', data.username);
-              state.currentUser = data.username;
-            })
-            .catch(err => console.error('❌ Failed to verify user:', err));
-        });
+    socket.on('connect', () => {
+      console.log('✅ WebSocket connected');
+      state.socket = socket;
+    });
 
-        state.socket.on('connect_error', (error) => {
-          console.error('❌ WebSocket connection error:', error);
-          console.log('🔍 Connection details:', {
-            protocol: window.location.protocol,
-            host: window.location.host,
-            hostname: window.location.hostname,
-            port: window.location.port
-          });
-          if (error.message === 'Authentication error') {
-            ui.showLoginOverlay();
-          }
-        });
+    socket.on('disconnect', (reason) => {
+      console.log('🔌 WebSocket disconnected:', reason);
+    });
 
-        state.socket.on('disconnect', (reason) => {
-          console.log('🔌 WebSocket disconnected:', reason);
-          if (reason === 'io server disconnect') {
-            // Reconnect if server disconnected
-            setTimeout(() => this.connect(), 1000);
-          }
-        });
-
-        state.socket.on('order-updated', (message) => {
-          console.log('📥 Received order update via WebSocket:', message);
-          if (message?.data) {
-            handleOrderUpdate(message.data);
-          } else {
-            console.warn('⚠️ Received malformed order update:', message);
-          }
-        });
-
-        state.socket.on('update-error', (error) => {
-          console.error('❌ Update error:', error);
-          // TODO: Show error to user
-        });
-
-        // Debug events
-        state.socket.onAny((event, ...args) => {
-          console.log(`🔍 Socket event "${event}":`, args);
-        });
-      },
-
-      disconnect() {
-        if (state.socket) {
-          state.socket.disconnect();
-          state.socket = null;
-          console.log('🔌 WebSocket disconnected manually');
-        }
-      },
-
-      emitStatusUpdate(orderId, status) {
-        if (!state.socket?.connected) {
-          console.warn('⚠️ Socket not connected, attempting to reconnect...');
-          this.connect();
-          // Add a small delay to allow connection to establish
-          setTimeout(() => {
-            if (state.socket?.connected) {
-              this._emitUpdate(orderId, status);
-            } else {
-              console.error('❌ Failed to establish WebSocket connection');
-            }
-          }, 500);
-        } else {
-          this._emitUpdate(orderId, status);
-        }
-      },
-
-      _emitUpdate(orderId, status) {
-        console.log(`📤 Emitting status update for ${orderId}: ${status}`);
-        state.socket.emit('status-update', { orderId, status });
-      }
-    };
+    socket.on('order-updated', (data) => {
+      console.log('📥 Received order update:', data);
+      handleOrderUpdate(data);
+    });
 
     // Handle incoming order updates
     function handleOrderUpdate(updatedOrder) {
@@ -821,7 +745,7 @@
           console.log(`🔄 Initiating status change for ${orderId}: ${newStatus}`);
           
           // Emit via WebSocket first
-          socket.emitStatusUpdate(orderId, newStatus);
+          socket.emit('status-update', { orderId, status });
           
           // Backup HTTP request
           const response = await api.updateStatus(orderId, newStatus);

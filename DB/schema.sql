@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS orders (
   assigned_price REAL,
   payment_status TEXT,
   notes TEXT,         -- customer notes
-  order_notes TEXT     -- staff-added internal notes
+  order_notes TEXT,    -- staff-added internal notes
+  updated_by TEXT     -- track who last updated the order
 );
 
 -- files
