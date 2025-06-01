@@ -846,7 +846,64 @@
       }, SEARCH_DEBOUNCE)
     };
 
-    // Initialize
+    // Initialize search functionality
+    function initializeSearch() {
+      const searchInput = document.getElementById("searchInput");
+      if (!searchInput) return;
+
+      // Remove any existing listeners
+      searchInput.removeEventListener("input", filterOrders);
+      
+      // Add new listener
+      searchInput.addEventListener("input", (e) => {
+        const query = e.target.value;
+        filterOrders(query);
+      });
+    }
+
+    function filterOrders(query) {
+      if (!state.allOrders) {
+        console.warn('No orders in state to filter');
+        return;
+      }
+
+      const q = (query || '').toLowerCase().trim();
+      const isSearchActive = q.length > 0;
+      const staffFilter = document.getElementById("staffFilter").value;
+
+      console.log(`Filtering ${state.allOrders.length} orders with query: "${q}"`);
+
+      const filtered = state.allOrders.filter((order) => {
+        // First check if order exists and has required properties
+        if (!order) return false;
+
+        // Apply tab filters
+        if (state.currentTab === "claimed" && !order.claimed_by) return false;
+        if (staffFilter && order.assigned_staff !== staffFilter) return false;
+
+        // If no search query, include the order (but still respect other filters)
+        if (!q) return true;
+
+        // Search in all relevant fields
+        const searchFields = {
+          name: String(order.name || ''),
+          email: String(order.email || ''),
+          phone: String(order.phone || ''),
+          id: String(order.id || ''),
+          notes: String(order.notes || '')
+        };
+
+        // Check each field for a match
+        return Object.values(searchFields).some(value => 
+          value.toLowerCase().includes(q)
+        );
+      });
+
+      console.log(`Found ${filtered.length} matching orders`);
+      renderOrders(filtered, isSearchActive);
+    }
+
+    // Modify initialize function to properly set up search
     async function initialize() {
       try {
         console.log('🚀 Initializing dashboard...');
@@ -868,25 +925,19 @@
           return;
         }
 
-        // Initialize staff list from USERS object
+        // Initialize staff list
         try {
           const staffList = await api.getStaffList();
-          console.log('📋 Fetched staff list:', staffList);
           state.staffMembers = staffList;
           
-          // Populate staff filter
           const staffFilter = document.getElementById("staffFilter");
-          console.log('🔍 Found staff filter element:', staffFilter);
-          staffFilter.innerHTML = '<option value="">All Staff</option>'; // Reset
+          staffFilter.innerHTML = '<option value="">All Staff</option>';
           state.staffMembers.forEach(staff => {
-            console.log('👤 Adding staff member:', staff);
             const option = document.createElement("option");
             option.value = staff.username;
             option.textContent = staff.displayName;
             staffFilter.appendChild(option);
           });
-
-          console.log('✅ Staff filter populated:', staffFilter.innerHTML);
 
           staffFilter.addEventListener("change", () => {
             const query = document.getElementById("searchInput").value;
@@ -899,21 +950,16 @@
         // Load initial orders
         await loadInitialOrders();
         
+        // Initialize search functionality
+        initializeSearch();
+        
         // Start polling with initial delay
         setTimeout(() => {
           const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
           state.intervals.push(orderInterval);
         }, 1000);
 
-        // Setup event listeners
-        const searchInput = document.getElementById("searchInput");
-        if (searchInput) {
-          searchInput.addEventListener("input", handlers.onSearchInput);
-          console.log('✅ Search input listener attached');
-        } else {
-          console.error('❌ Search input element not found');
-        }
-        
+        // Setup tab event listeners
         document.getElementById("tabAll").addEventListener("click", () => handlers.onTabClick("all"));
         document.getElementById("tabClaimed").addEventListener("click", () => handlers.onTabClick("claimed"));
 
@@ -924,12 +970,7 @@
       }
     }
 
-    // Add hash function to detect changes
-    function hashOrders(orders) {
-      return orders.map(o => `${o.id}-${o.status}-${o.updated_by}-${o.last_updated}-${o.claimed_by}-${o.assigned_staff}`).join('|');
-    }
-
-    // Update the refreshOrders function
+    // Update refreshOrders to maintain search state
     async function refreshOrders() {
       try {
         const now = Date.now();
@@ -945,13 +986,9 @@
             state.allOrders = data;
             state.lastOrderHash = newHash;
             
-            // Reapply current search if there is one
+            // Reapply current search
             const currentQuery = document.getElementById("searchInput").value;
-            if (currentQuery) {
-              filterOrders(currentQuery);
-            } else {
-              filterOrders('');
-            }
+            filterOrders(currentQuery);
           }
         }
         state.lastRefreshTime = now;
@@ -960,55 +997,9 @@
       }
     }
 
-    // Update the refreshOrderStatuses function
-    async function refreshOrderStatuses() {
-      try {
-        const response = await fetch("/dashboard/data", {
-          credentials: "include"
-        });
-
-        if (!response.ok) {
-          throw new Error(`Request failed: ${response.status}`);
-        }
-
-        const latestData = await response.json();
-        const newHash = hashOrders(latestData);
-        
-        // Only update if there are actual changes
-        if (newHash !== state.lastOrderHash) {
-          state.lastOrderHash = newHash;
-          const grid = document.getElementById("orderGrid");
-          const cards = grid.querySelectorAll(".card");
-
-          let hasChanges = false;
-          latestData.forEach((latestOrder) => {
-            const matchingCard = [...cards].find((card) =>
-              card.dataset.orderId === latestOrder.id
-            );
-
-            if (matchingCard) {
-              const dropdown = matchingCard.querySelector("select");
-              const currentStatus = dropdown.value.toLowerCase();
-              let newStatus = (latestOrder.status || "pending").toLowerCase();
-
-              if (currentStatus !== newStatus) {
-                hasChanges = true;
-                dropdown.value = newStatus;
-                applyStatusColor(dropdown, newStatus);
-              }
-            }
-          });
-
-          // Only trigger a full refresh if we found changes
-          if (hasChanges) {
-            const query = document.getElementById("searchInput").value;
-            filterOrders(query);
-            console.log('🔄 Status updates applied');
-          }
-        }
-      } catch (err) {
-        console.error("❌ Failed to refresh statuses:", err);
-      }
+    // Add hash function to detect changes
+    function hashOrders(orders) {
+      return orders.map(o => `${o.id}-${o.status}-${o.updated_by}-${o.last_updated}-${o.claimed_by}-${o.assigned_staff}`).join('|');
     }
 
     // Start the app
@@ -1341,47 +1332,6 @@
     function applyStatusColor(dropdown, status) {
       const normalized = status.toLowerCase().replace(/\s+/g, "-");
       dropdown.className = "status-dropdown status-" + normalized;
-    }
-
-    function filterOrders(query) {
-      console.log('Filtering orders with query:', query);
-      console.log('Current orders in state:', state.allOrders);
-      
-      const q = query.toLowerCase();
-      const isSearchActive = q.trim().length > 0;
-      const staffFilter = document.getElementById("staffFilter").value;
-
-      const filtered = state.allOrders.filter((order) => {
-        // Debug log for each order being filtered
-        console.log('Processing order:', order);
-
-        if (state.currentTab === "claimed" && !order.claimed_by) return false;
-        if (staffFilter && order.assigned_staff !== staffFilter) return false;
-
-        // Safely convert values to lowercase strings for comparison
-        const name = String(order.name || '').toLowerCase();
-        const email = String(order.email || '').toLowerCase();
-        const phone = String(order.phone || '').toLowerCase();
-        const id = String(order.id || '').toLowerCase();
-        const idWithoutPrefix = id.replace(/^order_/, '');
-
-        const matches = 
-          name.includes(q) ||
-          email.includes(q) ||
-          phone.includes(q) ||
-          id.includes(q) ||
-          idWithoutPrefix.includes(q);
-
-        // Debug log for match results
-        if (matches) {
-          console.log('Match found:', { name, email, phone, id, query: q });
-        }
-
-        return matches;
-      });
-
-      console.log('Filtered results:', filtered);
-      renderOrders(filtered, isSearchActive);
     }
 
     async function autoEstimateOrder(order, card) {
