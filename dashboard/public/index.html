@@ -453,6 +453,111 @@
         opacity: 0;
       }
     }
+
+    .status-history {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .status-history-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .status-history-item:last-child {
+      border-bottom: none;
+    }
+
+    .staff-notes-editor {
+      width: 100%;
+      min-height: 80px;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      margin-top: 0.3rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+    }
+
+    .save-notes-btn {
+      margin-top: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .save-notes-btn:hover {
+      background-color: #184f4e;
+    }
+
+    .save-notes-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .dark-mode {
+      background-color: #1a1a1a;
+      color: #fff;
+    }
+
+    .dark-mode .card {
+      background-color: #2d2d2d;
+      color: #fff;
+    }
+
+    .dark-mode .status-dropdown {
+      background-color: #3d3d3d;
+      color: #fff;
+      border-color: #4d4d4d;
+    }
+
+    .dark-mode .staff-notes-editor {
+      background-color: #3d3d3d;
+      color: #fff;
+      border-color: #4d4d4d;
+    }
+
+    .dark-mode-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .priority-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.3rem;
+      font-size: 0.8rem;
+      margin-left: 0.5rem;
+    }
+
+    .priority-high {
+      background-color: #ff4444;
+      color: white;
+    }
+
+    .priority-medium {
+      background-color: #ffbb33;
+      color: black;
+    }
+
+    .priority-low {
+      background-color: #00C851;
+      color: white;
+    }
   </style>
 </head>
 
@@ -2068,15 +2173,92 @@
           // Update staff notes
           const notesRow = [...table.rows].find(row => row.cells[0].textContent === 'Staff Notes:');
           if (notesRow) {
-            notesRow.cells[1].textContent = order.order_notes || '—';
-          }
-
-          // Update last updated
-          const updatedRow = [...table.rows].find(row => row.cells[0].textContent === 'Last Updated By:');
-          if (updatedRow) {
-            updatedRow.cells[1].textContent = order.updated_by || '—';
+            const notesCell = notesRow.cells[1];
+            
+            // Create notes editor if it doesn't exist
+            if (!notesCell.querySelector('.staff-notes-editor')) {
+              const textarea = document.createElement('textarea');
+              textarea.className = 'staff-notes-editor';
+              textarea.value = order.order_notes || '';
+              textarea.placeholder = 'Add staff notes here...';
+              
+              const saveBtn = document.createElement('button');
+              saveBtn.className = 'save-notes-btn';
+              saveBtn.textContent = 'Save Notes';
+              saveBtn.disabled = true;
+              
+              // Enable save button only when changes are made
+              textarea.addEventListener('input', () => {
+                saveBtn.disabled = textarea.value === (order.order_notes || '');
+              });
+              
+              // Handle save
+              saveBtn.addEventListener('click', async () => {
+                try {
+                  saveBtn.disabled = true;
+                  saveBtn.textContent = 'Saving...';
+                  
+                  const response = await fetch('/dashboard/update-staff-notes', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      orderId: order.id,
+                      staffNotes: textarea.value
+                    }),
+                    credentials: 'include'
+                  });
+                  
+                  if (!response.ok) throw new Error('Failed to save notes');
+                  
+                  const result = await response.json();
+                  order.order_notes = textarea.value;
+                  saveBtn.textContent = 'Saved!';
+                  setTimeout(() => {
+                    saveBtn.textContent = 'Save Notes';
+                  }, 2000);
+                  
+                } catch (err) {
+                  console.error('Failed to save staff notes:', err);
+                  saveBtn.textContent = 'Save Failed';
+                  setTimeout(() => {
+                    saveBtn.textContent = 'Save Notes';
+                    saveBtn.disabled = false;
+                  }, 2000);
+                }
+              });
+              
+              notesCell.innerHTML = '';
+              notesCell.appendChild(textarea);
+              notesCell.appendChild(saveBtn);
+            } else {
+              // Update existing editor value if it differs
+              const textarea = notesCell.querySelector('.staff-notes-editor');
+              if (textarea.value !== order.order_notes) {
+                textarea.value = order.order_notes || '';
+              }
+            }
           }
         }
+      }
+
+      // Update status history if visible
+      if (detailsSection?.classList.contains('visible') && order.statusHistory) {
+        let historyDiv = detailsSection.querySelector('.status-history');
+        if (!historyDiv) {
+          historyDiv = document.createElement('div');
+          historyDiv.className = 'status-history';
+          historyDiv.innerHTML = '<h3>Status History</h3>';
+          detailsSection.appendChild(historyDiv);
+        }
+        
+        historyDiv.innerHTML = '<h3>Status History</h3>' + order.statusHistory.map(history => `
+          <div class="status-history-item">
+            <span>${history.previous_status} → ${history.new_status}</span>
+            <span>${new Date(history.changed_at).toLocaleString()} by ${history.changed_by}</span>
+          </div>
+        `).join('');
       }
     }
 
@@ -2121,6 +2303,43 @@
 
       return staffSelect;
     }
+
+    // Add dark mode toggle
+    const darkModeToggle = document.createElement('button');
+    darkModeToggle.className = 'dark-mode-toggle';
+    darkModeToggle.textContent = '🌙';
+    darkModeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      darkModeToggle.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+      localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+    });
+    document.body.appendChild(darkModeToggle);
+
+    // Restore dark mode preference
+    if (localStorage.getItem('darkMode') === 'true') {
+      document.body.classList.add('dark-mode');
+      darkModeToggle.textContent = '☀️';
+    }
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Alt + N - New search
+      if (e.altKey && e.key === 'n') {
+        document.getElementById('searchInput').focus();
+      }
+      // Alt + C - Switch to claimed tab
+      if (e.altKey && e.key === 'c') {
+        document.getElementById('tabClaimed').click();
+      }
+      // Alt + A - Switch to all orders tab
+      if (e.altKey && e.key === 'a') {
+        document.getElementById('tabAll').click();
+      }
+      // Alt + D - Toggle dark mode
+      if (e.altKey && e.key === 'd') {
+        darkModeToggle.click();
+      }
+    });
 
     // Start the app
     document.addEventListener("DOMContentLoaded", initialize);

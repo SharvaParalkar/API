@@ -353,7 +353,10 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   try {
     // Start a transaction
     const transaction = db.transaction(() => {
-      // Update the order - handle case where last_updated might not exist
+      // Get current status before update
+      const currentOrder = db.prepare("SELECT status FROM orders WHERE id = ?").get(orderId);
+      
+      // Update the order
       const updateStmt = db.prepare(`
         UPDATE orders 
         SET status = ?,
@@ -365,6 +368,20 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
       
       if (result.changes === 0) {
         throw new Error("Order not found");
+      }
+
+      // Add status history entry if status changed
+      if (currentOrder && currentOrder.status !== status) {
+        const historyStmt = db.prepare(`
+          INSERT INTO order_status_history (
+            order_id, 
+            previous_status, 
+            new_status, 
+            changed_by, 
+            changed_at
+          ) VALUES (?, ?, ?, ?, ?)
+        `);
+        historyStmt.run(orderId, currentOrder.status, status, username, timestamp);
       }
 
       // Fetch the updated order
@@ -379,6 +396,15 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
       if (!updatedOrder) {
         throw new Error("Failed to fetch updated order");
       }
+
+      // Get status history
+      const history = db.prepare(`
+        SELECT * FROM order_status_history 
+        WHERE order_id = ? 
+        ORDER BY changed_at DESC
+      `).all(orderId);
+
+      updatedOrder.statusHistory = history;
 
       // Broadcast the update to all connected clients
       broadcastUpdate('orderUpdate', {
@@ -407,7 +433,6 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   } catch (err) {
     console.error("❌ Failed to update status:", err.message);
     
-    // Send appropriate error response
     if (err.message === "Order not found") {
       res.status(404).json({ error: "Order not found" });
     } else {
@@ -416,6 +441,46 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
         details: process.env.NODE_ENV === 'development' ? err.message : undefined
       });
     }
+  }
+});
+
+// Update staff notes endpoint
+app.post("/dashboard/update-staff-notes", requireLogin, (req, res) => {
+  const { orderId, staffNotes } = req.body;
+  const username = req.session.user;
+  const timestamp = new Date().toISOString();
+
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId" });
+  }
+
+  try {
+    const stmt = db.prepare(`
+      UPDATE orders 
+      SET order_notes = ?,
+          updated_by = ?,
+          last_updated = ?
+      WHERE id = ?
+    `);
+    const result = stmt.run(staffNotes, username, timestamp, orderId);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Fetch updated order
+    const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    
+    // Broadcast the update
+    broadcastUpdate('orderUpdate', {
+      type: 'notes',
+      order: updatedOrder
+    });
+
+    res.json({ success: true, order: updatedOrder });
+  } catch (err) {
+    console.error("❌ Failed to update staff notes:", err.message);
+    res.status(500).json({ error: "Database error" });
   }
 });
 
