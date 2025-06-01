@@ -1,5 +1,5 @@
 -- orders
-CREATE TABLE IF NOT EXISTS orders (
+CREATE TABLE orders (
   id TEXT PRIMARY KEY,
   name TEXT,
   email TEXT,
@@ -11,10 +11,10 @@ CREATE TABLE IF NOT EXISTS orders (
   assigned_price REAL,
   payment_status TEXT,
   notes TEXT,         -- customer notes
-  order_notes TEXT,    -- staff-added internal notes
-  updated_by TEXT,     -- track who last updated the order
+  order_notes TEXT,   -- staff-added internal notes
+  updated_by TEXT,    -- track who last updated the order
   last_updated DATETIME,  -- timestamp of last update
-  claimed_by TEXT      -- track who claimed the order
+  claimed_by TEXT     -- track who claimed the order
 );
 
 -- files
