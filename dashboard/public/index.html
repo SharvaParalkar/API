@@ -726,6 +726,43 @@
           await handleError(err, 'unclaimOrder');
           throw err;
         }
+      },
+
+      async login(username, password, remember) {
+        try {
+          const formData = new URLSearchParams();
+          formData.append("username", username);
+          formData.append("password", password);
+          if (remember) formData.append("remember", "on");
+
+          const res = await fetch("/dashboard/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: formData.toString(),
+            credentials: 'include'
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({ error: "Login failed" }));
+            throw new Error(data.error || "Login failed");
+          }
+
+          return true;
+        } catch (err) {
+          console.error("Login error:", err);
+          throw err;
+        }
+      },
+
+      async checkSession() {
+        try {
+          const res = await fetch("/dashboard/whoami", { credentials: "include" });
+          if (!res.ok) throw new Error("Session check failed");
+          return await res.json();
+        } catch (err) {
+          console.error("Session check error:", err);
+          throw err;
+        }
       }
     };
 
@@ -811,24 +848,24 @@
 
         // Check for remembered login
         if (localStorage.getItem("rememberedUser")) {
-          const res = await fetch("/dashboard/whoami", { credentials: "include" });
-          if (res.ok) {
-            const data = await res.json();
-            state.currentUser = data.username;
-            ui.hideLoginOverlay();
-            console.log('👤 Logged in as:', state.currentUser);
-            
-            // Load initial orders
-            await loadInitialOrders();
-            
-            // Start polling intervals
-            const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
-            const statusInterval = setInterval(refreshOrderStatuses, REFRESH_INTERVAL);
-            state.intervals.push(orderInterval, statusInterval);
-          } else {
-            localStorage.removeItem("rememberedUser");
-            console.log('❌ Remembered login invalid');
-          }
+          api.checkSession()
+            .then(data => {
+              state.currentUser = data.username;
+              ui.hideLoginOverlay();
+              console.log('👤 Logged in as:', state.currentUser);
+              
+              // Load initial orders
+              loadInitialOrders();
+              
+              // Start polling intervals
+              const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
+              const statusInterval = setInterval(refreshOrderStatuses, REFRESH_INTERVAL);
+              state.intervals.push(orderInterval, statusInterval);
+            })
+            .catch(() => {
+              console.warn("Failed to auto-login");
+              localStorage.removeItem("rememberedUser");
+            });
         }
 
         // Setup event listeners
@@ -1397,11 +1434,10 @@
 
       // Auto-login if remembered
       if (localStorage.getItem("rememberedUser")) {
-        fetch("/dashboard/whoami", { credentials: "include" })
-          .then((res) => res.json())
-          .then((data) => {
+        api.checkSession()
+          .then(data => {
             state.currentUser = data.username;
-            loginOverlay.style.display = "none";
+            ui.hideLoginOverlay();
             loadInitialOrders();
           })
           .catch(() => {
@@ -1412,53 +1448,36 @@
 
       loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const username = document
-          .getElementById("username")
-          .value.trim()
-          .toLowerCase();
+        loginError.style.display = "none";
+
+        const username = document.getElementById("username").value.trim().toLowerCase();
         const password = document.getElementById("password").value.trim();
         const remember = document.getElementById("rememberMe").checked;
 
-        const formData = new URLSearchParams();
-        formData.append("username", username);
-        formData.append("password", password);
-        if (remember) formData.append("remember", "on");
-
         try {
-          const res = await fetch("/dashboard/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formData.toString(),
-          });
-
-          if (res.ok) {
-            if (remember) localStorage.setItem("rememberedUser", "true");
-
-            // 🔄 Get the actual username from backend session
-            const userRes = await fetch("/dashboard/whoami", {
-              credentials: "include",
-            });
-            const data = await userRes.json();
-            state.currentUser = data.username;
-
-            loginOverlay.style.display = "none";
-            loadInitialOrders();
-          } else {
-            let errorText = "Login failed.";
-            try {
-              const data = await res.json();
-              errorText = data.error || errorText;
-            } catch {
-              // if not JSON, fallback
-              const fallbackText = await res.text();
-              errorText = fallbackText || errorText;
-            }
-            loginError.textContent = errorText;
-            loginError.style.display = "block";
+          await api.login(username, password, remember);
+          
+          if (remember) {
+            localStorage.setItem("rememberedUser", "true");
           }
+
+          // Get session info
+          const data = await api.checkSession();
+          state.currentUser = data.username;
+
+          // Hide login and load orders
+          ui.hideLoginOverlay();
+          await loadInitialOrders();
+
+          // Start polling
+          const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
+          const statusInterval = setInterval(refreshOrderStatuses, REFRESH_INTERVAL);
+          state.intervals.push(orderInterval, statusInterval);
+
         } catch (err) {
-          loginError.textContent = "Login error. Try again.";
+          loginError.textContent = err.message || "Login failed. Please try again.";
           loginError.style.display = "block";
+          console.error("Login failed:", err);
         }
       });
     });

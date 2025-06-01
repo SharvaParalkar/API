@@ -24,7 +24,7 @@ try {
 }
 
 // ✅ CORS config
-const allowedOrigins = ["https://filamentbros.com", "https://api.filamentbros.com"];
+const allowedOrigins = ["https://filamentbros.com", "https://api.filamentbros.com", "http://localhost:3300"];
 
 const app = express();
 const server = http.createServer(app);
@@ -32,12 +32,12 @@ const server = http.createServer(app);
 // ✅ Sessions config with better security
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || "filamentbros-secret",
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
   name: 'filamentbros.sid',
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000,
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // Set to true in production
     httpOnly: true,
     sameSite: 'lax'
   },
@@ -47,9 +47,10 @@ const sessionMiddleware = session({
 // Apply session middleware to Express
 app.use(sessionMiddleware);
 
-// Security headers
+// Security headers with adjusted CSP
 app.use(helmet({
-  contentSecurityPolicy: false
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
 }));
 
 // Request logging middleware
@@ -62,20 +63,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS middleware
+// CORS middleware with credentials
 app.use(cors({
   origin: (origin, callback) => {
     console.log("🌐 Incoming origin:", origin);
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-
     console.warn("❌ Rejected CORS origin:", origin);
     callback(new Error("Not allowed by CORS"));
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Body parsers with size limits
