@@ -509,17 +509,19 @@
       }
     };
 
-    // WebSocket connection management
+    // Socket.IO setup with better error handling
     const socket = io({
       path: '/socket.io/',
       transports: ['websocket', 'polling'],
       autoConnect: false,
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
-      withCredentials: true
+      withCredentials: true,
+      forceNew: true,
+      rejectUnauthorized: false
     });
 
     socket.on('connect_error', (error) => {
@@ -528,8 +530,17 @@
         protocol: window.location.protocol,
         host: window.location.host,
         hostname: window.location.hostname,
-        port: window.location.port
+        port: window.location.port,
+        readyState: socket.connected ? 'connected' : 'disconnected',
+        transport: socket.io.engine.transport.name
       });
+      
+      // Try to reconnect with polling if websocket fails
+      if (socket.io.engine.transport.name === 'websocket') {
+        console.log('⚠️ WebSocket failed, falling back to polling...');
+        socket.io.engine.transport.name = 'polling';
+        socket.connect();
+      }
     });
 
     socket.on('connect', () => {

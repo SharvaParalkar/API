@@ -59,11 +59,14 @@ const io = new Server(server, {
   allowEIO3: true,
   path: '/socket.io/',
   transports: ['websocket', 'polling'],
-  // Add secure configuration
+  pingTimeout: 60000,
+  pingInterval: 25000,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    name: 'io',
+    path: '/',
     httpOnly: true,
-    sameSite: 'lax'
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
   }
 });
 
