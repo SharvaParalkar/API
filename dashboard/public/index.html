@@ -873,6 +873,7 @@
       },
 
       onTabClick(tab) {
+        console.log('Tab clicked:', tab);
         state.currentTab = tab;
         ui.updateTabStyles();
         const query = document.getElementById("searchInput").value;
@@ -949,60 +950,71 @@
       const staffFilter = document.getElementById("staffFilter")?.value;
 
       console.log(`🔍 Filtering ${state.allOrders.length} orders with query: "${q}"`);
+      console.log('Current user:', state.currentUser);
+      console.log('Current tab:', state.currentTab);
 
       // First, filter based on the current tab
-      let filtered = state.allOrders.filter((order) => {
-        if (!order) return false;
+      let filtered = [...state.allOrders];
 
-        // For claimed tab, strictly check if claimed by current user
-        if (state.currentTab === "claimed") {
-          return order.claimed_by === state.currentUser;
-        }
+      // For claimed tab, only show orders claimed by current user
+      if (state.currentTab === "claimed") {
+        console.log('Filtering for claimed orders by:', state.currentUser);
+        filtered = filtered.filter(order => {
+          const isClaimedByUser = order.claimed_by === state.currentUser;
+          console.log(`Order ${order.id} claimed by: ${order.claimed_by}, matches current user: ${isClaimedByUser}`);
+          return isClaimedByUser;
+        });
+      }
 
-        return true;
-      });
+      // Then apply search filter if present
+      if (q) {
+        filtered = filtered.filter(order => {
+          const searchFields = {
+            name: String(order.name || ''),
+            email: String(order.email || ''),
+            phone: String(order.phone || ''),
+            id: String(order.id || ''),
+            notes: String(order.notes || '')
+          };
+          const searchValues = Object.values(searchFields).map(v => v.toLowerCase());
+          return searchValues.some(value => value.includes(q));
+        });
+      }
 
-      // Then apply additional filters
-      filtered = filtered.filter((order) => {
-        // Apply staff filter
-        if (staffFilter && order.assigned_staff !== staffFilter) return false;
+      // Apply staff filter if selected
+      if (staffFilter) {
+        filtered = filtered.filter(order => order.assigned_staff === staffFilter);
+      }
 
-        // If no search query, include the order
-        if (!q) return true;
-
-        // Search in all relevant fields
-        const searchFields = {
-          name: String(order.name || ''),
-          email: String(order.email || ''),
-          phone: String(order.phone || ''),
-          id: String(order.id || ''),
-          notes: String(order.notes || '')
-        };
-
-        // Convert all values to lowercase for case-insensitive search
-        const searchValues = Object.values(searchFields).map(v => v.toLowerCase());
-        
-        // Check if any field contains the search query
-        return searchValues.some(value => value.includes(q));
-      });
-
-      console.log(`✨ Found ${filtered.length} matching orders`);
+      console.log(`✨ Found ${filtered.length} matching orders after all filters`);
       
       // Clear the grid before rendering
       const grid = document.getElementById("orderGrid");
-      grid.innerHTML = "";
-      
-      // Render results immediately
-      requestAnimationFrame(() => {
+      if (grid) {
+        grid.innerHTML = "";
         renderOrders(filtered, isSearchActive);
-      });
+      }
     }
 
     // Fix the initialization of event listeners
     function initializeEventListeners() {
       // Tab listeners
-      document.getElementById("tabAll")?.addEventListener("click", () => handlers.onTabClick("all"));
-      document.getElementById("tabClaimed")?.addEventListener("click", () => handlers.onTabClick("claimed"));
+      const allTab = document.getElementById("tabAll");
+      const claimedTab = document.getElementById("tabClaimed");
+
+      if (allTab) {
+        allTab.addEventListener("click", () => {
+          console.log('Switching to All Orders tab');
+          handlers.onTabClick("all");
+        });
+      }
+
+      if (claimedTab) {
+        claimedTab.addEventListener("click", () => {
+          console.log('Switching to Claimed Orders tab');
+          handlers.onTabClick("claimed");
+        });
+      }
 
       // Filter listeners
       const oldOrdersToggle = document.getElementById("showOldToggle");
@@ -1022,7 +1034,6 @@
 
       // Window event listeners
       window.addEventListener('beforeunload', () => {
-        // Cleanup any SSE connections
         if (window.dashboardEventSource) {
           window.dashboardEventSource.close();
         }
@@ -1036,7 +1047,7 @@
       }, true);
     }
 
-    // Update the initialize function to use the new event listener initialization
+    // Update the initialize function to ensure state is properly set
     async function initialize() {
       try {
         console.log('🚀 Initializing dashboard...');
@@ -1046,6 +1057,7 @@
           try {
             const data = await api.checkSession();
             state.currentUser = data.username;
+            console.log('Current user set to:', state.currentUser);
             ui.hideLoginOverlay();
           } catch (err) {
             console.warn("Failed to auto-login:", err);
