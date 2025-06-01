@@ -242,7 +242,35 @@ app.get("/dashboard/debug/cookies", (req, res) => {
 // 🔐 Orders route
 app.get("/dashboard/data", requireLogin, (req, res) => {
   try {
-    const rows = db.prepare("SELECT * FROM orders ORDER BY submitted_at DESC").all();
+    const { showOld, showCompleted } = req.query;
+    let query = "SELECT * FROM orders";
+    const params = [];
+    const conditions = [];
+
+    // Only fetch completed orders if explicitly requested
+    if (showCompleted !== 'true') {
+      conditions.push("(status IS NULL OR LOWER(status) != 'completed')");
+    }
+
+    // Only fetch old orders if explicitly requested
+    if (showOld !== 'true') {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      conditions.push("submitted_at > ?");
+      params.push(oneWeekAgo.toISOString());
+    }
+
+    // Add conditions to query if any exist
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+
+    query += " ORDER BY submitted_at DESC";
+
+    console.log('📊 Executing query:', query, 'with params:', params);
+    const rows = db.prepare(query).all(...params);
+    console.log(`📦 Fetched ${rows.length} orders`);
+    
     res.json(rows);
   } catch (err) {
     console.error("❌ Failed to fetch orders:", err.message);

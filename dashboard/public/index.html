@@ -672,16 +672,29 @@
 
     // API functions
     const api = {
-      async fetchOrders(since = null) {
+      async fetchOrders() {
         try {
-          const url = since ? `/dashboard/data?since=${encodeURIComponent(since)}` : '/dashboard/data';
+          // Get current filter states
+          const showOld = document.getElementById("showOldToggle").checked;
+          const showCompleted = document.getElementById("showCompletedToggle").checked;
+          
+          // Build query string
+          const params = new URLSearchParams({
+            showOld: showOld.toString(),
+            showCompleted: showCompleted.toString()
+          });
+          
+          const url = `/dashboard/data?${params.toString()}`;
+          console.log('🔍 Fetching orders with filters:', { showOld, showCompleted });
+          
           const res = await fetch(url, { credentials: 'include' });
           if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-          return await res.json();
+          
+          const data = await res.json();
+          console.log(`📦 Received ${data.length} orders`);
+          return data;
         } catch (err) {
-          if (await handleError(err, 'fetchOrders')) {
-            return this.fetchOrders(since);
-          }
+          console.error('❌ Failed to fetch orders:', err);
           return [];
         }
       },
@@ -1105,19 +1118,9 @@
 
     function filterOrders(query) {
       const q = query.toLowerCase();
-      const isSearchActive = q.trim().length > 0; // ✅ only expand if non-empty
+      const isSearchActive = q.trim().length > 0;
 
-      const showOld = document.getElementById("showOldToggle").checked;
-      const showCompleted = document.getElementById("showCompletedToggle").checked;
-
-      const now = new Date();
-      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-      const filtered = allOrders.filter((order) => {
-        const submittedAt = new Date(order.submitted_at);
-        const isRecent = submittedAt >= oneWeekAgo;
-        if (!showOld && !isRecent) return false;
-        if (!showCompleted && (order.status || "").toLowerCase() === "completed") return false;
+      const filtered = state.allOrders.filter((order) => {
         if (currentTab === "claimed" && !order.claimed) return false;
 
         return (
@@ -1130,7 +1133,7 @@
         );
       });
 
-      renderOrders(filtered, isSearchActive); // ✅ conditionally expand
+      renderOrders(filtered, isSearchActive);
     }
 
     let latestTimestamp = null;
@@ -1229,38 +1232,17 @@
     }
 
     // First full load
-    function loadInitialOrders() {
-      const now = new Date();
-      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const sinceParam = encodeURIComponent(oneWeekAgo.toISOString());
-
-      fetch(`/dashboard/data?since=${sinceParam}`, { credentials: "include" })
-        .then(async (res) => {
-          if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-          const data = await res.json();
-          allOrders = Array.isArray(data) ? data : [];
-          if (data.length > 0) latestTimestamp = data[0].submitted_at;
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
-
-          for (const order of data) {
-            if (
-              (order.est_price == null || order.est_price === 0) &&
-              !(
-                order.order_notes &&
-                order.order_notes.includes("Print estimate failed")
-              )
-            ) {
-              await autoEstimateOrder(order);
-            }
-          }
-        })
-        .catch((err) => {
-          allOrders = [];
-          document.getElementById("orderGrid").innerHTML =
-            "<p>⚠️ Failed to load orders.</p>";
-          console.error("❌ Failed to loadInitialOrders:", err);
-        });
+    async function loadInitialOrders() {
+      try {
+        const data = await api.fetchOrders();
+        state.allOrders = Array.isArray(data) ? data : [];
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+      } catch (err) {
+        state.allOrders = [];
+        document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
+        console.error("❌ Failed to load initial orders:", err);
+      }
     }
 
     // Only get orders submitted after the latest known one
@@ -1504,97 +1486,32 @@
 
 
     document.getElementById("showOldToggle").addEventListener("change", async () => {
-      const showOld = document.getElementById("showOldToggle").checked;
-
-      if (showOld) {
-        try {
-          const res = await fetch("/dashboard/data", { credentials: "include" });
-          const data = await res.json();
-          allOrders = Array.isArray(data) ? data : [];
-        } catch (err) {
-          console.error("❌ Failed to load old orders:", err);
-          allOrders = [];
-        }
-      } else {
-        const now = new Date();
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const sinceParam = encodeURIComponent(oneWeekAgo.toISOString());
-
-        try {
-          const res = await fetch(`/dashboard/data?since=${sinceParam}`, {
-            credentials: "include",
-          });
-          const data = await res.json();
-          allOrders = Array.isArray(data) ? data : [];
-        } catch (err) {
-          console.error("❌ Failed to load recent orders:", err);
-          allOrders = [];
-        }
+      try {
+        // Fetch new data with current filters
+        const data = await api.fetchOrders();
+        state.allOrders = Array.isArray(data) ? data : [];
+        
+        // Apply current search filter
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+      } catch (err) {
+        console.error("❌ Failed to update orders:", err);
       }
-
-      const query = document.getElementById("searchInput").value;
-      filterOrders(query);
     });
 
-    document.getElementById("showCompletedToggle").addEventListener("change", () => {
-      const query = document.getElementById("searchInput").value;
-      filterOrders(query);
-    });
-
-
-    document.getElementById("showOldToggle").addEventListener("change", async () => {
-      const showOld = document.getElementById("showOldToggle").checked;
-
-      if (showOld) {
-        try {
-          const res = await fetch("/dashboard/data", { credentials: "include" });
-          const data = await res.json();
-          allOrders = Array.isArray(data) ? data : [];
-
-          // 🧠 Estimate missing orders
-          for (const order of allOrders) {
-            if (
-              (order.est_price == null || order.est_price === 0) &&
-              !(order.order_notes && order.order_notes.includes("Print estimate failed"))
-            ) {
-              await autoEstimateOrder(order);
-            }
-          }
-        } catch (err) {
-          console.error("❌ Failed to load old orders:", err);
-          allOrders = [];
-        }
-      } else {
-        const now = new Date();
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const sinceParam = encodeURIComponent(oneWeekAgo.toISOString());
-
-        try {
-          const res = await fetch(`/dashboard/data?since=${sinceParam}`, {
-            credentials: "include",
-          });
-          const data = await res.json();
-          allOrders = Array.isArray(data) ? data : [];
-
-          // 🧠 Estimate missing orders
-          for (const order of allOrders) {
-            if (
-              (order.est_price == null || order.est_price === 0) &&
-              !(order.order_notes && order.order_notes.includes("Print estimate failed"))
-            ) {
-              await autoEstimateOrder(order);
-            }
-          }
-        } catch (err) {
-          console.error("❌ Failed to load recent orders:", err);
-          allOrders = [];
-        }
+    document.getElementById("showCompletedToggle").addEventListener("change", async () => {
+      try {
+        // Fetch new data with current filters
+        const data = await api.fetchOrders();
+        state.allOrders = Array.isArray(data) ? data : [];
+        
+        // Apply current search filter
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+      } catch (err) {
+        console.error("❌ Failed to update orders:", err);
       }
-
-      const query = document.getElementById("searchInput").value;
-      filterOrders(query);
     });
-
 
   </script>
 
