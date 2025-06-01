@@ -87,10 +87,28 @@ io.use((socket, next) => {
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log(`🔌 WebSocket client connected: ${socket.handshake.session.user}`);
+  const username = socket.handshake.session.user;
+  console.log(`🔌 WebSocket client connected: ${username}`);
+
+  // Join a room specific to this user
+  socket.join(`user_${username}`);
 
   socket.on('disconnect', () => {
-    console.log(`🔌 WebSocket client disconnected: ${socket.handshake.session.user}`);
+    console.log(`🔌 WebSocket client disconnected: ${username}`);
+  });
+
+  // Handle order status updates
+  socket.on('status-update', async (data) => {
+    try {
+      const { orderId, status } = data;
+      const stmt = db.prepare("UPDATE orders SET status = ? WHERE id = ?");
+      const result = stmt.run(status, orderId);
+      if (result.changes > 0) {
+        broadcastOrderUpdate(orderId);
+      }
+    } catch (err) {
+      console.error('❌ Failed to update status via WebSocket:', err);
+    }
   });
 });
 
@@ -99,7 +117,13 @@ function broadcastOrderUpdate(orderId) {
   try {
     const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
     if (order) {
-      io.emit('order-updated', order);
+      // Broadcast to all connected clients
+      io.emit('order-updated', {
+        type: 'order-update',
+        data: order,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`📢 Broadcasting update for order ${orderId}`);
     }
   } catch (err) {
     console.error('❌ Failed to broadcast order update:', err);
@@ -299,8 +323,16 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
     if (result.changes === 0) {
       return res.status(404).json({ error: "Order not found" });
     }
+    
+    // Enhanced broadcast with immediate confirmation
     broadcastOrderUpdate(orderId);
-    res.json({ success: true });
+    console.log(`✅ Status updated and broadcast for order ${orderId}`);
+    
+    res.json({ 
+      success: true,
+      message: `Status updated to ${status}`,
+      timestamp: new Date().toISOString()
+    });
   } catch (err) {
     console.error("❌ Failed to update status:", err.message);
     res.status(500).json({ error: "Database error" });

@@ -491,11 +491,14 @@
           withCredentials: true,
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000
+          reconnectionDelayMax: 5000,
+          timeout: 20000
         });
 
         state.socket.on('connect', () => {
           console.log('✅ WebSocket connected');
+          // Request initial sync after connection
+          fetchInitialData();
         });
 
         state.socket.on('connect_error', (error) => {
@@ -509,8 +512,11 @@
           console.log('🔌 WebSocket disconnected');
         });
 
-        state.socket.on('order-updated', (order) => {
-          handleOrderUpdate(order);
+        state.socket.on('order-updated', (message) => {
+          console.log('📥 Received order update:', message);
+          if (message && message.data) {
+            handleOrderUpdate(message.data);
+          }
         });
       },
 
@@ -519,11 +525,23 @@
           state.socket.disconnect();
           state.socket = null;
         }
+      },
+
+      // New method to emit status updates
+      emitStatusUpdate(orderId, status) {
+        if (state.socket && state.socket.connected) {
+          state.socket.emit('status-update', { orderId, status });
+          console.log(`📤 Emitting status update for ${orderId}: ${status}`);
+        } else {
+          console.warn('⚠️ Socket not connected, update may not be real-time');
+        }
       }
     };
 
     // Handle incoming order updates
     function handleOrderUpdate(updatedOrder) {
+      console.log('🔄 Processing order update:', updatedOrder);
+      
       const index = state.allOrders.findIndex(order => order.id === updatedOrder.id);
       
       if (index !== -1) {
@@ -533,12 +551,14 @@
         // Update UI if the order is currently visible
         const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
         if (orderCard) {
+          console.log('🎯 Updating existing card in UI');
           const tempContainer = document.createElement('div');
           renderOrders([updatedOrder], false, tempContainer);
           orderCard.replaceWith(tempContainer.firstChild);
         }
       } else {
         // New order
+        console.log('➕ Adding new order to list');
         state.allOrders.unshift(updatedOrder);
         const query = document.getElementById("searchInput").value;
         if (!query.trim()) {
@@ -648,12 +668,20 @@
     const handlers = {
       async onStatusChange(event, orderId) {
         const newStatus = event.target.value;
+        const previousValue = event.target.dataset.previousValue;
+        
         try {
+          // Emit the update through WebSocket
+          socket.emitStatusUpdate(orderId, newStatus);
+          
+          // Also send HTTP request as backup
           await api.updateStatus(orderId, newStatus);
+          
           console.log(`✅ Status updated for order ${orderId}`);
+          event.target.dataset.previousValue = newStatus;
         } catch (err) {
           console.error(`❌ Failed to update status for ${orderId}:`, err);
-          event.target.value = event.target.dataset.previousValue;
+          event.target.value = previousValue;
         }
       },
 
