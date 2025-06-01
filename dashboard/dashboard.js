@@ -78,6 +78,10 @@ io.on('connection', (socket) => {
   // Join a room for this user
   socket.join(`user_${username}`);
 
+  // Log active connections
+  const connectedSockets = io.sockets.sockets.size;
+  console.log(`📊 Active WebSocket connections: ${connectedSockets}`);
+
   socket.on('disconnect', () => {
     console.log(`🔌 WebSocket client disconnected: ${username}`);
   });
@@ -99,14 +103,16 @@ io.on('connection', (socket) => {
         `).get(orderId);
 
         if (updatedOrder) {
-          // Broadcast to all clients including sender
-          io.emit('order-updated', {
+          const updateMessage = {
             type: 'status-update',
             data: updatedOrder,
             timestamp: new Date().toISOString(),
             updatedBy: username
-          });
-          console.log(`📢 Broadcasted order update to all clients for ${orderId}`);
+          };
+          
+          // Broadcast to all clients including sender
+          io.emit('order-updated', updateMessage);
+          console.log(`📢 Broadcasting update to ${io.sockets.sockets.size} clients:`, updateMessage);
         }
       }
     } catch (err) {
@@ -387,13 +393,16 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
     `).get(orderId);
 
     if (updatedOrder) {
-      // Broadcast through WebSocket
-      io.emit('order-updated', {
+      const updateMessage = {
         type: 'status-update',
         data: updatedOrder,
         timestamp: new Date().toISOString(),
         updatedBy: req.session.user
-      });
+      };
+
+      // Broadcast through WebSocket
+      io.emit('order-updated', updateMessage);
+      console.log(`📢 Broadcasting HTTP update to ${io.sockets.sockets.size} clients:`, updateMessage);
     }
 
     res.json({ 

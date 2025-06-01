@@ -496,6 +496,8 @@
           state.socket.disconnect();
         }
 
+        console.log('🔌 Initializing WebSocket connection...');
+        
         state.socket = io({
           withCredentials: true,
           reconnectionAttempts: 5,
@@ -506,7 +508,9 @@
         });
 
         state.socket.on('connect', () => {
-          console.log('✅ WebSocket connected');
+          console.log('✅ WebSocket connected successfully');
+          // Test connection by sending a ping
+          state.socket.emit('ping');
         });
 
         state.socket.on('connect_error', (error) => {
@@ -516,19 +520,31 @@
           }
         });
 
-        state.socket.on('disconnect', () => {
-          console.log('🔌 WebSocket disconnected');
+        state.socket.on('disconnect', (reason) => {
+          console.log('🔌 WebSocket disconnected:', reason);
+          if (reason === 'io server disconnect') {
+            // Reconnect if server disconnected
+            setTimeout(() => this.connect(), 1000);
+          }
         });
 
         state.socket.on('order-updated', (message) => {
-          console.log('📥 Received order update:', message);
+          console.log('📥 Received order update via WebSocket:', message);
           if (message?.data) {
             handleOrderUpdate(message.data);
+          } else {
+            console.warn('⚠️ Received malformed order update:', message);
           }
         });
 
         state.socket.on('update-error', (error) => {
           console.error('❌ Update error:', error);
+          // TODO: Show error to user
+        });
+
+        // Debug events
+        state.socket.onAny((event, ...args) => {
+          console.log(`🔍 Socket event "${event}":`, args);
         });
       },
 
@@ -536,6 +552,7 @@
         if (state.socket) {
           state.socket.disconnect();
           state.socket = null;
+          console.log('🔌 WebSocket disconnected manually');
         }
       },
 
@@ -543,8 +560,20 @@
         if (!state.socket?.connected) {
           console.warn('⚠️ Socket not connected, attempting to reconnect...');
           this.connect();
+          // Add a small delay to allow connection to establish
+          setTimeout(() => {
+            if (state.socket?.connected) {
+              this._emitUpdate(orderId, status);
+            } else {
+              console.error('❌ Failed to establish WebSocket connection');
+            }
+          }, 500);
+        } else {
+          this._emitUpdate(orderId, status);
         }
-        
+      },
+
+      _emitUpdate(orderId, status) {
         console.log(`📤 Emitting status update for ${orderId}: ${status}`);
         state.socket.emit('status-update', { orderId, status });
       }
@@ -746,13 +775,15 @@
           applyStatusColor(event.target, newStatus);
           event.target.dataset.previousValue = newStatus;
           
-          // Emit via WebSocket
+          console.log(`🔄 Initiating status change for ${orderId}: ${newStatus}`);
+          
+          // Emit via WebSocket first
           socket.emitStatusUpdate(orderId, newStatus);
           
           // Backup HTTP request
-          await api.updateStatus(orderId, newStatus);
+          const response = await api.updateStatus(orderId, newStatus);
+          console.log('✅ HTTP update response:', response);
           
-          console.log(`✅ Status change initiated for ${orderId}: ${newStatus}`);
         } catch (err) {
           console.error(`❌ Failed to update status:`, err);
           // Revert on error
@@ -776,6 +807,8 @@
     // Initialize
     async function initialize() {
       try {
+        console.log('🚀 Initializing dashboard...');
+        
         // Check for remembered login
         if (localStorage.getItem("rememberedUser")) {
           const res = await fetch("/dashboard/whoami", { credentials: "include" });
@@ -783,10 +816,16 @@
             const data = await res.json();
             state.currentUser = data.username;
             ui.hideLoginOverlay();
+            console.log('👤 Logged in as:', state.currentUser);
+            
+            // Initialize WebSocket first
+            socket.connect();
+            
+            // Then load orders
             await loadInitialOrders();
-            socket.connect(); // Connect WebSocket after successful auth
           } else {
             localStorage.removeItem("rememberedUser");
+            console.log('❌ Remembered login invalid');
           }
         }
 
@@ -797,12 +836,17 @@
         
         // Add socket reconnection on visibility change
         document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible' && (!state.socket || !state.socket.connected)) {
-            console.log('🔄 Page became visible, reconnecting socket');
-            socket.connect();
+          if (document.visibilityState === 'visible') {
+            if (!state.socket?.connected) {
+              console.log('🔄 Page became visible, reconnecting socket');
+              socket.connect();
+            }
           }
         });
+
+        console.log('✅ Dashboard initialized successfully');
       } catch (err) {
+        console.error('❌ Failed to initialize dashboard:', err);
         await handleError(err, 'initialization');
       }
     }
