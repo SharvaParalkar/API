@@ -1512,9 +1512,15 @@
       const grid = document.getElementById("orderGrid");
       grid.innerHTML = "";
       
-      // Filter for orders claimed by current user
-      const claimedOrders = orders.filter(order => order.claimed_by === state.currentUser);
+      // Filter for orders that are properly claimed (both claimed_by and assigned_staff must be set)
+      const claimedOrders = orders.filter(order => 
+        order.claimed_by === state.currentUser && 
+        order.assigned_staff != null && 
+        order.assigned_staff !== ""
+      );
       
+      console.log(`📋 Rendering ${claimedOrders.length} claimed orders for user ${state.currentUser}`);
+
       for (const order of claimedOrders) {
         const card = document.createElement("div");
         card.className = "card";
