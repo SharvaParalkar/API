@@ -36,6 +36,7 @@ const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || "filamentbros-secret",
   resave: false,
   saveUninitialized: false,
+  name: 'filamentbros.sid', // Custom session ID name
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     secure: process.env.NODE_ENV === 'production',
@@ -63,16 +64,26 @@ io.use(sharedsession(sessionMiddleware, {
 
 // Socket.io authentication middleware
 io.use((socket, next) => {
-  if (socket.handshake.session.user) {
-    next();
-  } else {
-    next(new Error('Authentication error'));
+  const session = socket.handshake.session;
+  if (!session || !session.user) {
+    console.log('❌ Socket authentication failed - no session user');
+    return next(new Error('Authentication error'));
   }
+  console.log(`✅ Socket authenticated for user: ${session.user}`);
+  next();
 });
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  const username = socket.handshake.session.user;
+  const session = socket.handshake.session;
+  const username = session.user;
+  
+  if (!username) {
+    console.error('❌ No username in socket session');
+    socket.disconnect();
+    return;
+  }
+
   console.log(`🔌 WebSocket client connected: ${username}`);
 
   // Join a room for this user
@@ -81,6 +92,7 @@ io.on('connection', (socket) => {
   // Log active connections
   const connectedSockets = io.sockets.sockets.size;
   console.log(`📊 Active WebSocket connections: ${connectedSockets}`);
+  console.log(`🔍 Connected users: ${Array.from(io.sockets.sockets.values()).map(s => s.handshake.session.user).join(', ')}`);
 
   socket.on('disconnect', () => {
     console.log(`🔌 WebSocket client disconnected: ${username}`);
@@ -90,7 +102,10 @@ io.on('connection', (socket) => {
   socket.on('status-update', async (data) => {
     try {
       const { orderId, status } = data;
-      console.log(`📥 Received status update from ${username} for order ${orderId}: ${status}`);
+      // Use the username from the socket's session
+      const updatingUser = socket.handshake.session.user;
+      
+      console.log(`📥 Received status update from ${updatingUser} for order ${orderId}: ${status}`);
       
       const stmt = db.prepare("UPDATE orders SET status = ? WHERE id = ?");
       const result = stmt.run(status, orderId);
@@ -107,12 +122,12 @@ io.on('connection', (socket) => {
             type: 'status-update',
             data: updatedOrder,
             timestamp: new Date().toISOString(),
-            updatedBy: username
+            updatedBy: updatingUser // Use the correct username
           };
           
           // Broadcast to all clients including sender
           io.emit('order-updated', updateMessage);
-          console.log(`📢 Broadcasting update to ${io.sockets.sockets.size} clients:`, updateMessage);
+          console.log(`📢 Broadcasting update from ${updatingUser} to ${io.sockets.sockets.size} clients:`, updateMessage);
         }
       }
     } catch (err) {
@@ -397,12 +412,12 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
         type: 'status-update',
         data: updatedOrder,
         timestamp: new Date().toISOString(),
-        updatedBy: req.session.user
+        updatedBy: req.session.user // Use the username from the HTTP session
       };
 
       // Broadcast through WebSocket
       io.emit('order-updated', updateMessage);
-      console.log(`📢 Broadcasting HTTP update to ${io.sockets.sockets.size} clients:`, updateMessage);
+      console.log(`📢 Broadcasting HTTP update from ${req.session.user} to ${io.sockets.sockets.size} clients:`, updateMessage);
     }
 
     res.json({ 

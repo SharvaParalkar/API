@@ -5,6 +5,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FilamentBros Order Dashboard</title>
+  <!-- Load Socket.IO client from CDN as backup -->
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <!-- Load local Socket.IO client as primary -->
+  <script src="/socket.io/socket.io.js"></script>
   <style>
     body {
       font-family: "Roboto", sans-serif;
@@ -425,7 +429,6 @@
       border-radius: 5rem;
     }
   </style>
-  <script src="/socket.io/socket.io.js"></script>
 </head>
 
 <body>
@@ -470,6 +473,24 @@
   <div class="grid" id="orderGrid"></div>
 
   <script>
+    // Verify Socket.IO is loaded
+    if (typeof io === 'undefined') {
+      console.error('❌ Socket.IO client failed to load');
+      // Try to reload the script
+      const script = document.createElement('script');
+      script.src = 'https://cdn.socket.io/4.7.4/socket.io.min.js';
+      script.onload = () => {
+        console.log('✅ Socket.IO client loaded from CDN');
+        initialize();
+      };
+      script.onerror = () => {
+        console.error('❌ Failed to load Socket.IO client from CDN');
+      };
+      document.head.appendChild(script);
+    } else {
+      console.log('✅ Socket.IO client loaded successfully');
+    }
+
     // Constants
     const REFRESH_INTERVAL = 10000; // 10 seconds
     const SEARCH_DEBOUNCE = 200; // 200ms
