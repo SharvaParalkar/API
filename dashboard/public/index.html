@@ -498,7 +498,9 @@
       },
       intervals: [],
       staffMembers: [],
-      lastOrderHash: null // Add this to track changes
+      lastOrderHash: null,
+      lastRefreshTime: 0,
+      minRefreshInterval: 5000 // Minimum time between refreshes in milliseconds
     };
 
     // First full load
@@ -863,29 +865,26 @@
           return;
         }
 
-        // Fetch staff list
-        try {
-          const staffList = await api.getStaffList();
-          state.staffMembers = staffList;
-          
-          // Populate staff filter
-          const staffFilter = document.getElementById("staffFilter");
-          staffFilter.innerHTML = '<option value="">All Staff</option>'; // Reset
-          state.staffMembers.forEach(staff => {
-            const option = document.createElement("option");
-            option.value = staff.username;
-            option.textContent = staff.displayName;
-            staffFilter.appendChild(option);
-          });
+        // Initialize staff list from USERS object
+        state.staffMembers = Object.keys(USERS).map(username => ({
+          username,
+          displayName: username.charAt(0).toUpperCase() + username.slice(1)
+        }));
+        
+        // Populate staff filter
+        const staffFilter = document.getElementById("staffFilter");
+        staffFilter.innerHTML = '<option value="">All Staff</option>'; // Reset
+        state.staffMembers.forEach(staff => {
+          const option = document.createElement("option");
+          option.value = staff.username;
+          option.textContent = staff.displayName;
+          staffFilter.appendChild(option);
+        });
 
-          staffFilter.addEventListener("change", () => {
-            const query = document.getElementById("searchInput").value;
-            filterOrders(query);
-          });
-        } catch (err) {
-          console.warn("Failed to fetch staff list:", err);
-          // Continue initialization even if staff list fails
-        }
+        staffFilter.addEventListener("change", () => {
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
+        });
 
         // Load initial orders
         await loadInitialOrders();
@@ -893,8 +892,7 @@
         // Start polling with initial delay
         setTimeout(() => {
           const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
-          const statusInterval = setInterval(refreshOrderStatuses, REFRESH_INTERVAL);
-          state.intervals.push(orderInterval, statusInterval);
+          state.intervals.push(orderInterval);
         }, 1000);
 
         // Setup event listeners
@@ -911,23 +909,30 @@
 
     // Add hash function to detect changes
     function hashOrders(orders) {
-      return orders.map(o => `${o.id}-${o.status}-${o.updated_by}-${o.last_updated}-${o.claimed_by}`).join('|');
+      return orders.map(o => `${o.id}-${o.status}-${o.updated_by}-${o.last_updated}-${o.claimed_by}-${o.assigned_staff}`).join('|');
     }
 
     // Update the refreshOrders function
     async function refreshOrders() {
       try {
+        // Check if enough time has passed since last refresh
+        const now = Date.now();
+        if (now - state.lastRefreshTime < state.minRefreshInterval) {
+          return;
+        }
+
         const data = await api.fetchOrders();
         if (Array.isArray(data)) {
           const newHash = hashOrders(data);
           if (newHash !== state.lastOrderHash) {
+            console.log('📦 Orders updated due to changes detected');
             state.allOrders = data;
             state.lastOrderHash = newHash;
             const query = document.getElementById("searchInput").value;
             filterOrders(query);
-            console.log('📦 Orders updated due to changes detected');
           }
         }
+        state.lastRefreshTime = now;
       } catch (err) {
         console.error('❌ Failed to refresh orders:', err);
       }
@@ -1492,8 +1497,7 @@
 
           // Start polling
           const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
-          const statusInterval = setInterval(refreshOrderStatuses, REFRESH_INTERVAL);
-          state.intervals.push(orderInterval, statusInterval);
+          state.intervals.push(orderInterval);
 
         } catch (err) {
           loginError.textContent = err.message || "Login failed. Please try again.";
