@@ -289,6 +289,35 @@ app.post("/dashboard/update-notes", requireLogin, (req, res) => {
   }
 });
 
+// Add after the express app creation but before routes
+const clients = new Set();
+
+// SSE endpoint for order updates
+app.get('/dashboard/updates', requireLogin, (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  // Send initial heartbeat
+  res.write('event: heartbeat\ndata: connected\n\n');
+  
+  // Add client to the set
+  clients.add(res);
+  
+  // Remove client when connection closes
+  req.on('close', () => {
+    clients.delete(res);
+  });
+});
+
+// Helper function to broadcast updates to all connected clients
+function broadcastUpdate(eventType, data) {
+  const eventData = JSON.stringify(data);
+  clients.forEach(client => {
+    client.write(`event: ${eventType}\ndata: ${eventData}\n\n`);
+  });
+}
+
 // 🔄 Update status
 app.post("/dashboard/update-status", requireLogin, (req, res) => {
   const { orderId, status } = req.body;
@@ -344,6 +373,12 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
         throw new Error("Failed to fetch updated order");
       }
 
+      // Broadcast the update to all connected clients
+      broadcastUpdate('orderUpdate', {
+        type: 'status',
+        order: updatedOrder
+      });
+
       return updatedOrder;
     });
 
@@ -395,11 +430,16 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    res.json({ 
-      success: true,
-      staffName,
-      timestamp: timestamp
+    // Fetch updated order
+    const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    
+    // Broadcast the update
+    broadcastUpdate('orderUpdate', {
+      type: 'staff',
+      order: updatedOrder
     });
+
+    res.json({ success: true, order: updatedOrder });
   } catch (err) {
     console.error("❌ Failed to assign staff:", err.message);
     res.status(500).json({ error: "Database error" });
@@ -440,10 +480,13 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    res.json({ 
-      success: true,
-      timestamp: timestamp
+    const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    broadcastUpdate('orderUpdate', {
+      type: 'claim',
+      order: updatedOrder
     });
+
+    res.json({ success: true, order: updatedOrder });
   } catch (err) {
     console.error("❌ Failed to claim order:", err.message);
     res.status(500).json({ error: "Database error" });
@@ -477,10 +520,13 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
       return res.status(404).json({ error: "Order not found or not claimed by you" });
     }
 
-    res.json({ 
-      success: true,
-      timestamp: timestamp
+    const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    broadcastUpdate('orderUpdate', {
+      type: 'unclaim',
+      order: updatedOrder
     });
+
+    res.json({ success: true, order: updatedOrder });
   } catch (err) {
     console.error("❌ Failed to unclaim order:", err.message);
     res.status(500).json({ error: "Database error" });
