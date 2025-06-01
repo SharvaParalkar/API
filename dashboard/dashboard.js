@@ -173,17 +173,10 @@ app.get("/dashboard/debug/cookies", (req, res) => {
 // 🔐 Orders route
 app.get("/dashboard/data", requireLogin, (req, res) => {
   try {
-    const { showOld, showCompleted, showClaimed } = req.query;
-    const username = req.session.user;
+    const { showOld, showCompleted } = req.query;
     let query = "SELECT * FROM orders";
     const params = [];
     const conditions = [];
-
-    // Filter for claimed orders tab
-    if (showClaimed === 'true') {
-      conditions.push("claimed_by = ? AND assigned_staff = ? AND (status IS NULL OR LOWER(status) != 'completed')");
-      params.push(username, username);
-    }
 
     // Only fetch completed orders if explicitly requested
     if (showCompleted !== 'true') {
