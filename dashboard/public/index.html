@@ -497,7 +497,8 @@
         showCompleted: false
       },
       intervals: [],
-      staffMembers: [] // Initialize empty
+      staffMembers: [],
+      lastOrderHash: null // Add this to track changes
     };
 
     // First full load
@@ -845,46 +846,56 @@
       try {
         console.log('🚀 Initializing dashboard...');
         
-        // Fetch staff list first
-        const staffList = await api.getStaffList();
-        state.staffMembers = staffList;
-        
-        // Populate staff filter
-        const staffFilter = document.getElementById("staffFilter");
-        staffFilter.innerHTML = '<option value="">All Staff</option>'; // Reset
-        state.staffMembers.forEach(staff => {
-          const option = document.createElement("option");
-          option.value = staff.username;
-          option.textContent = staff.displayName;
-          staffFilter.appendChild(option);
-        });
-
-        staffFilter.addEventListener("change", () => {
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
-        });
-
-        // Check for remembered login
+        // Auto-login if remembered
         if (localStorage.getItem("rememberedUser")) {
-          const res = await fetch("/dashboard/whoami", { credentials: "include" });
-          if (res.ok) {
-            const data = await res.json();
+          try {
+            const data = await api.checkSession();
             state.currentUser = data.username;
             ui.hideLoginOverlay();
-            console.log('👤 Logged in as:', state.currentUser);
-            
-            // Load initial orders
-            await loadInitialOrders();
-            
-            // Start polling intervals
-            const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
-            const statusInterval = setInterval(refreshOrderStatuses, REFRESH_INTERVAL);
-            state.intervals.push(orderInterval, statusInterval);
-          } else {
+          } catch (err) {
+            console.warn("Failed to auto-login:", err);
             localStorage.removeItem("rememberedUser");
-            console.log('❌ Remembered login invalid');
+            ui.showLoginOverlay();
+            return;
           }
+        } else {
+          ui.showLoginOverlay();
+          return;
         }
+
+        // Fetch staff list
+        try {
+          const staffList = await api.getStaffList();
+          state.staffMembers = staffList;
+          
+          // Populate staff filter
+          const staffFilter = document.getElementById("staffFilter");
+          staffFilter.innerHTML = '<option value="">All Staff</option>'; // Reset
+          state.staffMembers.forEach(staff => {
+            const option = document.createElement("option");
+            option.value = staff.username;
+            option.textContent = staff.displayName;
+            staffFilter.appendChild(option);
+          });
+
+          staffFilter.addEventListener("change", () => {
+            const query = document.getElementById("searchInput").value;
+            filterOrders(query);
+          });
+        } catch (err) {
+          console.warn("Failed to fetch staff list:", err);
+          // Continue initialization even if staff list fails
+        }
+
+        // Load initial orders
+        await loadInitialOrders();
+        
+        // Start polling with initial delay
+        setTimeout(() => {
+          const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
+          const statusInterval = setInterval(refreshOrderStatuses, REFRESH_INTERVAL);
+          state.intervals.push(orderInterval, statusInterval);
+        }, 1000);
 
         // Setup event listeners
         document.getElementById("searchInput").addEventListener("input", handlers.onSearchInput);
@@ -898,20 +909,31 @@
       }
     }
 
-    // Polling functions
+    // Add hash function to detect changes
+    function hashOrders(orders) {
+      return orders.map(o => `${o.id}-${o.status}-${o.updated_by}-${o.last_updated}-${o.claimed_by}`).join('|');
+    }
+
+    // Update the refreshOrders function
     async function refreshOrders() {
       try {
         const data = await api.fetchOrders();
         if (Array.isArray(data)) {
-          state.allOrders = data;
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
+          const newHash = hashOrders(data);
+          if (newHash !== state.lastOrderHash) {
+            state.allOrders = data;
+            state.lastOrderHash = newHash;
+            const query = document.getElementById("searchInput").value;
+            filterOrders(query);
+            console.log('📦 Orders updated due to changes detected');
+          }
         }
       } catch (err) {
         console.error('❌ Failed to refresh orders:', err);
       }
     }
 
+    // Update the refreshOrderStatuses function
     async function refreshOrderStatuses() {
       try {
         const response = await fetch("/dashboard/data", {
@@ -923,36 +945,40 @@
         }
 
         const latestData = await response.json();
-        const grid = document.getElementById("orderGrid");
-        const cards = grid.querySelectorAll(".card");
+        const newHash = hashOrders(latestData);
+        
+        // Only update if there are actual changes
+        if (newHash !== state.lastOrderHash) {
+          state.lastOrderHash = newHash;
+          const grid = document.getElementById("orderGrid");
+          const cards = grid.querySelectorAll(".card");
 
-        latestData.forEach((latestOrder) => {
-          const matchingCard = [...cards].find((card) =>
-            card.innerText.includes(latestOrder.id)
-          );
+          let hasChanges = false;
+          latestData.forEach((latestOrder) => {
+            const matchingCard = [...cards].find((card) =>
+              card.dataset.orderId === latestOrder.id
+            );
 
-          if (matchingCard) {
-            const dropdown = matchingCard.querySelector("select");
-            const currentStatus = dropdown.value.toLowerCase();
-            let newStatus = (latestOrder.status || "pending").toLowerCase();
+            if (matchingCard) {
+              const dropdown = matchingCard.querySelector("select");
+              const currentStatus = dropdown.value.toLowerCase();
+              let newStatus = (latestOrder.status || "pending").toLowerCase();
 
-            const allowedStatuses = [
-              "pending",
-              "pre print",
-              "printing",
-              "printing pay later",
-              "completed",
-            ];
-            if (!allowedStatuses.includes(newStatus)) {
-              newStatus = "pending";
+              if (currentStatus !== newStatus) {
+                hasChanges = true;
+                dropdown.value = newStatus;
+                applyStatusColor(dropdown, newStatus);
+              }
             }
+          });
 
-            if (currentStatus !== newStatus) {
-              dropdown.value = newStatus;
-              applyStatusColor(dropdown, newStatus);
-            }
+          // Only trigger a full refresh if we found changes
+          if (hasChanges) {
+            const query = document.getElementById("searchInput").value;
+            filterOrders(query);
+            console.log('🔄 Status updates applied');
           }
-        });
+        }
       } catch (err) {
         console.error("❌ Failed to refresh statuses:", err);
       }

@@ -24,7 +24,12 @@ try {
 }
 
 // ✅ CORS config
-const allowedOrigins = ["https://filamentbros.com", "https://api.filamentbros.com", "http://localhost:3300"];
+const allowedOrigins = [
+  "https://filamentbros.com", 
+  "https://api.filamentbros.com", 
+  "http://localhost:3300",
+  /^https:\/\/.*\.filamentbros\.com$/  // Allow all subdomains
+];
 
 const app = express();
 const server = http.createServer(app);
@@ -67,9 +72,19 @@ app.use((req, res, next) => {
 app.use(cors({
   origin: (origin, callback) => {
     console.log("🌐 Incoming origin:", origin);
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin) return callback(null, true);
+
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return allowed === origin;
+    });
+
+    if (isAllowed) {
       return callback(null, true);
     }
+
     console.warn("❌ Rejected CORS origin:", origin);
     callback(new Error("Not allowed by CORS"));
   },
@@ -433,7 +448,7 @@ app.get(["/dashboard", "/dashboard/"], (req, res) => {
 app.use(express.static(path.join(__dirname, "public")));
 
 // Add endpoint to get staff list
-app.get("/dashboard/staff", requireLogin, (req, res) => {
+app.get("/dashboard/staff", (req, res) => {
   // Only send usernames, not passwords
   const staffList = Object.keys(USERS).map(username => ({
     username,
