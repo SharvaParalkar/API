@@ -486,6 +486,15 @@
       "completed",
     ];
 
+    // Staff members
+    const STAFF_MEMBERS = [
+      { username: "sharva", displayName: "Sharva" },
+      { username: "pablo", displayName: "Pablo" },
+      { username: "peter", displayName: "Peter" },
+      { username: "nathan", displayName: "Nathan" },
+      { username: "evan", displayName: "Evan" }
+    ];
+
     // State management
     const state = {
       allOrders: [],
@@ -497,7 +506,7 @@
         showCompleted: false
       },
       intervals: [],
-      staffMembers: [],
+      staffMembers: STAFF_MEMBERS,
       lastOrderHash: null,
       lastRefreshTime: 0,
       minRefreshInterval: 5000 // Minimum time between refreshes in milliseconds
@@ -865,20 +874,16 @@
           return;
         }
 
-        // Initialize staff list from USERS object
-        state.staffMembers = Object.keys(USERS).map(username => ({
-          username,
-          displayName: username.charAt(0).toUpperCase() + username.slice(1)
-        }));
-        
         // Populate staff filter
+        console.log('👥 Populating staff filter with:', STAFF_MEMBERS);
         const staffFilter = document.getElementById("staffFilter");
         staffFilter.innerHTML = '<option value="">All Staff</option>'; // Reset
-        state.staffMembers.forEach(staff => {
+        STAFF_MEMBERS.forEach(staff => {
           const option = document.createElement("option");
           option.value = staff.username;
           option.textContent = staff.displayName;
           staffFilter.appendChild(option);
+          console.log(`Added staff option: ${staff.displayName}`);
         });
 
         staffFilter.addEventListener("change", () => {
@@ -888,6 +893,10 @@
 
         // Load initial orders
         await loadInitialOrders();
+        
+        // Force a refresh of the orders to ensure dropdowns are populated
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
         
         // Start polling with initial delay
         setTimeout(() => {
@@ -1119,7 +1128,7 @@
         staffSelect.appendChild(emptyOption);
 
         // Add staff options
-        state.staffMembers.forEach(staff => {
+        STAFF_MEMBERS.forEach(staff => {
           const option = document.createElement("option");
           option.value = staff.username;
           option.textContent = staff.displayName;
@@ -1441,137 +1450,4 @@
               li.innerHTML.includes("Staff Notes:")
             );
             if (notesLine) {
-              notesLine.innerHTML = `<strong>Staff Notes:</strong> ${message}`;
-            }
-          }
-        }
-      } catch (err) {
-        console.error(
-          `❌ Failed to auto-estimate for order ${order.id}:`,
-          err
-        );
-      }
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      const loginOverlay = document.getElementById("loginOverlay");
-      const loginForm = document.getElementById("loginForm");
-      const loginError = document.getElementById("loginError");
-
-      // Auto-login if remembered
-      if (localStorage.getItem("rememberedUser")) {
-        api.checkSession()
-          .then(data => {
-            state.currentUser = data.username;
-            ui.hideLoginOverlay();
-            loadInitialOrders();
-          })
-          .catch(() => {
-            console.warn("Failed to auto-login");
-            localStorage.removeItem("rememberedUser");
-          });
-      }
-
-      loginForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        loginError.style.display = "none";
-
-        const username = document.getElementById("username").value.trim().toLowerCase();
-        const password = document.getElementById("password").value.trim();
-        const remember = document.getElementById("rememberMe").checked;
-
-        try {
-          await api.login(username, password, remember);
-          
-          if (remember) {
-            localStorage.setItem("rememberedUser", "true");
-          }
-
-          // Get session info
-          const data = await api.checkSession();
-          state.currentUser = data.username;
-
-          // Hide login and load orders
-          ui.hideLoginOverlay();
-          await loadInitialOrders();
-
-          // Start polling
-          const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
-          state.intervals.push(orderInterval);
-
-        } catch (err) {
-          loginError.textContent = err.message || "Login failed. Please try again.";
-          loginError.style.display = "block";
-          console.error("Login failed:", err);
-        }
-      });
-    });
-
-    document.getElementById("tabAll").addEventListener("click", () => {
-      currentTab = "all";
-      updateTabStyles();
-      const query = document.getElementById("searchInput").value;
-      filterOrders(query);
-    });
-
-    document.getElementById("tabClaimed").addEventListener("click", () => {
-      currentTab = "claimed";
-      updateTabStyles();
-      const query = document.getElementById("searchInput").value;
-      filterOrders(query);
-    });
-
-    function updateTabStyles() {
-      document.getElementById("tabAll").style.backgroundColor = currentTab === "all" ? "#1f6463" : "#ccc";
-      document.getElementById("tabAll").style.color = currentTab === "all" ? "white" : "black";
-      document.getElementById("tabClaimed").style.backgroundColor = currentTab === "claimed" ? "#1f6463" : "#ccc";
-      document.getElementById("tabClaimed").style.color = currentTab === "claimed" ? "white" : "black";
-    }
-
-    document.getElementById("showOldToggle").addEventListener("change", async () => {
-      try {
-        // Fetch new data with current filters
-        const data = await api.fetchOrders();
-        state.allOrders = Array.isArray(data) ? data : [];
-        
-        // Apply current search filter
-        const query = document.getElementById("searchInput").value;
-        filterOrders(query);
-      } catch (err) {
-        console.error("❌ Failed to update orders:", err);
-      }
-    });
-
-    document.getElementById("showCompletedToggle").addEventListener("change", async () => {
-      try {
-        // Fetch new data with current filters
-        const data = await api.fetchOrders();
-        state.allOrders = Array.isArray(data) ? data : [];
-        
-        // Apply current search filter
-        const query = document.getElementById("searchInput").value;
-        filterOrders(query);
-      } catch (err) {
-        console.error("❌ Failed to update orders:", err);
-      }
-    });
-  </script>
-
-  <div id="loginOverlay" class="login-overlay">
-    <div class="login-box">
-      <h2>FilamentBros Login</h2>
-      <form id="loginForm">
-        <input type="text" id="username" placeholder="Username" required />
-        <input type="password" id="password" placeholder="Password" required />
-        <label class="remember-line">
-          <input type="checkbox" id="rememberMe" />
-          Remember Me
-        </label>
-        <button type="submit">Login</button>
-        <p id="loginError" style="color: red; display: none; font-size: 0.85rem"></p>
-      </form>
-    </div>
-  </div>
-</body>
-
-</html>
+              notesLine.innerHTML = `<strong>Staff Notes:</strong> ${message}`
