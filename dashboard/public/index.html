@@ -2242,24 +2242,6 @@
           }
         }
       }
-
-      // Update status history if visible
-      if (detailsSection?.classList.contains('visible') && order.statusHistory) {
-        let historyDiv = detailsSection.querySelector('.status-history');
-        if (!historyDiv) {
-          historyDiv = document.createElement('div');
-          historyDiv.className = 'status-history';
-          historyDiv.innerHTML = '<h3>Status History</h3>';
-          detailsSection.appendChild(historyDiv);
-        }
-        
-        historyDiv.innerHTML = '<h3>Status History</h3>' + order.statusHistory.map(history => `
-          <div class="status-history-item">
-            <span>${history.previous_status} → ${history.new_status}</span>
-            <span>${new Date(history.changed_at).toLocaleString()} by ${history.changed_by}</span>
-          </div>
-        `).join('');
-      }
     }
 
     // Create staff assignment dropdown

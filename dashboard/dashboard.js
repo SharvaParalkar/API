@@ -351,73 +351,39 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
   }
 
   try {
-    // Start a transaction
-    const transaction = db.transaction(() => {
-      // Get current status before update
-      const currentOrder = db.prepare("SELECT status FROM orders WHERE id = ?").get(orderId);
-      
-      // Update the order
-      const updateStmt = db.prepare(`
-        UPDATE orders 
-        SET status = ?,
-            updated_by = ?,
-            last_updated = COALESCE(?, last_updated)
-        WHERE id = ?
-      `);
-      const result = updateStmt.run(status, username, timestamp, orderId);
-      
-      if (result.changes === 0) {
-        throw new Error("Order not found");
-      }
+    // Update the order
+    const updateStmt = db.prepare(`
+      UPDATE orders 
+      SET status = ?,
+          updated_by = ?,
+          last_updated = COALESCE(?, last_updated)
+      WHERE id = ?
+    `);
+    const result = updateStmt.run(status, username, timestamp, orderId);
+    
+    if (result.changes === 0) {
+      throw new Error("Order not found");
+    }
 
-      // Add status history entry if status changed
-      if (currentOrder && currentOrder.status !== status) {
-        const historyStmt = db.prepare(`
-          INSERT INTO order_status_history (
-            order_id, 
-            previous_status, 
-            new_status, 
-            changed_by, 
-            changed_at
-          ) VALUES (?, ?, ?, ?, ?)
-        `);
-        historyStmt.run(orderId, currentOrder.status, status, username, timestamp);
-      }
+    // Fetch the updated order
+    const updatedOrder = db.prepare(`
+      SELECT *,
+             updated_by,
+             COALESCE(last_updated, submitted_at) as last_updated
+      FROM orders 
+      WHERE id = ?
+    `).get(orderId);
 
-      // Fetch the updated order
-      const updatedOrder = db.prepare(`
-        SELECT *,
-               updated_by,
-               COALESCE(last_updated, submitted_at) as last_updated
-        FROM orders 
-        WHERE id = ?
-      `).get(orderId);
+    if (!updatedOrder) {
+      throw new Error("Failed to fetch updated order");
+    }
 
-      if (!updatedOrder) {
-        throw new Error("Failed to fetch updated order");
-      }
-
-      // Get status history
-      const history = db.prepare(`
-        SELECT * FROM order_status_history 
-        WHERE order_id = ? 
-        ORDER BY changed_at DESC
-      `).all(orderId);
-
-      updatedOrder.statusHistory = history;
-
-      // Broadcast the update to all connected clients
-      broadcastUpdate('orderUpdate', {
-        type: 'status',
-        order: updatedOrder
-      });
-
-      return updatedOrder;
+    // Broadcast the update to all connected clients
+    broadcastUpdate('orderUpdate', {
+      type: 'status',
+      order: updatedOrder
     });
 
-    // Execute the transaction
-    const updatedOrder = transaction();
-    
     console.log('✅ Status updated successfully:', {
       orderId,
       newStatus: status,
