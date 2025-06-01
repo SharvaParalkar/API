@@ -10,6 +10,9 @@ const http = require('http');
 const { Server } = require('socket.io');
 const sharedsession = require('express-socket.io-session');
 
+// ✅ CORS config
+const allowedOrigins = ["https://filamentbros.com", "https://api.filamentbros.com"];
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -33,9 +36,6 @@ app.use((req, res, next) => {
   });
   next();
 });
-
-// ✅ CORS config
-const allowedOrigins = ["https://filamentbros.com", "https://api.filamentbros.com"];
 
 app.use(cors({
   origin: (origin, callback) => {
