@@ -1436,7 +1436,7 @@
                 card.appendChild(unclaimBtn);
             }
 
-            // In "All Orders" tab, show claim status or claim button
+            // Only show claim button in "All Orders" tab
             if (state.currentTab === "all") {
                 if (isCompleted) {
                     const completedLabel = document.createElement("button");
