@@ -429,6 +429,15 @@
     .center-search input:focus {
       border-color: #1f6463;
     }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
   </style>
 </head>
 
@@ -497,13 +506,14 @@
       retryCount: 0,
       filters: {
         showOld: false,
-        showCompleted: false
+        showCompleted: false,
+        staffFilter: ""
       },
       intervals: [],
       staffMembers: [],
       lastOrderHash: null,
       lastRefreshTime: 0,
-      minRefreshInterval: 5000 // Minimum time between refreshes in milliseconds
+      minRefreshInterval: 5000
     };
 
     // First full load
@@ -797,10 +807,12 @@
         const allTab = document.getElementById("tabAll");
         const claimedTab = document.getElementById("tabClaimed");
         
-        allTab.style.backgroundColor = state.currentTab === "all" ? "#1f6463" : "#ccc";
-        allTab.style.color = state.currentTab === "all" ? "white" : "black";
-        claimedTab.style.backgroundColor = state.currentTab === "claimed" ? "#1f6463" : "#ccc";
-        claimedTab.style.color = state.currentTab === "claimed" ? "white" : "black";
+        if (allTab && claimedTab) {
+          allTab.style.backgroundColor = state.currentTab === "all" ? "#1f6463" : "#ccc";
+          allTab.style.color = state.currentTab === "all" ? "white" : "black";
+          claimedTab.style.backgroundColor = state.currentTab === "claimed" ? "#1f6463" : "#ccc";
+          claimedTab.style.color = state.currentTab === "claimed" ? "white" : "black";
+        }
       },
 
       showLoginOverlay() {
@@ -811,6 +823,28 @@
       hideLoginOverlay() {
         const overlay = document.getElementById("loginOverlay");
         if (overlay) overlay.style.display = "none";
+      },
+
+      showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background-color: #ff6b6b;
+          color: white;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          z-index: 1000;
+          animation: slideIn 0.3s ease-out;
+        `;
+        errorDiv.textContent = message;
+        document.body.appendChild(errorDiv);
+        setTimeout(() => {
+          errorDiv.style.animation = 'slideOut 0.3s ease-in';
+          setTimeout(() => errorDiv.remove(), 300);
+        }, 3000);
       }
     };
 
@@ -837,6 +871,7 @@
           event.target.value = previousValue;
           applyStatusColor(event.target, previousValue);
           event.target.dataset.previousValue = previousValue;
+          ui.showError(`Failed to update status: ${err.message}`);
         }
       },
 
@@ -849,7 +884,19 @@
 
       onSearchInput: debounce((event) => {
         filterOrders(event.target.value);
-      }, SEARCH_DEBOUNCE)
+      }, SEARCH_DEBOUNCE),
+
+      onFilterChange: async () => {
+        try {
+          const data = await api.fetchOrders();
+          state.allOrders = Array.isArray(data) ? data : [];
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
+        } catch (err) {
+          console.error("❌ Failed to update orders:", err);
+          ui.showError("Failed to update filters");
+        }
+      }
     };
 
     // Initialize search functionality
@@ -940,7 +987,45 @@
       });
     }
 
-    // Replace the polling setup in initialize() with SSE
+    // Fix the initialization of event listeners
+    function initializeEventListeners() {
+      // Tab listeners
+      document.getElementById("tabAll")?.addEventListener("click", () => handlers.onTabClick("all"));
+      document.getElementById("tabClaimed")?.addEventListener("click", () => handlers.onTabClick("claimed"));
+
+      // Filter listeners
+      const oldOrdersToggle = document.getElementById("showOldToggle");
+      const completedToggle = document.getElementById("showCompletedToggle");
+      const staffFilter = document.getElementById("staffFilter");
+      const searchInput = document.getElementById("searchInput");
+
+      [oldOrdersToggle, completedToggle, staffFilter].forEach(element => {
+        if (element) {
+          element.addEventListener("change", handlers.onFilterChange);
+        }
+      });
+
+      if (searchInput) {
+        searchInput.addEventListener("input", handlers.onSearchInput);
+      }
+
+      // Window event listeners
+      window.addEventListener('beforeunload', () => {
+        // Cleanup any SSE connections
+        if (window.dashboardEventSource) {
+          window.dashboardEventSource.close();
+        }
+      });
+
+      // Error handling for failed image loads
+      document.addEventListener('error', (e) => {
+        if (e.target.tagName === 'IMG') {
+          e.target.style.display = 'none';
+        }
+      }, true);
+    }
+
+    // Update the initialize function to use the new event listener initialization
     async function initialize() {
       try {
         console.log('🚀 Initializing dashboard...');
@@ -962,7 +1047,7 @@
           return;
         }
 
-        // Load initial orders first
+        // Load initial orders
         await loadInitialOrders();
         
         // Initialize staff list
@@ -982,23 +1067,23 @@
           }
         } catch (err) {
           console.error('❌ Failed to load staff list:', err);
+          ui.showError('Failed to load staff list');
         }
+        
+        // Initialize event listeners
+        initializeEventListeners();
         
         // Initialize SSE connection
         initializeSSE();
 
-        // Setup tab event listeners
-        document.getElementById("tabAll")?.addEventListener("click", () => handlers.onTabClick("all"));
-        document.getElementById("tabClaimed")?.addEventListener("click", () => handlers.onTabClick("claimed"));
-
         console.log('✅ Dashboard initialized successfully');
       } catch (err) {
         console.error('❌ Failed to initialize dashboard:', err);
-        await handleError(err, 'initialization');
+        ui.showError('Failed to initialize dashboard');
       }
     }
 
-    // Add SSE initialization and handling
+    // Update the SSE initialization to store the eventSource in window
     function initializeSSE() {
       let retryCount = 0;
       const maxRetries = 5;
@@ -1021,8 +1106,12 @@
             setTimeout(connect, retryDelay * retryCount);
           } else {
             console.error('❌ Max SSE reconnection attempts reached');
+            ui.showError('Lost connection to server. Please refresh the page.');
           }
         };
+
+        // Store the eventSource in window for cleanup
+        window.dashboardEventSource = eventSource;
 
         // Handle heartbeat to keep connection alive
         eventSource.addEventListener('heartbeat', (e) => {
@@ -1055,72 +1144,14 @@
 
           } catch (err) {
             console.error('❌ Failed to process order update:', err);
+            ui.showError('Failed to process update');
           }
         });
 
         return eventSource;
       }
 
-      // Start the SSE connection
-      const eventSource = connect();
-
-      // Clean up on page unload
-      window.addEventListener('beforeunload', () => {
-        eventSource.close();
-      });
-    }
-
-    // Helper function to update a specific order card
-    function updateOrderCard(card, order) {
-      // Update status dropdown
-      const statusDropdown = card.querySelector('.status-dropdown');
-      if (statusDropdown) {
-        statusDropdown.value = order.status || 'pending';
-        applyStatusColor(statusDropdown, order.status || 'pending');
-      }
-
-      // Update price
-      const priceElement = card.querySelector('p');
-      if (priceElement) {
-        priceElement.innerHTML = `<strong>Est. Price:</strong> ${
-          order.est_price ? `$${order.est_price.toFixed(2)}` : '—'
-        }`;
-      }
-
-      // Update staff assignment
-      const staffSelect = card.querySelector('.staff-dropdown');
-      if (staffSelect) {
-        staffSelect.value = order.assigned_staff || '';
-      }
-
-      // Update claim status
-      const claimBtn = card.querySelector('button:last-child');
-      if (claimBtn) {
-        const isClaimed = order.claimed_by !== null;
-        claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : 'Claim Order';
-        claimBtn.disabled = isClaimed;
-        claimBtn.style.backgroundColor = isClaimed ? '#999' : '#ccc';
-        claimBtn.style.cursor = isClaimed ? 'not-allowed' : 'pointer';
-      }
-
-      // Update details section if visible
-      const detailsSection = card.querySelector('.details-section');
-      if (detailsSection?.classList.contains('visible')) {
-        const table = detailsSection.querySelector('.details-table');
-        if (table) {
-          // Update staff notes
-          const notesRow = [...table.rows].find(row => row.cells[0].textContent === 'Staff Notes:');
-          if (notesRow) {
-            notesRow.cells[1].textContent = order.order_notes || '—';
-          }
-
-          // Update last updated
-          const updatedRow = [...table.rows].find(row => row.cells[0].textContent === 'Last Updated By:');
-          if (updatedRow) {
-            updatedRow.cells[1].textContent = order.updated_by || '—';
-          }
-        }
-      }
+      connect();
     }
 
     // Add back the renderOrders function
@@ -1186,7 +1217,7 @@
             statusDropdown.value = previousValue;
             applyStatusColor(statusDropdown, previousValue);
             statusDropdown.dataset.previousValue = previousValue;
-            alert(`Failed to update status: ${err.message}`);
+            ui.showError(`Failed to update status: ${err.message}`);
           }
         });
 
@@ -1362,7 +1393,7 @@
                   filterOrders(query);
                 } catch (err) {
                   console.error(`Failed to unclaim order ${order.id}:`, err);
-                  alert(err.message || "Failed to unclaim order");
+                  ui.showError(err.message || "Failed to unclaim order");
                 }
               });
 
@@ -1402,7 +1433,7 @@
                       filterOrders(query);
                     } catch (err) {
                       console.error(`Failed to claim order ${order.id}:`, err);
-                      alert(err.message || "Failed to claim order");
+                      ui.showError(err.message || "Failed to claim order");
                     }
                   });
                 }
@@ -1545,6 +1576,150 @@
         console.error("❌ Failed to update orders:", err);
       }
     });
+
+    // Add back the applyStatusColor function
+    function applyStatusColor(dropdown, status) {
+      const normalized = status.toLowerCase().replace(/\s+/g, "-");
+      dropdown.className = "status-dropdown status-" + normalized;
+    }
+
+    // Add back the autoEstimateOrder function
+    async function autoEstimateOrder(order, card) {
+      try {
+        const files = await fetch(`/dashboard/files/${order.id}`).then((r) =>
+          r.json()
+        );
+        if (!files.length) {
+          console.log(`⏭️ Skipped ${order.id} — No STL files found.`);
+          return;
+        }
+
+        const formData = new FormData();
+        const fileNames = [];
+
+        for (const fileUrl of files) {
+          const response = await fetch(fileUrl);
+          const blob = await response.blob();
+          const filename = decodeURIComponent(fileUrl.split("/").pop());
+          formData.append("stl", blob, filename);
+          fileNames.push(filename);
+        }
+
+        const sseResponse = await fetch("/stl/upload", {
+          method: "POST",
+          headers: {
+            Origin: "https://filamentbros.com",
+          },
+          body: formData,
+        });
+
+        const reader = sseResponse.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        let totalEstimate = 0;
+        let failedFiles = [];
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const events = buffer.split("\n\n");
+          buffer = events.pop(); // Keep last incomplete
+
+          for (const event of events) {
+            if (event.startsWith("data:")) {
+              const data = JSON.parse(event.replace("data:", "").trim());
+              if (data.status === "success" && data.price) {
+                totalEstimate += parseFloat(data.price);
+              } else if (data.status === "error") {
+                failedFiles.push(data.file || "Unknown file");
+              }
+            }
+          }
+        }
+
+        if (totalEstimate > 0) {
+          await fetch("/dashboard/update-price", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: order.id,
+              est_price: totalEstimate.toFixed(2),
+            }),
+          });
+          console.log(
+            `✅ Updated order ${order.id} with estimate $${totalEstimate.toFixed(2)}`
+          );
+        }
+
+        if (card) {
+          const priceLine = card.querySelector("p");
+          if (priceLine) {
+            priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(2)}`;
+          }
+
+          if (failedFiles.length > 0) {
+            const message = `⚠️ Print estimate failed for: ${failedFiles.join(", ")}`;
+
+            // Update in database
+            await fetch("/dashboard/update-notes", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: order.id,
+                order_notes: message,
+              }),
+            });
+
+            // Update UI immediately
+            const notesLine = [...card.querySelectorAll("li")].find((li) =>
+              li.innerHTML.includes("Staff Notes:")
+            );
+            if (notesLine) {
+              notesLine.innerHTML = `<strong>Staff Notes:</strong> ${message}`;
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`❌ Failed to auto-estimate for order ${order.id}:`, err);
+      }
+    }
+
+    // Add necessary CSS animations
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Add error handling wrapper for async functions
+    const withErrorHandling = (fn) => async (...args) => {
+      try {
+        return await fn(...args);
+      } catch (err) {
+        console.error('❌ Error:', err);
+        ui.showError(err.message || 'An error occurred');
+        throw err;
+      }
+    };
+
+    // Wrap API calls with error handling
+    Object.keys(api).forEach(key => {
+      if (typeof api[key] === 'function') {
+        api[key] = withErrorHandling(api[key]);
+      }
+    });
+
+    // Start the app
+    document.addEventListener("DOMContentLoaded", initialize);
   </script>
 
   <div id="loginOverlay" class="login-overlay">
