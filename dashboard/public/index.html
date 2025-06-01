@@ -545,27 +545,24 @@
       if (index !== -1) {
         state.allOrders[index] = updatedOrder;
       } else {
-        // If the order isn't in our state, check if it should be based on current filters
-        const shouldInclude = shouldShowOrder(updatedOrder);
-        if (shouldInclude) {
-          state.allOrders.unshift(updatedOrder);
+        state.allOrders.unshift(updatedOrder);
+      }
+
+      // If we're in claimed tab and this order was unclaimed, remove it
+      if (state.currentTab === "claimed" && updatedOrder.claimed_by !== state.currentUser) {
+        const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
+        if (orderCard) {
+          orderCard.remove();
         }
+        return;
       }
 
       // Update UI if the order is currently visible
       const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
       if (orderCard) {
-        // Update status dropdown
-        const statusDropdown = orderCard.querySelector('.status-dropdown');
-        if (statusDropdown) {
-          statusDropdown.value = updatedOrder.status || 'pending';
-          applyStatusColor(statusDropdown, updatedOrder.status || 'pending');
-        }
-
-        // Update other card elements
-        updateCardElements(orderCard, updatedOrder);
+        updateOrderCard(orderCard, updatedOrder);
       } else {
-        // If the card isn't visible but should be, reapply current filters
+        // If the card isn't visible but should be, reapply filters
         const query = document.getElementById("searchInput").value;
         filterOrders(query);
       }
@@ -953,19 +950,24 @@
 
       console.log(`🔍 Filtering ${state.allOrders.length} orders with query: "${q}"`);
 
-      const filtered = state.allOrders.filter((order) => {
+      // First, filter based on the current tab
+      let filtered = state.allOrders.filter((order) => {
         if (!order) return false;
 
-        // Apply tab filters first
+        // For claimed tab, strictly check if claimed by current user
         if (state.currentTab === "claimed") {
-          // In claimed tab, only show orders claimed by current user
           return order.claimed_by === state.currentUser;
         }
 
+        return true;
+      });
+
+      // Then apply additional filters
+      filtered = filtered.filter((order) => {
         // Apply staff filter
         if (staffFilter && order.assigned_staff !== staffFilter) return false;
 
-        // If no search query, include the order (but still respect other filters)
+        // If no search query, include the order
         if (!q) return true;
 
         // Search in all relevant fields
@@ -985,6 +987,10 @@
       });
 
       console.log(`✨ Found ${filtered.length} matching orders`);
+      
+      // Clear the grid before rendering
+      const grid = document.getElementById("orderGrid");
+      grid.innerHTML = "";
       
       // Render results immediately
       requestAnimationFrame(() => {
@@ -1389,8 +1395,23 @@
                 unclaimBtn.addEventListener("click", async () => {
                     try {
                         await api.unclaimOrder(order.id);
-                        order.claimed_by = null;
-                        order.assigned_staff = null; // Also clear assigned staff
+                        // Remove the order from the current view if we're in claimed tab
+                        if (state.currentTab === "claimed") {
+                            const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
+                            if (orderCard) {
+                                orderCard.remove();
+                            }
+                        }
+                        // Update the order in state
+                        const index = state.allOrders.findIndex(o => o.id === order.id);
+                        if (index !== -1) {
+                            state.allOrders[index] = {
+                                ...state.allOrders[index],
+                                claimed_by: null,
+                                assigned_staff: null
+                            };
+                        }
+                        // Refresh the view
                         const query = document.getElementById("searchInput").value;
                         filterOrders(query);
                     } catch (err) {
