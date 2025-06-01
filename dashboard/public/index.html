@@ -1639,6 +1639,413 @@
       }
     });
 
+    // Add back the renderOrders function
+    async function renderOrders(orders, expandDetails = false, container = null) {
+      const grid = container || document.getElementById("orderGrid");
+      if (!container) grid.innerHTML = "";
+
+      for (const order of orders) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.orderId = order.id;
+
+        const heading = document.createElement("h2");
+        heading.textContent = order.name || "Unnamed Order";
+        card.appendChild(heading);
+
+        const statusOptions = [
+          "pending",
+          "pre print",
+          "printing",
+          "printing pay later",
+          "completed",
+        ];
+        const currentStatus = (order.status || "pending").toLowerCase();
+
+        const statusDropdown = document.createElement("select");
+        statusDropdown.className = "status-dropdown";
+        statusDropdown.dataset.previousValue = currentStatus;
+        applyStatusColor(statusDropdown, currentStatus);
+
+        statusOptions.forEach((status) => {
+          const option = document.createElement("option");
+          option.value = status;
+          option.textContent = status
+            .split(" ")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+          if (status.toLowerCase() === currentStatus.toLowerCase()) {
+            option.selected = true;
+          }
+          statusDropdown.appendChild(option);
+        });
+
+        // Single event handler for status changes
+        statusDropdown.addEventListener("change", async () => {
+          const newStatus = statusDropdown.value;
+          const previousValue = statusDropdown.dataset.previousValue;
+
+          try {
+            // Update UI immediately
+            applyStatusColor(statusDropdown, newStatus);
+            statusDropdown.dataset.previousValue = newStatus;
+
+            console.log(`🔄 Initiating status change for ${order.id}: ${newStatus}`);
+
+            // Send HTTP request
+            const response = await api.updateStatus(order.id, newStatus);
+            console.log('✅ Status update response:', response);
+
+          } catch (err) {
+            console.error(`❌ Failed to update status:`, err);
+            // Revert on error
+            statusDropdown.value = previousValue;
+            applyStatusColor(statusDropdown, previousValue);
+            statusDropdown.dataset.previousValue = previousValue;
+            ui.showError(`Failed to update status: ${err.message}`);
+          }
+        });
+
+        const statusWrapper = document.createElement("div");
+        statusWrapper.style.marginTop = "0.5rem";
+        statusWrapper.appendChild(statusDropdown);
+        card.appendChild(statusWrapper);
+
+        // Show estimated price right under heading
+        const price = document.createElement("p");
+        price.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : "—"}`;
+        card.appendChild(price);
+
+        const toggleBtn = document.createElement("button");
+        toggleBtn.className = "details-toggle";
+        toggleBtn.textContent = "Show Details ▼";
+        card.appendChild(toggleBtn);
+
+        const detailsSection = document.createElement("div");
+        detailsSection.className = "details-section";
+        card.appendChild(detailsSection);
+
+        const idLine = document.createElement("div");
+        idLine.className = "order-id";
+        idLine.textContent = `Order ID: ${order.id}`;
+        card.appendChild(idLine);
+
+        const table = document.createElement("table");
+        table.className = "details-table";
+        const submittedDate = new Date(order.submitted_at);
+        const formattedDate = submittedDate.toLocaleString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+
+        // Create staff assignment dropdown
+        const staffSelect = document.createElement("select");
+        staffSelect.className = "staff-dropdown";
+        staffSelect.style.padding = "0.4rem";
+        staffSelect.style.borderRadius = "0.3rem";
+        staffSelect.style.border = "1px solid #ccc";
+        staffSelect.style.marginLeft = "0.5rem";
+
+        // Add empty option
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "-- Select Staff --";
+        staffSelect.appendChild(emptyOption);
+
+        // Add staff options
+        state.staffMembers.forEach(staff => {
+          const option = document.createElement("option");
+          option.value = staff.username;
+          option.textContent = staff.displayName;
+          if (staff.username === order.assigned_staff) {
+            option.selected = true;
+          }
+          staffSelect.appendChild(option);
+        });
+
+        // Handle staff assignment
+        staffSelect.addEventListener("change", async () => {
+          try {
+            const newStaff = staffSelect.value;
+            const response = await api.assignStaff(order.id, newStaff);
+            order.assigned_staff = newStaff;
+          } catch (err) {
+            console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
+            staffSelect.value = order.assigned_staff || ""; // Revert on error
+            ui.showError(`Failed to assign staff: ${err.message}`);
+          }
+        });
+
+        [
+          ["Email", order.email],
+          ["Phone", order.phone],
+          ["Staff", order.assigned_staff || "—"],
+          ["Customer Notes", order.notes || "—"],
+          ["Staff Notes", order.order_notes || "—"],
+          ["Submitted At", formattedDate],
+          ["Last Updated By", order.updated_by || "—"]
+        ].forEach(([label, value]) => {
+          const row = document.createElement("tr");
+          if (label === "Staff") {
+            row.innerHTML = `<td>${label}:</td><td></td>`;
+            row.cells[1].appendChild(staffSelect);
+          } else {
+            row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
+          }
+          table.appendChild(row);
+        });
+
+        detailsSection.appendChild(table);
+
+        toggleBtn.onclick = () => {
+          const visible = detailsSection.classList.toggle("visible");
+          toggleBtn.textContent = visible ? "Hide ▲" : "Show Details ▼";
+        };
+
+        // Expand by default if search is active
+        if (expandDetails) {
+          detailsSection.classList.add("visible");
+          toggleBtn.textContent = "Hide ▲";
+        }
+
+        fetch(`/dashboard/files/${order.id}`)
+          .then((res) => res.json())
+          .then((files) => {
+            if (files.length > 0) {
+              const stlTitle = document.createElement("p");
+              stlTitle.className = "stl-header";
+              stlTitle.textContent = "STL Files:";
+              detailsSection.appendChild(stlTitle);
+
+              const list = document.createElement("ul");
+              list.className = "stl-list";
+
+              files.forEach((fileUrl) => {
+                const fullFilename = decodeURIComponent(fileUrl.split("/").pop());
+                const downloadUrl = `/dashboard/fileserve/${encodeURIComponent(fullFilename)}`;
+                const filename = fullFilename.replace(/^order[_-]?[a-zA-Z0-9]+[_-]/i, "");
+
+                const li = document.createElement("li");
+                li.innerHTML = `
+                  <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
+                    ${filename}
+                  </a>`;
+                list.appendChild(li);
+              });
+
+              detailsSection.appendChild(list);
+
+              if (files.length > 0) {
+                const downloadAll = document.createElement("a");
+                downloadAll.href = `/dashboard/download-all/${order.id}`;
+                downloadAll.className = "download-all-btn";
+                downloadAll.textContent = "📦 Download All";
+                detailsSection.appendChild(downloadAll);
+              }
+            }
+
+            const isClaimed = order.claimed_by !== null;
+            const isCompleted = order.status?.toLowerCase() === "completed";
+            const isClaimedByCurrentUser = order.claimed_by === state.currentUser;
+
+            // Add unclaim button if the order is claimed by current user (regardless of tab)
+            if (isClaimedByCurrentUser && !isCompleted) {
+              const unclaimBtn = document.createElement("button");
+              unclaimBtn.textContent = "Unclaim";
+              unclaimBtn.style.backgroundColor = "#ccc";
+              unclaimBtn.style.border = "none";
+              unclaimBtn.style.color = "#333";
+              unclaimBtn.style.padding = "0.5rem 1rem";
+              unclaimBtn.style.borderRadius = "0.5rem";
+              unclaimBtn.style.marginTop = "0.5rem";
+              unclaimBtn.style.cursor = "pointer";
+
+              unclaimBtn.addEventListener("click", async () => {
+                try {
+                  await api.unclaimOrder(order.id);
+                  // Remove the order from the current view if we're in claimed tab
+                  if (state.currentTab === "claimed") {
+                    const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
+                    if (orderCard) {
+                      orderCard.remove();
+                    }
+                  }
+                  // Update the order in state
+                  const index = state.allOrders.findIndex(o => o.id === order.id);
+                  if (index !== -1) {
+                    state.allOrders[index] = {
+                      ...state.allOrders[index],
+                      claimed_by: null,
+                      assigned_staff: null
+                    };
+                  }
+                  // Refresh the view
+                  const query = document.getElementById("searchInput").value;
+                  filterOrders(query);
+                } catch (err) {
+                  console.error(`Failed to unclaim order ${order.id}:`, err);
+                  ui.showError(err.message || "Failed to unclaim order");
+                }
+              });
+
+              card.appendChild(unclaimBtn);
+            }
+
+            // Only show claim button in "All Orders" tab
+            if (state.currentTab === "all") {
+              if (isCompleted) {
+                const completedLabel = document.createElement("button");
+                completedLabel.textContent = "Completed";
+                completedLabel.disabled = true;
+                completedLabel.style.backgroundColor = "#999";
+                completedLabel.style.border = "none";
+                completedLabel.style.color = "#666";
+                completedLabel.style.padding = "0.5rem 1rem";
+                completedLabel.style.borderRadius = "0.5rem";
+                completedLabel.style.marginTop = "0.5rem";
+                completedLabel.style.cursor = "not-allowed";
+                card.appendChild(completedLabel);
+              } else if (!isClaimedByCurrentUser) {
+                const claimBtn = document.createElement("button");
+                claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : "Claim Order";
+                claimBtn.disabled = isClaimed;
+                claimBtn.style.backgroundColor = isClaimed ? '#999' : '#ccc';
+                claimBtn.style.border = "none";
+                claimBtn.style.color = "#333";
+                claimBtn.style.padding = "0.5rem 1rem";
+                claimBtn.style.borderRadius = "0.5rem";
+                claimBtn.style.marginTop = "0.5rem";
+                claimBtn.style.cursor = isClaimed ? "not-allowed" : "pointer";
+
+                if (!isClaimed) {
+                  claimBtn.addEventListener("click", async () => {
+                    try {
+                      await api.claimOrder(order.id);
+                      order.claimed_by = state.currentUser;
+                      order.assigned_staff = state.currentUser; // Also set assigned staff
+                      const query = document.getElementById("searchInput").value;
+                      filterOrders(query);
+                    } catch (err) {
+                      console.error(`Failed to claim order ${order.id}:`, err);
+                      ui.showError(err.message || "Failed to claim order");
+                    }
+                  });
+                }
+
+                card.appendChild(claimBtn);
+              }
+            }
+          })
+          .catch((err) => {
+            console.error(`❌ Failed to load STL files for ${order.id}`, err);
+          });
+
+        grid.appendChild(card);
+
+        if (
+          (order.est_price == null || order.est_price === 0) &&
+          !(order.order_notes && order.order_notes.includes("Print estimate failed"))
+        ) {
+          autoEstimateOrder(order, card);
+        }
+      }
+    }
+
+    // Add back the initializeSSE function
+    function initializeSSE() {
+      let retryCount = 0;
+      const maxRetries = 5;
+      const retryDelay = 1000;
+
+      function connect() {
+        const eventSource = new EventSource('/dashboard/updates', { withCredentials: true });
+
+        eventSource.onopen = () => {
+          console.log('✅ SSE connection established');
+          retryCount = 0;
+        };
+
+        eventSource.onerror = (error) => {
+          console.error('❌ SSE connection error:', error);
+          eventSource.close();
+
+          if (retryCount < maxRetries) {
+            retryCount++;
+            setTimeout(connect, retryDelay * retryCount);
+          } else {
+            console.error('❌ Max SSE reconnection attempts reached');
+            ui.showError('Lost connection to server. Please refresh the page.');
+          }
+        };
+
+        // Store the eventSource in window for cleanup
+        window.dashboardEventSource = eventSource;
+
+        // Handle heartbeat to keep connection alive
+        eventSource.addEventListener('heartbeat', (e) => {
+          console.log('💓 SSE heartbeat received');
+        });
+
+        // Handle order updates
+        eventSource.addEventListener('orderUpdate', (e) => {
+          try {
+            const update = JSON.parse(e.data);
+            console.log('📦 Received order update:', update);
+
+            // Find and update the order in state
+            const index = state.allOrders.findIndex(order => order.id === update.order.id);
+            if (index !== -1) {
+              state.allOrders[index] = update.order;
+            } else {
+              state.allOrders.unshift(update.order);
+            }
+
+            // Update UI for the specific order
+            const orderCard = document.querySelector(`[data-order-id="${update.order.id}"]`);
+            if (orderCard) {
+              updateOrderCard(orderCard, update.order);
+            } else {
+              // If card isn't visible but should be based on current filters, reapply filters
+              const query = document.getElementById("searchInput").value;
+              filterOrders(query);
+            }
+
+          } catch (err) {
+            console.error('❌ Failed to process order update:', err);
+            ui.showError('Failed to process update');
+          }
+        });
+
+        return eventSource;
+      }
+
+      connect();
+    }
+
+    // Add back the renderClaimedOrders function
+    async function renderClaimedOrders(orders, expandDetails = false) {
+      const grid = document.getElementById("orderGrid");
+      grid.innerHTML = "";
+
+      // Filter for orders that are properly claimed by the current user
+      const validStaffMembers = state.staffMembers.map(staff => staff.username);
+      const claimedOrders = orders.filter(order =>
+        order.claimed_by === state.currentUser &&
+        order.assigned_staff === state.currentUser &&
+        validStaffMembers.includes(order.assigned_staff) &&
+        order.status?.toLowerCase() !== "completed"
+      );
+
+      console.log(`📋 Rendering ${claimedOrders.length} claimed orders for user ${state.currentUser}`);
+
+      // Use the existing renderOrders function to render the filtered orders
+      await renderOrders(claimedOrders, expandDetails, grid);
+    }
+
     // Start the app
     document.addEventListener("DOMContentLoaded", initialize);
   </script>
