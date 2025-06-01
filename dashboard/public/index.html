@@ -659,11 +659,12 @@
           // Build query string
           const params = new URLSearchParams({
             showOld: showOld.toString(),
-            showCompleted: showCompleted.toString()
+            showCompleted: showCompleted.toString(),
+            showClaimed: (state.currentTab === "claimed").toString()
           });
           
           const url = `/dashboard/data?${params.toString()}`;
-          console.log('🔍 Fetching orders with filters:', { showOld, showCompleted });
+          console.log('🔍 Fetching orders with filters:', { showOld, showCompleted, showClaimed: state.currentTab === "claimed" });
           
           const res = await fetch(url, { credentials: 'include' });
           if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
