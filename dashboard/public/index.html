@@ -511,6 +511,12 @@
       try {
         const data = await api.fetchOrders();
         state.allOrders = Array.isArray(data) ? data : [];
+        console.log('📦 Initial orders loaded:', state.allOrders.length);
+        
+        // Initialize search immediately after orders load
+        initializeSearch();
+        
+        // Apply any existing search query
         const query = document.getElementById("searchInput").value;
         filterOrders(query);
       } catch (err) {
@@ -849,15 +855,42 @@
     // Initialize search functionality
     function initializeSearch() {
       const searchInput = document.getElementById("searchInput");
-      if (!searchInput) return;
+      if (!searchInput) {
+        console.error('Search input not found');
+        return;
+      }
 
-      // Remove any existing listeners
-      searchInput.removeEventListener("input", filterOrders);
+      // Clear any existing listeners
+      const newSearchInput = searchInput.cloneNode(true);
+      searchInput.parentNode.replaceChild(newSearchInput, searchInput);
       
-      // Add new listener
-      searchInput.addEventListener("input", (e) => {
+      // Add new listener for immediate search
+      newSearchInput.addEventListener("input", (e) => {
         const query = e.target.value;
+        console.log('🔍 Search input:', query);
         filterOrders(query);
+      });
+
+      // Initialize toggle listeners
+      const oldOrdersToggle = document.getElementById("showOldToggle");
+      const completedToggle = document.getElementById("showCompletedToggle");
+      const staffFilter = document.getElementById("staffFilter");
+
+      [oldOrdersToggle, completedToggle, staffFilter].forEach(element => {
+        if (element) {
+          const newElement = element.cloneNode(true);
+          element.parentNode.replaceChild(newElement, element);
+          newElement.addEventListener("change", async () => {
+            try {
+              const data = await api.fetchOrders();
+              state.allOrders = Array.isArray(data) ? data : [];
+              const currentQuery = document.getElementById("searchInput").value;
+              filterOrders(currentQuery);
+            } catch (err) {
+              console.error("❌ Failed to update orders:", err);
+            }
+          });
+        }
       });
     }
 
@@ -869,15 +902,14 @@
 
       const q = (query || '').toLowerCase().trim();
       const isSearchActive = q.length > 0;
-      const staffFilter = document.getElementById("staffFilter").value;
+      const staffFilter = document.getElementById("staffFilter")?.value;
 
-      console.log(`Filtering ${state.allOrders.length} orders with query: "${q}"`);
+      console.log(`🔍 Filtering ${state.allOrders.length} orders with query: "${q}"`);
 
       const filtered = state.allOrders.filter((order) => {
-        // First check if order exists and has required properties
         if (!order) return false;
 
-        // Apply tab filters
+        // Apply tab filters first
         if (state.currentTab === "claimed" && !order.claimed_by) return false;
         if (staffFilter && order.assigned_staff !== staffFilter) return false;
 
@@ -893,14 +925,19 @@
           notes: String(order.notes || '')
         };
 
-        // Check each field for a match
-        return Object.values(searchFields).some(value => 
-          value.toLowerCase().includes(q)
-        );
+        // Convert all values to lowercase for case-insensitive search
+        const searchValues = Object.values(searchFields).map(v => v.toLowerCase());
+        
+        // Check if any field contains the search query
+        return searchValues.some(value => value.includes(q));
       });
 
-      console.log(`Found ${filtered.length} matching orders`);
-      renderOrders(filtered, isSearchActive);
+      console.log(`✨ Found ${filtered.length} matching orders`);
+      
+      // Render results immediately
+      requestAnimationFrame(() => {
+        renderOrders(filtered, isSearchActive);
+      });
     }
 
     // Modify initialize function to properly set up search
@@ -908,7 +945,7 @@
       try {
         console.log('🚀 Initializing dashboard...');
         
-        // Auto-login if remembered
+        // Auto-login check
         if (localStorage.getItem("rememberedUser")) {
           try {
             const data = await api.checkSession();
@@ -925,33 +962,27 @@
           return;
         }
 
+        // Load initial orders first
+        await loadInitialOrders();
+        
         // Initialize staff list
         try {
           const staffList = await api.getStaffList();
           state.staffMembers = staffList;
           
           const staffFilter = document.getElementById("staffFilter");
-          staffFilter.innerHTML = '<option value="">All Staff</option>';
-          state.staffMembers.forEach(staff => {
-            const option = document.createElement("option");
-            option.value = staff.username;
-            option.textContent = staff.displayName;
-            staffFilter.appendChild(option);
-          });
-
-          staffFilter.addEventListener("change", () => {
-            const query = document.getElementById("searchInput").value;
-            filterOrders(query);
-          });
+          if (staffFilter) {
+            staffFilter.innerHTML = '<option value="">All Staff</option>';
+            state.staffMembers.forEach(staff => {
+              const option = document.createElement("option");
+              option.value = staff.username;
+              option.textContent = staff.displayName;
+              staffFilter.appendChild(option);
+            });
+          }
         } catch (err) {
           console.error('❌ Failed to load staff list:', err);
         }
-
-        // Load initial orders
-        await loadInitialOrders();
-        
-        // Initialize search functionality
-        initializeSearch();
         
         // Start polling with initial delay
         setTimeout(() => {
@@ -960,8 +991,8 @@
         }, 1000);
 
         // Setup tab event listeners
-        document.getElementById("tabAll").addEventListener("click", () => handlers.onTabClick("all"));
-        document.getElementById("tabClaimed").addEventListener("click", () => handlers.onTabClick("claimed"));
+        document.getElementById("tabAll")?.addEventListener("click", () => handlers.onTabClick("all"));
+        document.getElementById("tabClaimed")?.addEventListener("click", () => handlers.onTabClick("claimed"));
 
         console.log('✅ Dashboard initialized successfully');
       } catch (err) {
