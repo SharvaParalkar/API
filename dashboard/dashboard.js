@@ -458,7 +458,13 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
 
   try {
     // Check if already claimed by someone else
-    const current = db.prepare("SELECT claimed_by FROM orders WHERE id = ?").get(orderId);
+    const current = db.prepare("SELECT claimed_by, status FROM orders WHERE id = ?").get(orderId);
+    
+    // Don't allow claiming completed orders
+    if (current?.status?.toLowerCase() === 'completed') {
+      return res.status(400).json({ error: "Cannot claim completed orders" });
+    }
+    
     if (current && current.claimed_by && current.claimed_by !== username) {
       return res.status(409).json({ 
         error: "Order already claimed",
@@ -508,7 +514,13 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
 
   try {
     // Check if claimed by someone else
-    const current = db.prepare("SELECT claimed_by FROM orders WHERE id = ?").get(orderId);
+    const current = db.prepare("SELECT claimed_by, status FROM orders WHERE id = ?").get(orderId);
+    
+    // Don't allow unclaiming completed orders
+    if (current?.status?.toLowerCase() === 'completed') {
+      return res.status(400).json({ error: "Cannot unclaim completed orders" });
+    }
+    
     if (current && current.claimed_by && current.claimed_by !== username) {
       return res.status(403).json({ 
         error: "Cannot unclaim - order claimed by someone else",
@@ -516,7 +528,14 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
       });
     }
 
-    const stmt = db.prepare("UPDATE orders SET claimed_by = NULL, updated_by = ?, last_updated = ? WHERE id = ? AND claimed_by = ?");
+    const stmt = db.prepare(`
+      UPDATE orders 
+      SET claimed_by = NULL, 
+          assigned_staff = NULL,
+          updated_by = ?, 
+          last_updated = ? 
+      WHERE id = ? AND claimed_by = ?
+    `);
     const result = stmt.run(username, timestamp, orderId, username);
     
     if (result.changes === 0) {

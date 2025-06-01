@@ -957,7 +957,10 @@
         if (!order) return false;
 
         // Apply tab filters first
-        if (state.currentTab === "claimed" && !order.claimed_by) return false;
+        if (state.currentTab === "claimed") {
+          // In claimed tab, only show orders claimed by current user
+          if (order.claimed_by !== state.currentUser) return false;
+        }
         if (staffFilter && order.assigned_staff !== staffFilter) return false;
 
         // If no search query, include the order (but still respect other filters)
@@ -1369,31 +1372,35 @@
             const isCompleted = order.status?.toLowerCase() === "completed";
 
             if (state.currentTab === "claimed") {
-              // Show "Unclaim" button in Claimed tab
-              const unclaimBtn = document.createElement("button");
-              unclaimBtn.textContent = "Unclaim";
-              unclaimBtn.style.backgroundColor = "#ccc";
-              unclaimBtn.style.border = "none";
-              unclaimBtn.style.color = "#333";
-              unclaimBtn.style.padding = "0.5rem 1rem";
-              unclaimBtn.style.borderRadius = "0.5rem";
-              unclaimBtn.style.marginTop = "0.5rem";
-              unclaimBtn.style.cursor = "pointer";
+              // Only show unclaim button if the order is claimed by the current user
+              if (order.claimed_by === state.currentUser) {
+                const unclaimBtn = document.createElement("button");
+                unclaimBtn.textContent = "Unclaim";
+                unclaimBtn.style.backgroundColor = "#ccc";
+                unclaimBtn.style.border = "none";
+                unclaimBtn.style.color = "#333";
+                unclaimBtn.style.padding = "0.5rem 1rem";
+                unclaimBtn.style.borderRadius = "0.5rem";
+                unclaimBtn.style.marginTop = "0.5rem";
+                unclaimBtn.style.cursor = "pointer";
 
-              unclaimBtn.addEventListener("click", async () => {
-                try {
-                  await api.unclaimOrder(order.id);
-                  order.claimed_by = null;
-                  const query = document.getElementById("searchInput").value;
-                  filterOrders(query);
-                } catch (err) {
-                  console.error(`Failed to unclaim order ${order.id}:`, err);
-                  ui.showError(err.message || "Failed to unclaim order");
-                }
-              });
+                unclaimBtn.addEventListener("click", async () => {
+                  try {
+                    await api.unclaimOrder(order.id);
+                    order.claimed_by = null;
+                    order.assigned_staff = null; // Also clear assigned staff
+                    const query = document.getElementById("searchInput").value;
+                    filterOrders(query);
+                  } catch (err) {
+                    console.error(`Failed to unclaim order ${order.id}:`, err);
+                    ui.showError(err.message || "Failed to unclaim order");
+                  }
+                });
 
-              card.appendChild(unclaimBtn);
+                card.appendChild(unclaimBtn);
+              }
             } else {
+              // In "All Orders" tab
               if (isCompleted) {
                 const completedLabel = document.createElement("button");
                 completedLabel.textContent = "Completed";
@@ -1408,10 +1415,9 @@
                 card.appendChild(completedLabel);
               } else {
                 const claimBtn = document.createElement("button");
-                const isClaimed = order.claimed_by !== null;
                 claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : "Claim Order";
                 claimBtn.disabled = isClaimed;
-                claimBtn.style.backgroundColor = isClaimed ? "#999" : "#ccc";
+                claimBtn.style.backgroundColor = isClaimed ? '#999' : '#ccc';
                 claimBtn.style.border = "none";
                 claimBtn.style.color = "#333";
                 claimBtn.style.padding = "0.5rem 1rem";
@@ -1424,6 +1430,7 @@
                     try {
                       await api.claimOrder(order.id);
                       order.claimed_by = state.currentUser;
+                      order.assigned_staff = state.currentUser; // Also set assigned staff
                       const query = document.getElementById("searchInput").value;
                       filterOrders(query);
                     } catch (err) {
