@@ -932,7 +932,6 @@
     // Update the refreshOrders function
     async function refreshOrders() {
       try {
-        // Check if enough time has passed since last refresh
         const now = Date.now();
         if (now - state.lastRefreshTime < state.minRefreshInterval) {
           return;
@@ -945,8 +944,14 @@
             console.log('📦 Orders updated due to changes detected');
             state.allOrders = data;
             state.lastOrderHash = newHash;
-            const query = document.getElementById("searchInput").value;
-            filterOrders(query);
+            
+            // Reapply current search if there is one
+            const currentQuery = document.getElementById("searchInput").value;
+            if (currentQuery) {
+              filterOrders(currentQuery);
+            } else {
+              filterOrders('');
+            }
           }
         }
         state.lastRefreshTime = now;
@@ -1339,11 +1344,17 @@
     }
 
     function filterOrders(query) {
+      console.log('Filtering orders with query:', query);
+      console.log('Current orders in state:', state.allOrders);
+      
       const q = query.toLowerCase();
       const isSearchActive = q.trim().length > 0;
       const staffFilter = document.getElementById("staffFilter").value;
 
       const filtered = state.allOrders.filter((order) => {
+        // Debug log for each order being filtered
+        console.log('Processing order:', order);
+
         if (state.currentTab === "claimed" && !order.claimed_by) return false;
         if (staffFilter && order.assigned_staff !== staffFilter) return false;
 
@@ -1354,15 +1365,22 @@
         const id = String(order.id || '').toLowerCase();
         const idWithoutPrefix = id.replace(/^order_/, '');
 
-        return (
+        const matches = 
           name.includes(q) ||
           email.includes(q) ||
           phone.includes(q) ||
           id.includes(q) ||
-          idWithoutPrefix.includes(q)
-        );
+          idWithoutPrefix.includes(q);
+
+        // Debug log for match results
+        if (matches) {
+          console.log('Match found:', { name, email, phone, id, query: q });
+        }
+
+        return matches;
       });
 
+      console.log('Filtered results:', filtered);
       renderOrders(filtered, isSearchActive);
     }
 
