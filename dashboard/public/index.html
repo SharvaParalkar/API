@@ -1089,11 +1089,12 @@
 
       // For claimed tab, ONLY show orders claimed by current user
       if (state.currentTab === "claimed") {
-        filtered = filtered.filtr(order => {
+        filtered = filtered.filter(order => {
+          const validStaffMembers = state.staffMembers.map(staff => staff.username);
           return (
-            order.claimed_by &&
             order.claimed_by === state.currentUser &&
             order.assigned_staff === state.currentUser &&
+            validStaffMembers.includes(order.assigned_staff) &&
             order.status?.toLowerCase() !== "completed"
           );
         });
