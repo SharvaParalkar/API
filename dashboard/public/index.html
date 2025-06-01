@@ -1718,6 +1718,59 @@
       }
     });
 
+    // Add back the updateOrderCard function
+    function updateOrderCard(card, order) {
+      // Update status dropdown
+      const statusDropdown = card.querySelector('.status-dropdown');
+      if (statusDropdown) {
+        statusDropdown.value = order.status || 'pending';
+        applyStatusColor(statusDropdown, order.status || 'pending');
+      }
+
+      // Update price
+      const priceElement = card.querySelector('p');
+      if (priceElement) {
+        priceElement.innerHTML = `<strong>Est. Price:</strong> ${
+          order.est_price ? `$${order.est_price.toFixed(2)}` : '—'
+        }`;
+      }
+
+      // Update staff assignment
+      const staffSelect = card.querySelector('.staff-dropdown');
+      if (staffSelect) {
+        staffSelect.value = order.assigned_staff || '';
+      }
+
+      // Update claim status
+      const claimBtn = card.querySelector('button:last-child');
+      if (claimBtn) {
+        const isClaimed = order.claimed_by !== null;
+        claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : 'Claim Order';
+        claimBtn.disabled = isClaimed;
+        claimBtn.style.backgroundColor = isClaimed ? '#999' : '#ccc';
+        claimBtn.style.cursor = isClaimed ? 'not-allowed' : 'pointer';
+      }
+
+      // Update details section if visible
+      const detailsSection = card.querySelector('.details-section');
+      if (detailsSection?.classList.contains('visible')) {
+        const table = detailsSection.querySelector('.details-table');
+        if (table) {
+          // Update staff notes
+          const notesRow = [...table.rows].find(row => row.cells[0].textContent === 'Staff Notes:');
+          if (notesRow) {
+            notesRow.cells[1].textContent = order.order_notes || '—';
+          }
+
+          // Update last updated
+          const updatedRow = [...table.rows].find(row => row.cells[0].textContent === 'Last Updated By:');
+          if (updatedRow) {
+            updatedRow.cells[1].textContent = order.updated_by || '—';
+          }
+        }
+      }
+    }
+
     // Start the app
     document.addEventListener("DOMContentLoaded", initialize);
   </script>
