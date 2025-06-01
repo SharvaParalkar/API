@@ -1347,13 +1347,19 @@
         if (state.currentTab === "claimed" && !order.claimed_by) return false;
         if (staffFilter && order.assigned_staff !== staffFilter) return false;
 
+        // Safely convert values to lowercase strings for comparison
+        const name = String(order.name || '').toLowerCase();
+        const email = String(order.email || '').toLowerCase();
+        const phone = String(order.phone || '').toLowerCase();
+        const id = String(order.id || '').toLowerCase();
+        const idWithoutPrefix = id.replace(/^order_/, '');
+
         return (
-          (order.name && order.name.toLowerCase().includes(q)) ||
-          (order.email && order.email.toLowerCase().includes(q)) ||
-          (order.phone && order.phone.toLowerCase().includes(q)) ||
-          (order.id &&
-            (order.id.toLowerCase().includes(q) ||
-              order.id.replace(/^order_/, "").includes(q)))
+          name.includes(q) ||
+          email.includes(q) ||
+          phone.includes(q) ||
+          id.includes(q) ||
+          idWithoutPrefix.includes(q)
         );
       });
 
