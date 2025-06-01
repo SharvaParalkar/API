@@ -497,7 +497,7 @@
         showCompleted: false
       },
       intervals: [],
-      staffMembers: Object.keys(USERS) // Add staff members list
+      staffMembers: [] // Initialize empty
     };
 
     // First full load
@@ -763,6 +763,19 @@
           console.error("Session check error:", err);
           throw err;
         }
+      },
+
+      async getStaffList() {
+        try {
+          const res = await fetch("/dashboard/staff", { 
+            credentials: 'include' 
+          });
+          if (!res.ok) throw new Error("Failed to fetch staff list");
+          return await res.json();
+        } catch (err) {
+          console.error("Failed to fetch staff list:", err);
+          return [];
+        }
       }
     };
 
@@ -832,12 +845,17 @@
       try {
         console.log('🚀 Initializing dashboard...');
         
+        // Fetch staff list first
+        const staffList = await api.getStaffList();
+        state.staffMembers = staffList;
+        
         // Populate staff filter
         const staffFilter = document.getElementById("staffFilter");
+        staffFilter.innerHTML = '<option value="">All Staff</option>'; // Reset
         state.staffMembers.forEach(staff => {
           const option = document.createElement("option");
-          option.value = staff;
-          option.textContent = staff.charAt(0).toUpperCase() + staff.slice(1);
+          option.value = staff.username;
+          option.textContent = staff.displayName;
           staffFilter.appendChild(option);
         });
 
@@ -848,24 +866,24 @@
 
         // Check for remembered login
         if (localStorage.getItem("rememberedUser")) {
-          api.checkSession()
-            .then(data => {
-              state.currentUser = data.username;
-              ui.hideLoginOverlay();
-              console.log('👤 Logged in as:', state.currentUser);
-              
-              // Load initial orders
-              loadInitialOrders();
-              
-              // Start polling intervals
-              const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
-              const statusInterval = setInterval(refreshOrderStatuses, REFRESH_INTERVAL);
-              state.intervals.push(orderInterval, statusInterval);
-            })
-            .catch(() => {
-              console.warn("Failed to auto-login");
-              localStorage.removeItem("rememberedUser");
-            });
+          const res = await fetch("/dashboard/whoami", { credentials: "include" });
+          if (res.ok) {
+            const data = await res.json();
+            state.currentUser = data.username;
+            ui.hideLoginOverlay();
+            console.log('👤 Logged in as:', state.currentUser);
+            
+            // Load initial orders
+            await loadInitialOrders();
+            
+            // Start polling intervals
+            const orderInterval = setInterval(refreshOrders, REFRESH_INTERVAL);
+            const statusInterval = setInterval(refreshOrderStatuses, REFRESH_INTERVAL);
+            state.intervals.push(orderInterval, statusInterval);
+          } else {
+            localStorage.removeItem("rememberedUser");
+            console.log('❌ Remembered login invalid');
+          }
         }
 
         // Setup event listeners
@@ -1095,9 +1113,9 @@
         // Add staff options
         state.staffMembers.forEach(staff => {
           const option = document.createElement("option");
-          option.value = staff;
-          option.textContent = staff.charAt(0).toUpperCase() + staff.slice(1);
-          if (staff === order.assigned_staff) {
+          option.value = staff.username;
+          option.textContent = staff.displayName;
+          if (staff.username === order.assigned_staff) {
             option.selected = true;
           }
           staffSelect.appendChild(option);

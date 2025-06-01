@@ -432,6 +432,16 @@ app.get(["/dashboard", "/dashboard/"], (req, res) => {
 // 🧊 Serve static last
 app.use(express.static(path.join(__dirname, "public")));
 
+// Add endpoint to get staff list
+app.get("/dashboard/staff", requireLogin, (req, res) => {
+  // Only send usernames, not passwords
+  const staffList = Object.keys(USERS).map(username => ({
+    username,
+    displayName: username.charAt(0).toUpperCase() + username.slice(1)
+  }));
+  res.json(staffList);
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err);
