@@ -1,3 +1,47 @@
+# FilamentBros API
+
+This repository contains the API and dashboard for FilamentBros 3D printing service.
+
+## Installation
+
+1. Clone the repository
+2. Install dependencies:
+```bash
+npm install
+```
+
+## Configuration
+
+1. Set up your environment variables in `.env`
+2. Configure your database connection in `config.js`
+
+## Running the Application
+
+```bash
+npm start
+```
+
+The application will be available at `http://localhost:3300`
+
+## Features
+
+- Order management dashboard
+- Real-time status updates (10-second polling)
+- File upload and management
+- Price estimation
+- Order tracking
+
+## Security
+
+- Session-based authentication
+- Rate limiting
+- CORS protection
+- Secure cookie handling
+
+## License
+
+ISC
+
 # API
 API for filamentbros, the api allows users to access the database (order tracker) located on a Server PC, acess to the print estimate feature of the print request form, and allows for print requests to be sent to the server
 
