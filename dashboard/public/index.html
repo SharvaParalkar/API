@@ -1638,9 +1638,12 @@
       grid.innerHTML = "";
 
       // Filter for orders that are properly claimed by the current user
+      const validStaffMembers = state.staffMembers.map(staff => staff.username);
       const claimedOrders = orders.filter(order =>
         order.claimed_by === state.currentUser &&
-        order.assigned_staff === state.currentUser
+        order.assigned_staff === state.currentUser &&
+        validStaffMembers.includes(order.assigned_staff) &&
+        order.status?.toLowerCase() !== "completed"
       );
 
       console.log(`📋 Rendering ${claimedOrders.length} claimed orders for user ${state.currentUser}`);
