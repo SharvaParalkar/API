@@ -497,7 +497,8 @@
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 5000,
-          timeout: 20000
+          timeout: 20000,
+          transports: ['websocket', 'polling']
         });
 
         state.socket.on('connect', () => {
@@ -518,8 +519,48 @@
         state.socket.on('order-updated', (message) => {
           console.log('📥 Received order update:', message);
           if (message && message.data) {
-            handleOrderUpdate(message.data);
+            const updatedOrder = message.data;
+            console.log(`🔄 Processing update for order ${updatedOrder.id}`);
+            
+            // Find the order in our state
+            const index = state.allOrders.findIndex(order => order.id === updatedOrder.id);
+            if (index !== -1) {
+              // Update state
+              state.allOrders[index] = updatedOrder;
+              
+              // Update UI
+              const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
+              if (orderCard) {
+                // Update status dropdown
+                const statusDropdown = orderCard.querySelector('.status-dropdown');
+                if (statusDropdown) {
+                  const currentStatus = statusDropdown.value;
+                  const newStatus = updatedOrder.status;
+                  
+                  if (currentStatus !== newStatus) {
+                    console.log(`📝 Updating status from ${currentStatus} to ${newStatus}`);
+                    statusDropdown.value = newStatus;
+                    applyStatusColor(statusDropdown, newStatus);
+                  }
+                }
+                
+                // Update price if changed
+                const priceElement = orderCard.querySelector('p');
+                if (priceElement) {
+                  const newPrice = updatedOrder.est_price 
+                    ? `<strong>Est. Price:</strong> $${updatedOrder.est_price.toFixed(2)}`
+                    : '<strong>Est. Price:</strong> —';
+                  if (priceElement.innerHTML !== newPrice) {
+                    priceElement.innerHTML = newPrice;
+                  }
+                }
+              }
+            }
           }
+        });
+
+        state.socket.on('update-error', (error) => {
+          console.error('❌ Update error:', error);
         });
       },
 
@@ -531,12 +572,13 @@
       },
 
       emitStatusUpdate(orderId, status) {
-        if (state.socket && state.socket.connected) {
-          state.socket.emit('status-update', { orderId, status });
-          console.log(`📤 Emitting status update for ${orderId}: ${status}`);
-        } else {
-          console.warn('⚠️ Socket not connected, update may not be real-time');
+        if (!state.socket?.connected) {
+          console.warn('⚠️ Socket not connected, attempting to reconnect...');
+          this.connect();
         }
+        
+        console.log(`📤 Emitting status update for ${orderId}: ${status}`);
+        state.socket.emit('status-update', { orderId, status });
       }
     };
 
@@ -692,20 +734,20 @@
         const previousValue = event.target.dataset.previousValue;
         
         try {
-          // Update UI immediately for responsiveness
+          // Update UI immediately
           applyStatusColor(event.target, newStatus);
           event.target.dataset.previousValue = newStatus;
-
-          // Emit the update through WebSocket first
+          
+          // Emit via WebSocket
           socket.emitStatusUpdate(orderId, newStatus);
           
-          // Send HTTP request as backup
+          // Backup HTTP request
           await api.updateStatus(orderId, newStatus);
           
-          console.log(`✅ Status updated for order ${orderId} to ${newStatus}`);
+          console.log(`✅ Status change initiated for ${orderId}: ${newStatus}`);
         } catch (err) {
-          console.error(`❌ Failed to update status for ${orderId}:`, err);
-          // Revert UI on error
+          console.error(`❌ Failed to update status:`, err);
+          // Revert on error
           event.target.value = previousValue;
           applyStatusColor(event.target, previousValue);
           event.target.dataset.previousValue = previousValue;

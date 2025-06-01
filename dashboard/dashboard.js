@@ -15,46 +15,6 @@ const allowedOrigins = ["https://filamentbros.com", "https://api.filamentbros.co
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true
-  }
-});
-
-// Security headers
-app.use(helmet({
-  contentSecurityPolicy: false
-}));
-
-// Request logging middleware
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
-  });
-  next();
-});
-
-app.use(cors({
-  origin: (origin, callback) => {
-    console.log("🌐 Incoming origin:", origin);
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    console.warn("❌ Rejected CORS origin:", origin);
-    callback(new Error("Not allowed by CORS"));
-  },
-  credentials: true
-}));
-
-// Body parsers with size limits
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.json({ limit: '10mb' }));
 
 // ✅ Sessions config with better security
 const sessionMiddleware = session({
@@ -70,6 +30,16 @@ const sessionMiddleware = session({
 });
 
 app.use(sessionMiddleware);
+
+// Initialize Socket.IO with CORS and session sharing
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ["GET", "POST"]
+  },
+  allowEIO3: true
+});
 
 // Share session with socket.io
 io.use(sharedsession(sessionMiddleware, {
@@ -90,24 +60,41 @@ io.on('connection', (socket) => {
   const username = socket.handshake.session.user;
   console.log(`🔌 WebSocket client connected: ${username}`);
 
-  // Join a room specific to this user
+  // Join a room for this user
   socket.join(`user_${username}`);
 
   socket.on('disconnect', () => {
     console.log(`🔌 WebSocket client disconnected: ${username}`);
   });
 
-  // Handle order status updates
+  // Handle status updates from clients
   socket.on('status-update', async (data) => {
     try {
       const { orderId, status } = data;
+      console.log(`📥 Received status update from ${username} for order ${orderId}: ${status}`);
+      
       const stmt = db.prepare("UPDATE orders SET status = ? WHERE id = ?");
       const result = stmt.run(status, orderId);
+      
       if (result.changes > 0) {
-        broadcastOrderUpdate(orderId);
+        const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+        if (updatedOrder) {
+          // Broadcast to all clients
+          io.emit('order-updated', {
+            type: 'status-update',
+            data: updatedOrder,
+            timestamp: new Date().toISOString(),
+            updatedBy: username
+          });
+          console.log(`📢 Broadcasted order update to all clients for ${orderId}`);
+        }
       }
     } catch (err) {
-      console.error('❌ Failed to update status via WebSocket:', err);
+      console.error('❌ Failed to process status update:', err);
+      socket.emit('update-error', {
+        orderId,
+        error: 'Failed to update status'
+      });
     }
   });
 });
@@ -117,7 +104,6 @@ function broadcastOrderUpdate(orderId) {
   try {
     const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
     if (order) {
-      // Broadcast to all connected clients
       io.emit('order-updated', {
         type: 'order-update',
         data: order,
@@ -130,19 +116,40 @@ function broadcastOrderUpdate(orderId) {
   }
 }
 
-const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
-const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false
+}));
 
-// Database connection with better error handling
-let db;
-try {
-  db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  console.log('✅ Database connected successfully');
-} catch (err) {
-  console.error('❌ Database connection failed:', err);
-  process.exit(1);
-}
+// Request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
+  });
+  next();
+});
+
+// CORS middleware
+app.use(cors({
+  origin: (origin, callback) => {
+    console.log("🌐 Incoming origin:", origin);
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn("❌ Rejected CORS origin:", origin);
+    callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true
+}));
+
+// Body parsers with size limits
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
 
 // 🔒 Users (consider moving to environment variables or database)
 const USERS = {
@@ -374,3 +381,17 @@ server.listen(PORT, () => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
+const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
+
+// Database connection with better error handling
+let db;
+try {
+  db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  console.log('✅ Database connected successfully');
+} catch (err) {
+  console.error('❌ Database connection failed:', err);
+  process.exit(1);
+}
