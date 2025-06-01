@@ -469,7 +469,176 @@
   <div class="grid" id="orderGrid"></div>
 
   <script>
+    // Constants
+    const REFRESH_INTERVAL = 10000; // 10 seconds
+    const SEARCH_DEBOUNCE = 200; // 200ms
+    const MAX_RETRY_ATTEMPTS = 3;
 
+    // State management
+    const state = {
+      allOrders: [],
+      currentUser: null,
+      currentTab: "all",
+      latestTimestamp: null,
+      intervals: [],
+      retryCount: 0
+    };
+
+    // Utility functions
+    const debounce = (func, wait) => {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    };
+
+    const handleError = async (err, operation) => {
+      console.error(`❌ Error during ${operation}:`, err);
+      
+      if (err.status === 401) {
+        clearAllIntervals();
+        showLoginOverlay();
+        return;
+      }
+
+      if (state.retryCount < MAX_RETRY_ATTEMPTS) {
+        state.retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 1000 * state.retryCount));
+        return true; // Retry
+      }
+      
+      state.retryCount = 0;
+      return false; // Don't retry
+    };
+
+    const clearAllIntervals = () => {
+      state.intervals.forEach(clearInterval);
+      state.intervals = [];
+    };
+
+    // API functions
+    const api = {
+      async fetchOrders(since = null) {
+        try {
+          const url = since ? `/dashboard/data?since=${encodeURIComponent(since)}` : '/dashboard/data';
+          const res = await fetch(url, { credentials: 'include' });
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          if (await handleError(err, 'fetchOrders')) {
+            return this.fetchOrders(since);
+          }
+          return [];
+        }
+      },
+
+      async updateStatus(orderId, status) {
+        try {
+          const res = await fetch("/dashboard/update-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId, status }),
+          });
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'updateStatus');
+          throw err;
+        }
+      },
+
+      // Add other API functions here...
+    };
+
+    // UI update functions
+    const ui = {
+      updateTabStyles() {
+        const allTab = document.getElementById("tabAll");
+        const claimedTab = document.getElementById("tabClaimed");
+        
+        allTab.style.backgroundColor = state.currentTab === "all" ? "#1f6463" : "#ccc";
+        allTab.style.color = state.currentTab === "all" ? "white" : "black";
+        claimedTab.style.backgroundColor = state.currentTab === "claimed" ? "#1f6463" : "#ccc";
+        claimedTab.style.color = state.currentTab === "claimed" ? "white" : "black";
+      },
+
+      showLoginOverlay() {
+        const overlay = document.getElementById("loginOverlay");
+        if (overlay) overlay.style.display = "flex";
+      },
+
+      hideLoginOverlay() {
+        const overlay = document.getElementById("loginOverlay");
+        if (overlay) overlay.style.display = "none";
+      }
+    };
+
+    // Event handlers
+    const handlers = {
+      async onStatusChange(event, orderId) {
+        const newStatus = event.target.value;
+        try {
+          await api.updateStatus(orderId, newStatus);
+          console.log(`✅ Status updated for order ${orderId}`);
+        } catch (err) {
+          console.error(`❌ Failed to update status for ${orderId}:`, err);
+          event.target.value = event.target.dataset.previousValue;
+        }
+      },
+
+      onTabClick(tab) {
+        state.currentTab = tab;
+        ui.updateTabStyles();
+        filterOrders(document.getElementById("searchInput").value);
+      },
+
+      onSearchInput: debounce((event) => {
+        filterOrders(event.target.value);
+      }, SEARCH_DEBOUNCE)
+    };
+
+    // Initialize
+    async function initialize() {
+      try {
+        // Check for remembered login
+        if (localStorage.getItem("rememberedUser")) {
+          const res = await fetch("/dashboard/whoami", { credentials: "include" });
+          if (res.ok) {
+            const data = await res.json();
+            state.currentUser = data.username;
+            ui.hideLoginOverlay();
+            await loadInitialOrders();
+            setupIntervals();
+          } else {
+            localStorage.removeItem("rememberedUser");
+          }
+        }
+
+        // Setup event listeners
+        document.getElementById("searchInput").addEventListener("input", handlers.onSearchInput);
+        document.getElementById("tabAll").addEventListener("click", () => handlers.onTabClick("all"));
+        document.getElementById("tabClaimed").addEventListener("click", () => handlers.onTabClick("claimed"));
+        
+        // Setup other event listeners...
+      } catch (err) {
+        await handleError(err, 'initialization');
+      }
+    }
+
+    function setupIntervals() {
+      state.intervals.push(
+        setInterval(fetchNewOrders, REFRESH_INTERVAL),
+        setInterval(refreshOrderStatuses, REFRESH_INTERVAL)
+      );
+    }
+
+    // Start the app
+    document.addEventListener("DOMContentLoaded", initialize);
 
     let allOrders = [];
     const VALID_STATUSES = [

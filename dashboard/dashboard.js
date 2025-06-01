@@ -5,16 +5,32 @@ const path = require("path");
 const fs = require("fs");
 const archiver = require("archiver");
 const session = require("express-session");
+const helmet = require("helmet");
 
 const app = express();
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false
+}));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
+  });
+  next();
+});
 
 // ✅ CORS config
 const allowedOrigins = ["https://filamentbros.com", "https://api.filamentbros.com"];
 
 app.use(cors({
   origin: (origin, callback) => {
-    console.log("🌐 Incoming origin:", origin); // 👈 add this
-    if (!origin) return callback(null, true); // allow no-origin requests (like curl, Postman)
+    console.log("🌐 Incoming origin:", origin);
+    if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -26,27 +42,40 @@ app.use(cors({
   credentials: true
 }));
 
+// Body parsers with size limits
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-
-// ✅ Sessions (must be before routes or static)
+// ✅ Sessions config with better security
 app.use(
   session({
-    secret: "filamentbros-secret",
+    secret: process.env.SESSION_SECRET || "filamentbros-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax'
     },
   })
 );
 
 const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
 const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
-const db = new Database(dbPath);
 
-// 🔒 Users
+// Database connection with better error handling
+let db;
+try {
+  db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  console.log('✅ Database connected successfully');
+} catch (err) {
+  console.error('❌ Database connection failed:', err);
+  process.exit(1);
+}
+
+// 🔒 Users (consider moving to environment variables or database)
 const USERS = {
   sharva: "filbros8532",
   pablo: "print123",
@@ -55,7 +84,8 @@ const USERS = {
   evan: "print123",
 };
 
-// 🔐 Auth middleware
+// 🔐 Auth middleware with rate limiting
+const loginAttempts = new Map();
 function requireLogin(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -63,14 +93,37 @@ function requireLogin(req, res, next) {
   next();
 }
 
-// 🧾 Login route
+// Rate limiting for login
+function checkLoginRate(username) {
+  const attempts = loginAttempts.get(username) || { count: 0, timestamp: Date.now() };
+  const hourAgo = Date.now() - 3600000;
+  
+  if (attempts.timestamp < hourAgo) {
+    loginAttempts.set(username, { count: 1, timestamp: Date.now() });
+    return true;
+  }
+  
+  if (attempts.count >= 5) return false;
+  
+  attempts.count++;
+  loginAttempts.set(username, attempts);
+  return true;
+}
+
+// 🧾 Login route with rate limiting
 app.post("/dashboard/login", (req, res) => {
   const username = (req.body.username || "").trim().toLowerCase();
   const password = (req.body.password || "").trim();
+  
+  if (!checkLoginRate(username)) {
+    return res.status(429).json({ error: "Too many login attempts. Please try again later." });
+  }
+
   const validPassword = USERS[username];
 
   if (validPassword && password === validPassword) {
     req.session.user = username;
+    loginAttempts.delete(username);
 
     if (req.body.remember === "on") {
       req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000;
@@ -79,7 +132,7 @@ app.post("/dashboard/login", (req, res) => {
     return res.sendStatus(200);
   }
 
-  return res.status(401).send("Invalid username or password.");
+  return res.status(401).json({ error: "Invalid username or password" });
 });
 
 // 🧠 Whoami
@@ -214,8 +267,30 @@ app.get(["/dashboard", "/dashboard/"], (req, res) => {
 // 🧊 Serve static last
 app.use(express.static(path.join(__dirname, "public")));
 
-// ✅ Launch
-const PORT = 3300;
-app.listen(PORT, () => {
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('❌ Error:', err);
+  res.status(500).json({ 
+    error: process.env.NODE_ENV === 'production' 
+      ? 'Internal server error' 
+      : err.message 
+  });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM. Closing server...');
+  db.close();
+  process.exit(0);
+});
+
+// ✅ Launch with health check
+const PORT = process.env.PORT || 3300;
+const server = app.listen(PORT, () => {
   console.log(`✅ Dashboard running at http://localhost:${PORT}`);
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
