@@ -179,24 +179,25 @@
       width: 100%;
       font-size: 0.9rem;
       border-spacing: 0.4rem 0.25rem;
+      table-layout: fixed; /* Added to ensure consistent column widths */
     }
 
     .details-table td {
       vertical-align: top;
-      padding: 0.2rem 0.5rem;
+      padding: 0.4rem 0.5rem;
       max-width: 0;
       width: 100%;
     }
 
     .details-table td:first-child {
       font-weight: bold;
-      width: 30%;
+      width: 25%; /* Reduced from 30% to give more space to the content */
       white-space: nowrap;
       max-width: none;
     }
 
     .details-table td:last-child {
-      width: 70%;
+      width: 75%; /* Increased from 70% */
     }
 
     .status-dropdown {
@@ -490,8 +491,8 @@
 
     .staff-notes-editor {
       width: 100%;
-      min-height: 80px;
-      padding: 0.5rem;
+      min-height: 120px; /* Increased from 80px */
+      padding: 0.75rem;
       border: 1px solid #ccc;
       border-radius: 0.3rem;
       margin-bottom: 0.5rem;
@@ -503,6 +504,8 @@
       word-wrap: break-word;
       max-width: 100%;
       box-sizing: border-box;
+      line-height: 1.4;
+      max-height: 300px; /* Added max-height */
     }
 
     .staff-notes-editor:focus {
