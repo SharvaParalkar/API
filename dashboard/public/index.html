@@ -632,23 +632,51 @@
     }
 
     .staff-tag {
-      background-color: #1f6463;
-      color: white;
-      padding: 0.2rem 0.5rem;
-      border-radius: 0.3rem;
+      background-color: #e0e0e0;
+      color: #333;
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
       display: inline-flex;
       align-items: center;
       gap: 0.3rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
     }
 
-    .staff-tag button {
-      background: none;
-      border: none;
+    .staff-tag.selected {
+      background-color: #1f6463;
       color: white;
-      cursor: pointer;
-      padding: 0;
-      font-size: 1.1rem;
-      line-height: 1;
+      transform: scale(1.02);
+    }
+
+    .staff-tag:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .staff-tag:active {
+      transform: scale(0.98);
+    }
+
+    .staff-selection-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .staff-tags-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      background-color: #f5f5f5;
+    }
+
+    /* Replace the old staff dropdown styles */
+    .staff-dropdown {
+      display: none;
     }
   </style>
 </head>
@@ -1811,89 +1839,58 @@
           hour12: true,
         });
 
-        // Create staff assignment dropdown
-        const staffSelect = document.createElement("select");
-        staffSelect.className = "staff-dropdown";
-        staffSelect.style.padding = "0.4rem";
-        staffSelect.style.borderRadius = "0.3rem";
-        staffSelect.style.border = "1px solid #ccc";
-        staffSelect.style.marginLeft = "0.5rem";
-        staffSelect.multiple = true; // Enable multiple selection
-
-        // Add empty option
-        const emptyOption = document.createElement("option");
-        emptyOption.value = "";
-        emptyOption.textContent = "-- Select Staff --";
-        staffSelect.appendChild(emptyOption);
-
-        // Add staff options
-        state.staffMembers.forEach(staff => {
-          const option = document.createElement("option");
-          option.value = staff.username;
-          option.textContent = staff.displayName;
-          // Check if this staff member is in the assigned staff list
-          if (order.assigned_staff && order.assigned_staff.split(',').includes(staff.username)) {
-            option.selected = true;
-          }
-          staffSelect.appendChild(option);
-        });
-
-        // Create a container for the staff dropdown and tags
+        // Create a container for the staff selection
         const staffContainer = document.createElement("div");
-        staffContainer.style.display = "flex";
-        staffContainer.style.flexDirection = "column";
-        staffContainer.style.gap = "0.5rem";
+        staffContainer.className = "staff-selection-container";
 
         const staffLabel = document.createElement("span");
         staffLabel.textContent = "Assigned Staff:";
         staffContainer.appendChild(staffLabel);
-        staffContainer.appendChild(staffSelect);
 
-        // Create staff tags container
-        const staffTagsContainer = document.createElement("div");
-        staffTagsContainer.className = "assigned-staff-list";
+        // Create container for staff tags
+        const staffTagsGrid = document.createElement("div");
+        staffTagsGrid.className = "staff-tags-grid";
 
-        // Function to update staff tags
-        const updateStaffTags = () => {
-          staffTagsContainer.innerHTML = '';
-          const selectedStaff = Array.from(staffSelect.selectedOptions)
-            .map(option => ({
-              username: option.value,
-              displayName: option.textContent
-            }))
-            .filter(staff => staff.username);
+        // Get current assigned staff
+        const currentStaff = order.assigned_staff ? order.assigned_staff.split(',') : [];
 
-          selectedStaff.forEach(staff => {
-            const tag = document.createElement("span");
-            tag.className = "staff-tag";
-            tag.textContent = staff.displayName;
-            staffTagsContainer.appendChild(tag);
-          });
-        };
-
-        // Update tags on initial load
-        updateStaffTags();
-
-        // Handle staff assignment
-        staffSelect.addEventListener("change", async () => {
-          try {
-            const selectedStaff = Array.from(staffSelect.selectedOptions).map(option => option.value).filter(Boolean);
-            const response = await api.assignStaff(order.id, selectedStaff.join(','));
-            order.assigned_staff = selectedStaff.join(',');
-            updateStaffTags(); // Update tags after successful change
-          } catch (err) {
-            console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
-            // Reset selections to match current state
-            const currentStaff = order.assigned_staff ? order.assigned_staff.split(',') : [];
-            Array.from(staffSelect.options).forEach(option => {
-              option.selected = currentStaff.includes(option.value);
-            });
-            updateStaffTags(); // Reset tags to match current state
-            ui.showError(`Failed to assign staff: ${err.message}`);
+        // Create clickable tags for each staff member
+        state.staffMembers.forEach(staff => {
+          const tag = document.createElement("div");
+          tag.className = "staff-tag";
+          if (currentStaff.includes(staff.username)) {
+            tag.classList.add("selected");
           }
+          tag.textContent = staff.displayName;
+          
+          // Handle click events
+          tag.addEventListener("click", async () => {
+            const isSelected = tag.classList.toggle("selected");
+            
+            // Get all selected staff
+            const selectedStaff = Array.from(staffTagsGrid.children)
+              .filter(tag => tag.classList.contains("selected"))
+              .map(tag => {
+                const staffMember = state.staffMembers.find(s => s.displayName === tag.textContent);
+                return staffMember ? staffMember.username : null;
+              })
+              .filter(Boolean);
+            
+            try {
+              const response = await api.assignStaff(order.id, selectedStaff.join(','));
+              order.assigned_staff = selectedStaff.join(',');
+            } catch (err) {
+              console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
+              // Revert the selection on error
+              tag.classList.toggle("selected");
+              ui.showError(`Failed to assign staff: ${err.message}`);
+            }
+          });
+          
+          staffTagsGrid.appendChild(tag);
         });
 
-        staffContainer.appendChild(staffTagsContainer);
+        staffContainer.appendChild(staffTagsGrid);
 
         // Add to the table
         const row = document.createElement("tr");
