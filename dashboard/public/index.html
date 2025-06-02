@@ -2722,18 +2722,48 @@
 
       // Update staff notes if they exist
       const staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
+      const saveNotesBtn = orderCard.querySelector(".save-notes-btn");
+      
       if (staffNotesEditor && updatedOrder.order_notes !== undefined) {
         // Only update if the editor is not currently focused (being edited)
         // and the notes actually changed
-        const currentNotes = staffNotesEditor.dataset.previousValue || '';
+        const currentNotes = staffNotesEditor.value || '';
         const newNotes = updatedOrder.order_notes || '';
+        const isEditorFocused = staffNotesEditor === document.activeElement;
         
-        if (!staffNotesEditor.matches(':focus') && currentNotes !== newNotes) {
+        // If the editor is focused or the user is actively editing, don't update
+        if (!isEditorFocused) {
           staffNotesEditor.value = newNotes;
           staffNotesEditor.dataset.previousValue = newNotes;
           
+          // Ensure the editor remains enabled
+          staffNotesEditor.disabled = false;
+          staffNotesEditor.readOnly = false;
+          
+          // Update save button state
+          if (saveNotesBtn) {
+            saveNotesBtn.textContent = "Save Notes";
+            saveNotesBtn.disabled = true;
+            saveNotesBtn.style.backgroundColor = "#ccc";
+            saveNotesBtn.style.cursor = "not-allowed";
+          }
+          
           // Trigger input event to update save button state
           staffNotesEditor.dispatchEvent(new Event('input'));
+        }
+      }
+      
+      // Ensure the editor and button are always enabled and properly styled
+      if (staffNotesEditor) {
+        staffNotesEditor.disabled = false;
+        staffNotesEditor.readOnly = false;
+        staffNotesEditor.style.backgroundColor = ""; // Reset to default
+        
+        if (saveNotesBtn) {
+          saveNotesBtn.style.display = ""; // Ensure button is visible
+          saveNotesBtn.disabled = true; // Start disabled until changes are made
+          saveNotesBtn.style.backgroundColor = "#ccc";
+          saveNotesBtn.style.cursor = "not-allowed";
         }
       }
     }
@@ -2824,8 +2854,14 @@
     // Function to handle staff notes save
     async function saveStaffNotes(orderId, notes, editor, saveBtn) {
       try {
+        // Store current editor state
+        const wasEditorFocused = editor === document.activeElement;
+        const cursorPosition = editor.selectionStart;
+        
         saveBtn.disabled = true;
         saveBtn.textContent = 'Saving...';
+        saveBtn.style.backgroundColor = "#ccc";
+        saveBtn.style.cursor = "not-allowed";
 
         const response = await fetch("/dashboard/update-staff-notes", {
           method: "POST",
@@ -2849,43 +2885,56 @@
           state.allOrders[orderIndex].order_notes = notes;
         }
 
-        // Update the editor's stored value FIRST
+        // Update the editor's stored value
         editor.dataset.previousValue = notes;
+        editor.value = notes;
         
         // Show success state briefly
         saveBtn.textContent = 'Saved!';
         saveBtn.disabled = true;
+        saveBtn.style.backgroundColor = "#2ecc71"; // Green for success
         
         // Reset button state after a short delay
         setTimeout(() => {
           saveBtn.textContent = 'Save Notes';
-          // Don't automatically enable the button - let the input handler manage it
-          saveBtn.disabled = true; // Start disabled until user makes changes
+          saveBtn.disabled = true; // Start disabled until changes are made
+          saveBtn.style.backgroundColor = "#ccc";
+          saveBtn.style.cursor = "not-allowed";
+          
+          // Ensure editor remains enabled and properly styled
+          editor.disabled = false;
+          editor.readOnly = false;
+          editor.style.backgroundColor = "";
+          
+          // Restore focus and cursor position if editor was focused
+          if (wasEditorFocused) {
+            editor.focus();
+            editor.setSelectionRange(cursorPosition, cursorPosition);
+          }
           
           // Trigger input event to ensure button state is correctly managed
           editor.dispatchEvent(new Event('input'));
         }, 1500);
-
-        // Keep editor enabled and focused
-        editor.disabled = false;
-        editor.readOnly = false;
-        editor.focus();
-
-        // Move cursor to end of text
-        editor.setSelectionRange(editor.value.length, editor.value.length);
 
         ui.showNotification('Staff notes updated successfully');
       } catch (err) {
         console.error('Failed to save staff notes:', err);
         ui.showError('Failed to save staff notes');
         
-        // Reset button state on error
+        // Reset button and editor state on error
         saveBtn.textContent = 'Save Notes';
         saveBtn.disabled = false;
+        saveBtn.style.backgroundColor = "#1f6463";
+        saveBtn.style.cursor = "pointer";
         
-        // Keep editor enabled
         editor.disabled = false;
         editor.readOnly = false;
+        editor.style.backgroundColor = "";
+        
+        // Restore focus if editor was focused
+        if (editor === document.activeElement) {
+          editor.focus();
+        }
       }
     }
   </script>
