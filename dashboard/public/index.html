@@ -738,16 +738,16 @@
         const detailsSection = orderCard.querySelector('.details-section');
         if (detailsSection?.classList.contains('visible')) {
           // Update staff notes
-          const notesCell = [...orderCard.querySelectorAll('td')].find(td => 
-            td.textContent.includes('Staff Notes:')
+          const notesCell = [...detailsSection.querySelectorAll('td')].find(td => 
+            td.textContent.trim().startsWith('Staff Notes:')
           )?.nextElementSibling;
           if (notesCell) {
             notesCell.textContent = updatedOrder.order_notes || '—';
           }
 
           // Update last updated by
-          const updatedByCell = [...orderCard.querySelectorAll('td')].find(td => 
-            td.textContent.includes('Last Updated By:')
+          const updatedByCell = [...detailsSection.querySelectorAll('td')].find(td => 
+            td.textContent.trim().startsWith('Last Updated By:')
           )?.nextElementSibling;
           if (updatedByCell) {
             updatedByCell.textContent = updatedOrder.updated_by || '—';
@@ -852,16 +852,25 @@
       // Update price
       const priceElement = card.querySelector('p');
       if (priceElement) {
-        priceElement.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : '—'
-          }`;
+        priceElement.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : '—'}`;
       }
 
       // Update notes if visible
       const detailsSection = card.querySelector('.details-section');
       if (detailsSection?.classList.contains('visible')) {
-        const notesElement = detailsSection.querySelector('td:contains("Staff Notes:")');
-        if (notesElement?.nextElementSibling) {
-          notesElement.nextElementSibling.textContent = order.order_notes || '—';
+        const notesCell = [...detailsSection.querySelectorAll('td')].find(td => 
+          td.textContent.trim().startsWith('Staff Notes:')
+        )?.nextElementSibling;
+        if (notesCell) {
+          notesCell.textContent = order.order_notes || '—';
+        }
+
+        // Update last updated by
+        const updatedByCell = [...detailsSection.querySelectorAll('td')].find(td => 
+          td.textContent.trim().startsWith('Last Updated By:')
+        )?.nextElementSibling;
+        if (updatedByCell) {
+          updatedByCell.textContent = order.updated_by || '—';
         }
       }
     }
@@ -1930,7 +1939,7 @@
                 completedLabel.style.marginTop = "0.5rem";
                 completedLabel.style.cursor = "not-allowed";
                 card.appendChild(completedLabel);
-              } else if (!isClaimedByCurrentUser) {
+              } else {
                 const claimBtn = document.createElement("button");
                 claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : "Claim Order";
                 claimBtn.disabled = isClaimed;
