@@ -184,12 +184,15 @@
     .details-table td {
       vertical-align: top;
       padding: 0.2rem 0.5rem;
+      max-width: 0;
+      width: 100%;
     }
 
     .details-table td:first-child {
       font-weight: bold;
       width: 30%;
       white-space: nowrap;
+      max-width: none;
     }
 
     .details-table td:last-child {
@@ -496,6 +499,10 @@
       font-size: 0.9rem;
       resize: vertical;
       background-color: #fff;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     .staff-notes-editor:focus {
@@ -2014,9 +2021,9 @@
         const staffNotesEditor = document.createElement("textarea");
         staffNotesEditor.className = "staff-notes-editor";
         staffNotesEditor.value = order.order_notes || '';
+        staffNotesEditor.dataset.previousValue = order.order_notes || '';
         staffNotesEditor.placeholder = "Add staff notes here...";
         
-        // Create save button
         const saveNotesBtn = document.createElement("button");
         saveNotesBtn.className = "save-notes-btn";
         saveNotesBtn.textContent = "Save Notes";
@@ -2024,43 +2031,12 @@
 
         // Handle changes to staff notes
         staffNotesEditor.addEventListener('input', () => {
-          saveNotesBtn.disabled = staffNotesEditor.value === (order.order_notes || '');
+          saveNotesBtn.disabled = staffNotesEditor.value === staffNotesEditor.dataset.previousValue;
         });
 
         // Handle save button click
-        saveNotesBtn.addEventListener('click', async () => {
-          try {
-            saveNotesBtn.disabled = true;
-            saveNotesBtn.textContent = 'Saving...';
-
-            const response = await fetch("/dashboard/update-staff-notes", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: 'include',
-              body: JSON.stringify({
-                orderId: order.id,
-                staffNotes: staffNotesEditor.value
-              })
-            });
-
-            if (!response.ok) {
-              throw new Error('Failed to save notes');
-            }
-
-            const data = await response.json();
-            order.order_notes = staffNotesEditor.value;
-            saveNotesBtn.textContent = 'Saved!';
-            setTimeout(() => {
-              saveNotesBtn.textContent = 'Save Notes';
-            }, 2000);
-
-            ui.showNotification('Staff notes updated successfully');
-          } catch (err) {
-            console.error('Failed to save staff notes:', err);
-            ui.showError('Failed to save staff notes');
-            saveNotesBtn.textContent = 'Save Notes';
-            saveNotesBtn.disabled = false;
-          }
+        saveNotesBtn.addEventListener('click', () => {
+          saveStaffNotes(order.id, staffNotesEditor.value, staffNotesEditor, saveNotesBtn);
         });
 
         staffNotesContentCell.appendChild(staffNotesEditor);
@@ -2774,6 +2750,52 @@
     window.showDeleteConfirmation = showDeleteConfirmation;
     window.hideDeleteConfirmation = hideDeleteConfirmation;
     window.deleteOrder = deleteOrder;
+
+    // Function to handle staff notes save
+    async function saveStaffNotes(orderId, notes, editor, saveBtn) {
+      try {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        const response = await fetch("/dashboard/update-staff-notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: 'include',
+          body: JSON.stringify({
+            orderId: orderId,
+            staffNotes: notes
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save notes');
+        }
+
+        const data = await response.json();
+        
+        // Update the order in state
+        const orderIndex = state.allOrders.findIndex(o => o.id === orderId);
+        if (orderIndex !== -1) {
+          state.allOrders[orderIndex].order_notes = notes;
+        }
+
+        // Update the editor's stored value
+        editor.dataset.previousValue = notes;
+        
+        saveBtn.textContent = 'Saved!';
+        setTimeout(() => {
+          saveBtn.textContent = 'Save Notes';
+          saveBtn.disabled = editor.value === editor.dataset.previousValue;
+        }, 2000);
+
+        ui.showNotification('Staff notes updated successfully');
+      } catch (err) {
+        console.error('Failed to save staff notes:', err);
+        ui.showError('Failed to save staff notes');
+        saveBtn.textContent = 'Save Notes';
+        saveBtn.disabled = false;
+      }
+    }
   </script>
 
   <div id="loginOverlay" class="login-overlay">
