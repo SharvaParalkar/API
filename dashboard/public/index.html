@@ -56,17 +56,148 @@
       background: white;
       border-radius: 1rem;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      padding: 1.25rem;
+      padding: 1.5rem;
       color: #333;
       position: relative;
       height: auto;
+      gap: 1rem;
     }
 
     .card h2 {
       font-size: 1.2rem;
-      margin-bottom: 1rem;
       color: #1f6463;
-      margin: 0 0 0.75rem 0;
+      margin: 0;
+      padding-right: 2rem;
+    }
+
+    .status-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0.5rem 0;
+    }
+
+    .status-dropdown {
+      padding: 0.5rem;
+      border-radius: 0.3rem;
+      border: 1px solid #ccc;
+      font-size: 0.9rem;
+      min-width: 150px;
+      cursor: pointer;
+    }
+
+    .details-toggle {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #1f6463;
+      background: none;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 0.5rem 0;
+    }
+
+    .details-section {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.6s ease, opacity 0.6s ease;
+      opacity: 0;
+      margin: 0;
+    }
+
+    .details-section.visible {
+      max-height: 1000px;
+      opacity: 1;
+      margin-top: 1rem;
+    }
+
+    .details-table {
+      width: 100%;
+      font-size: 0.9rem;
+      border-spacing: 0.4rem 0.75rem;
+      table-layout: fixed;
+    }
+
+    .staff-selection-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .staff-tags-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      background-color: #f5f5f5;
+    }
+
+    .staff-tag {
+      background-color: #e0e0e0;
+      color: #333;
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+      font-size: 0.9rem;
+    }
+
+    .staff-notes-editor {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      margin: 0.5rem 0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+      background-color: #fff;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-sizing: border-box;
+      line-height: 1.4;
+    }
+
+    .save-notes-btn {
+      padding: 0.4rem 0.8rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background-color 0.2s ease;
+      margin-bottom: 0.5rem;
+    }
+
+    .order-id {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #ddd;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #666;
+      font-weight: bold;
+    }
+
+    .action-button {
+      border: none;
+      color: #333;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      margin-top: 0.5rem;
+      transition: all 0.2s ease;
+      background-color: #ccc;
+      cursor: pointer;
+      width: 100%;
+      font-size: 0.9rem;
     }
 
     .card ul {
@@ -84,16 +215,6 @@
 
     .card ul li {
       margin-bottom: 0.5rem;
-    }
-
-    .order-id {
-      margin-top: 1.25rem;
-      padding-top: 0.75rem;
-      border-top: 1px solid #ddd;
-      text-align: center;
-      font-size: 0.8rem;
-      color: #666;
-      font-weight: bold;
     }
 
     .stl-header {
@@ -148,74 +269,6 @@
 
     .status-failed {
       background-color: #d9534f;
-    }
-
-    .details-toggle {
-      margin-top: 0.5rem;
-      font-size: 0.85rem;
-      color: #1f6463;
-      background: none;
-      border: none;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .details-section {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.6s ease, opacity 0.6s ease;
-      opacity: 0;
-      margin-top: 0;
-    }
-
-    .details-section.visible {
-      max-height: 1000px;
-      /* large enough to cover any content height */
-      opacity: 1;
-      margin-top: 0.75rem;
-    }
-
-    .details-table {
-      width: 100%;
-      font-size: 0.9rem;
-      border-spacing: 0.4rem 0.25rem;
-      table-layout: fixed; /* Added to ensure consistent column widths */
-    }
-
-    .details-table td {
-      vertical-align: top;
-      padding: 0.4rem 0.5rem;
-      max-width: 0;
-      width: 100%;
-    }
-
-    .details-table td:first-child {
-      font-weight: bold;
-      width: 25%; /* Reduced from 30% to give more space to the content */
-      white-space: nowrap;
-      max-width: none;
-    }
-
-    .details-table td:last-child {
-      width: 75%; /* Increased from 70% */
-    }
-
-    .status-dropdown {
-      padding: 0.4rem;
-      border-radius: 0.3rem;
-      border: 1px solid #ccc;
-      margin-left: 0.5rem;
-      max-height: 100px;
-      overflow-y: auto;
-    }
-
-    .status-dropdown option {
-      padding: 0.3rem;
-    }
-
-    .status-dropdown option:checked {
-      background-color: #1f6463;
-      color: white;
     }
 
     .status-pending {
@@ -489,40 +542,10 @@
       border-bottom: none;
     }
 
-    .staff-notes-editor {
-      width: 100%;
-      min-height: 120px;
-      padding: 0.75rem;
-      border: 1px solid #ccc;
-      border-radius: 0.3rem;
-      margin-bottom: 0.5rem;
-      font-family: inherit;
-      font-size: 0.9rem;
-      resize: vertical;
-      background-color: #fff;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      max-width: 100%;
-      box-sizing: border-box;
-      line-height: 1.4;
-      max-height: 300px;
-    }
-
     .staff-notes-editor:focus {
       border-color: #1f6463;
       outline: none;
       box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
-    }
-
-    .save-notes-btn {
-      padding: 0.4rem 0.8rem;
-      background-color: #1f6463;
-      color: white;
-      border: none;
-      border-radius: 0.3rem;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: background-color 0.2s ease;
     }
 
     .save-notes-btn:hover:not(:disabled) {
@@ -551,21 +574,19 @@
     /* Style for staff notes */
     .staff-notes-editor {
       width: 100%;
-      min-height: 120px;
+      min-height: 100px;
       padding: 0.75rem;
       border: 1px solid #ccc;
       border-radius: 0.3rem;
-      margin-bottom: 0.5rem;
+      margin: 0.5rem 0;
       font-family: inherit;
       font-size: 0.9rem;
       resize: vertical;
       background-color: #fff;
       white-space: pre-wrap;
       word-wrap: break-word;
-      max-width: 100%;
       box-sizing: border-box;
       line-height: 1.4;
-      max-height: 300px;
     }
 
     /* Dark mode support */
@@ -982,14 +1003,11 @@
           const completedLabel = document.createElement("button");
           completedLabel.textContent = "Completed";
           completedLabel.disabled = true;
+          completedLabel.className = "action-button";
           completedLabel.style.backgroundColor = "#999";
-          completedLabel.style.border = "none";
           completedLabel.style.color = "#666";
-          completedLabel.style.padding = "0.5rem 1rem";
-          completedLabel.style.borderRadius = "0.5rem";
-          completedLabel.style.marginTop = "0.5rem";
           completedLabel.style.cursor = "not-allowed";
-          claimBtn.replaceWith(completedLabel);
+          card.appendChild(completedLabel);
         } else if (updatedOrder.claimed_by === state.currentUser) {
           // Replace with unclaim button if not already an unclaim button
           if (!claimBtn.textContent.includes('Unclaim')) {
@@ -1998,12 +2016,13 @@
         });
 
         const statusWrapper = document.createElement("div");
-        statusWrapper.style.marginTop = "0.5rem";
+        statusWrapper.className = "status-wrapper";
         statusWrapper.appendChild(statusDropdown);
         card.appendChild(statusWrapper);
 
         // Show estimated price right under heading
         const price = document.createElement("p");
+        price.style.margin = "0";
         price.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : "—"}`;
         card.appendChild(price);
 
@@ -2110,6 +2129,7 @@
 
         const staffLabel = document.createElement("span");
         staffLabel.textContent = "Assigned Staff:";
+        staffLabel.style.fontWeight = "bold";
         staffContainer.appendChild(staffLabel);
 
         // Create container for staff tags
@@ -2197,12 +2217,9 @@
               const completedLabel = document.createElement("button");
               completedLabel.textContent = "Completed";
               completedLabel.disabled = true;
+              completedLabel.className = "action-button";
               completedLabel.style.backgroundColor = "#999";
-              completedLabel.style.border = "none";
               completedLabel.style.color = "#666";
-              completedLabel.style.padding = "0.5rem 1rem";
-              completedLabel.style.borderRadius = "0.5rem";
-              completedLabel.style.marginTop = "0.5rem";
               completedLabel.style.cursor = "not-allowed";
               card.appendChild(completedLabel);
             } else {
@@ -2212,12 +2229,8 @@
                 const claimBtn = document.createElement("button");
                 claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : "Claim Order";
                 claimBtn.disabled = isClaimed;
+                claimBtn.className = "action-button";
                 claimBtn.style.backgroundColor = isClaimed ? '#999' : '#ccc';
-                claimBtn.style.border = "none";
-                claimBtn.style.color = "#333";
-                claimBtn.style.padding = "0.5rem 1rem";
-                claimBtn.style.borderRadius = "0.5rem";
-                claimBtn.style.marginTop = "0.5rem";
                 claimBtn.style.cursor = isClaimed ? "not-allowed" : "pointer";
 
                 if (!isClaimed) {
@@ -2225,39 +2238,21 @@
                     try {
                       claimBtn.textContent = "Claiming...";
                       claimBtn.disabled = true;
-                      claimBtn.style.cursor = "not-allowed";
+                      claimBtn.classList.add('claiming');
 
                       const response = await api.claimOrder(order.id);
                       
                       if (response && response.order) {
                         Object.assign(order, response.order);
-                        
-                        // Update staff tags to show the claimer is assigned
-                        const orderCard = claimBtn.closest('.card');
-                        if (orderCard) {
-                          // Update status dropdown first
-                          const statusDropdown = orderCard.querySelector('.status-dropdown');
-                          if (statusDropdown) {
-                            const newStatus = response.order.status || 'pending';
-                            statusDropdown.value = newStatus;
-                            statusDropdown.dataset.previousValue = newStatus;
-                            applyStatusColor(statusDropdown, newStatus);
-                          }
-
-                          // Then update staff tags
-                          const assignedStaff = order.assigned_staff ? order.assigned_staff.split(',') : [];
-                          updateStaffTagsForOrder(orderCard, assignedStaff);
-                        }
-                        
+                        updateStaffTagsForOrder(orderCard, [state.currentUser]);
                         claimBtn.replaceWith(createUnclaimButton(order));
                       }
                     } catch (err) {
                       console.error(`Failed to claim order ${order.id}:`, err);
                       ui.showError(err.message || "Failed to claim order");
-                      
                       claimBtn.textContent = "Claim Order";
                       claimBtn.disabled = false;
-                      claimBtn.style.cursor = "pointer";
+                      claimBtn.classList.remove('claiming');
                     }
                   });
                 }
@@ -2677,14 +2672,11 @@
           const completedLabel = document.createElement("button");
           completedLabel.textContent = "Completed";
           completedLabel.disabled = true;
+          completedLabel.className = "action-button";
           completedLabel.style.backgroundColor = "#999";
-          completedLabel.style.border = "none";
           completedLabel.style.color = "#666";
-          completedLabel.style.padding = "0.5rem 1rem";
-          completedLabel.style.borderRadius = "0.5rem";
-          completedLabel.style.marginTop = "0.5rem";
           completedLabel.style.cursor = "not-allowed";
-          claimBtn.replaceWith(completedLabel);
+          card.appendChild(completedLabel);
         } else if (updatedOrder.claimed_by === state.currentUser) {
           // Replace with unclaim button if not already an unclaim button
           if (!claimBtn.textContent.includes('Unclaim')) {
