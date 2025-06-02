@@ -2025,6 +2025,8 @@
         staffNotesEditor.placeholder = "Add staff notes here...";
         staffNotesEditor.spellcheck = true;
         staffNotesEditor.style.resize = "vertical";
+        staffNotesEditor.disabled = false;
+        staffNotesEditor.readOnly = false;
         
         const saveNotesBtn = document.createElement("button");
         saveNotesBtn.className = "save-notes-btn";
@@ -2812,6 +2814,7 @@
 
         // Update the editor's stored value
         editor.dataset.previousValue = notes;
+        editor.value = notes;
         
         // Show success state briefly
         saveBtn.textContent = 'Saved!';
@@ -2825,7 +2828,11 @@
 
         // Keep editor enabled and focused
         editor.disabled = false;
+        editor.readOnly = false;
         editor.focus();
+
+        // Move cursor to end of text
+        editor.setSelectionRange(editor.value.length, editor.value.length);
 
         ui.showNotification('Staff notes updated successfully');
       } catch (err) {
@@ -2838,6 +2845,7 @@
         
         // Keep editor enabled
         editor.disabled = false;
+        editor.readOnly = false;
       }
     }
   </script>
