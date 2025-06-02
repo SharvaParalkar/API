@@ -588,6 +588,29 @@
     .tab-button:active {
       transform: translateY(0);
     }
+
+    /* Add consistent button styles */
+    .action-button {
+      border: none;
+      color: #333;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      margin-top: 0.5rem;
+      transition: all 0.2s ease;
+      background-color: #ccc;
+      cursor: pointer;
+    }
+
+    .action-button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    .action-button.claiming,
+    .action-button.unclaiming {
+      background-color: #999;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 
@@ -760,22 +783,14 @@
           if (claimBtn && !unclaimBtn) {
             const newUnclaimBtn = document.createElement('button');
             newUnclaimBtn.textContent = 'Unclaim';
-            newUnclaimBtn.style.cssText = `
-              background-color: #ccc;
-              border: none;
-              color: #333;
-              padding: 0.5rem 1rem;
-              border-radius: 0.5rem;
-              margin-top: 0.5rem;
-              cursor: pointer;
-            `;
+            newUnclaimBtn.className = 'action-button';
 
             // Add unclaim functionality
             newUnclaimBtn.addEventListener('click', async () => {
               try {
                 newUnclaimBtn.textContent = 'Unclaiming...';
                 newUnclaimBtn.disabled = true;
-                newUnclaimBtn.style.cursor = 'not-allowed';
+                newUnclaimBtn.classList.add('unclaiming');
 
                 const response = await api.unclaimOrder(updatedOrder.id);
                 
@@ -790,7 +805,7 @@
                 ui.showError(err.message || "Failed to unclaim order");
                 newUnclaimBtn.textContent = 'Unclaim';
                 newUnclaimBtn.disabled = false;
-                newUnclaimBtn.style.cursor = 'pointer';
+                newUnclaimBtn.classList.remove('unclaiming');
               }
             });
 
@@ -800,23 +815,20 @@
           // If not claimed by current user, show appropriate claim button
           if (claimBtn || unclaimBtn) {
             const newClaimBtn = document.createElement('button');
+            newClaimBtn.className = 'action-button';
+            
             if (updatedOrder.claimed_by) {
               newClaimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
               newClaimBtn.disabled = true;
-              newClaimBtn.style.backgroundColor = '#999';
-              newClaimBtn.style.cursor = 'not-allowed';
             } else {
               newClaimBtn.textContent = 'Claim Order';
-              newClaimBtn.disabled = false;
-              newClaimBtn.style.backgroundColor = '#ccc';
-              newClaimBtn.style.cursor = 'pointer';
               
               // Add claim functionality
               newClaimBtn.addEventListener('click', async () => {
                 try {
                   newClaimBtn.textContent = 'Claiming...';
                   newClaimBtn.disabled = true;
-                  newClaimBtn.style.cursor = 'not-allowed';
+                  newClaimBtn.classList.add('claiming');
 
                   const response = await api.claimOrder(updatedOrder.id);
                   
@@ -829,18 +841,10 @@
                   ui.showError(err.message || "Failed to claim order");
                   newClaimBtn.textContent = 'Claim Order';
                   newClaimBtn.disabled = false;
-                  newClaimBtn.style.cursor = 'pointer';
+                  newClaimBtn.classList.remove('claiming');
                 }
               });
             }
-
-            newClaimBtn.style.cssText = `
-              border: none;
-              color: #333;
-              padding: 0.5rem 1rem;
-              border-radius: 0.5rem;
-              margin-top: 0.5rem;
-            `;
 
             if (claimBtn) {
               claimBtn.replaceWith(newClaimBtn);
@@ -2076,15 +2080,7 @@
     function createUnclaimButton(order, claimTimestamp = Date.now()) {
       const unclaimBtn = document.createElement('button');
       unclaimBtn.textContent = 'Unclaim';
-      unclaimBtn.style.cssText = `
-        background-color: #ccc;
-        border: none;
-        color: #333;
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        margin-top: 0.5rem;
-        cursor: pointer;
-      `;
+      unclaimBtn.className = 'action-button';
 
       let isUnclaiming = false;
 
@@ -2095,7 +2091,7 @@
           isUnclaiming = true;
           unclaimBtn.textContent = 'Unclaiming...';
           unclaimBtn.disabled = true;
-          unclaimBtn.style.cursor = 'not-allowed';
+          unclaimBtn.classList.add('unclaiming');
 
           const response = await api.unclaimOrder(order.id);
           
@@ -2136,15 +2132,7 @@
               // Create claim button
               const claimBtn = document.createElement('button');
               claimBtn.textContent = 'Claim Order';
-              claimBtn.style.cssText = `
-                background-color: #ccc;
-                border: none;
-                color: #333;
-                padding: 0.5rem 1rem;
-                border-radius: 0.5rem;
-                margin-top: 0.5rem;
-                cursor: pointer;
-              `;
+              claimBtn.className = 'action-button';
               
               let isClaiming = false;
               
@@ -2155,7 +2143,7 @@
                   isClaiming = true;
                   claimBtn.textContent = 'Claiming...';
                   claimBtn.disabled = true;
-                  claimBtn.style.cursor = 'not-allowed';
+                  claimBtn.classList.add('claiming');
                   
                   const response = await api.claimOrder(order.id);
                   
@@ -2176,7 +2164,7 @@
                   ui.showError(err.message || "Failed to claim order");
                   claimBtn.textContent = 'Claim Order';
                   claimBtn.disabled = false;
-                  claimBtn.style.cursor = 'pointer';
+                  claimBtn.classList.remove('claiming');
                 } finally {
                   isClaiming = false;
                 }
@@ -2197,7 +2185,7 @@
           ui.showError(err.message || "Failed to unclaim order");
           unclaimBtn.textContent = 'Unclaim';
           unclaimBtn.disabled = false;
-          unclaimBtn.style.cursor = 'pointer';
+          unclaimBtn.classList.remove('unclaiming');
         } finally {
           isUnclaiming = false;
         }
