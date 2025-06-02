@@ -1217,6 +1217,18 @@
       const completedToggle = document.getElementById("showCompletedToggle");
       const staffFilter = document.getElementById("staffFilter");
 
+      // Initialize staff filter
+      if (staffFilter && state.staffMembers.length > 0) {
+        console.log('Initializing staff filter with members:', state.staffMembers);
+        staffFilter.innerHTML = '<option value="">All Staff</option>';
+        state.staffMembers.forEach(staff => {
+          const option = document.createElement("option");
+          option.value = staff.username;
+          option.textContent = staff.displayName;
+          staffFilter.appendChild(option);
+        });
+      }
+
       [oldOrdersToggle, completedToggle, staffFilter].forEach(element => {
         if (element) {
           const newElement = element.cloneNode(true);
@@ -1248,6 +1260,7 @@
       console.log(`🔍 Filtering ${state.allOrders.length} orders with query: "${q}"`);
       console.log('Current user:', state.currentUser);
       console.log('Current tab:', state.currentTab);
+      console.log('Staff filter:', staffFilter);
 
       // First, filter based on the current tab
       let filtered = [...state.allOrders];
@@ -1289,6 +1302,7 @@
 
       // Apply staff filter if selected
       if (staffFilter) {
+        console.log('Applying staff filter:', staffFilter);
         filtered = filtered.filter(order => order.assigned_staff === staffFilter);
       }
 
@@ -2053,13 +2067,28 @@
           ui.hideLoginOverlay();
           
           // Get staff list
+          console.log('🔄 Fetching staff list...');
           const staffList = await api.getStaffList();
           state.staffMembers = staffList;
+          console.log('✅ Staff list loaded:', staffList);
           
           // Initialize UI components
           setTimeout(() => {
             initializeEventListeners();
             console.log('🎯 Dashboard initialized with tab listeners');
+            
+            // Initialize staff filter dropdown
+            const staffFilter = document.getElementById("staffFilter");
+            if (staffFilter) {
+              staffFilter.innerHTML = '<option value="">All Staff</option>';
+              state.staffMembers.forEach(staff => {
+                const option = document.createElement("option");
+                option.value = staff.username;
+                option.textContent = staff.displayName;
+                staffFilter.appendChild(option);
+              });
+              console.log('✅ Staff filter dropdown populated');
+            }
           }, 100);
           
           await loadInitialOrders();
