@@ -60,13 +60,13 @@
       color: #333;
       position: relative;
       height: auto;
-      gap: 1rem;
+      gap: 0.75rem;
     }
 
     .card h2 {
       font-size: 1.2rem;
       color: #1f6463;
-      margin: 0;
+      margin: 0 0 -0.25rem 0;
       padding-right: 2rem;
     }
 
@@ -74,7 +74,7 @@
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      margin: 0.5rem 0;
+      margin: 0;
     }
 
     .status-dropdown {
@@ -94,7 +94,7 @@
       border: none;
       font-weight: bold;
       cursor: pointer;
-      padding: 0.5rem 0;
+      padding: 0.25rem 0;
     }
 
     .details-section {
@@ -103,26 +103,35 @@
       transition: max-height 0.6s ease, opacity 0.6s ease;
       opacity: 0;
       margin: 0;
+      border-top: 1px solid #eee;
+      padding-top: 0.75rem;
     }
 
     .details-section.visible {
       max-height: 1000px;
       opacity: 1;
-      margin-top: 1rem;
+      margin-top: 0.5rem;
     }
 
     .details-table {
       width: 100%;
       font-size: 0.9rem;
-      border-spacing: 0.4rem 0.75rem;
+      border-spacing: 0 0.75rem;
       table-layout: fixed;
+    }
+
+    .details-table td:first-child {
+      width: 120px;
+      color: #666;
+      vertical-align: top;
+      padding-right: 1rem;
     }
 
     .staff-selection-container {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
-      margin-top: 0.5rem;
+      margin: 0;
     }
 
     .staff-tags-grid {
@@ -132,6 +141,7 @@
       padding: 0.75rem;
       border-radius: 0.5rem;
       background-color: #f5f5f5;
+      margin-top: 0.25rem;
     }
 
     .staff-tag {
@@ -178,8 +188,8 @@
     }
 
     .order-id {
-      margin-top: 0.75rem;
-      padding-top: 0.75rem;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
       border-top: 1px solid #ddd;
       text-align: center;
       font-size: 0.8rem;
@@ -192,7 +202,7 @@
       color: #333;
       padding: 0.5rem 1rem;
       border-radius: 0.5rem;
-      margin-top: 0.5rem;
+      margin-top: 0.25rem;
       transition: all 0.2s ease;
       background-color: #ccc;
       cursor: pointer;
@@ -685,7 +695,7 @@
       color: #333;
       padding: 0.5rem 1rem;
       border-radius: 0.5rem;
-      margin-top: 0.5rem;
+      margin-top: 0.25rem;
       transition: all 0.2s ease;
       background-color: #ccc;
       cursor: pointer;
@@ -2119,8 +2129,8 @@
         staffContainer.className = "staff-selection-container";
 
         const staffLabel = document.createElement("span");
-        staffLabel.textContent = "Assigned Staff:";
-        staffLabel.style.fontWeight = "bold";
+        staffLabel.innerHTML = "Assigned Staff";
+        staffLabel.style.cssText = "color: #666; font-size: 0.9rem; display: block; margin-bottom: 0.25rem;";
         staffContainer.appendChild(staffLabel);
 
         // Create container for staff tags
@@ -2727,7 +2737,6 @@
         // Only update if the editor is not currently focused (being edited)
         const isEditorFocused = staffNotesEditor === document.activeElement;
         const currentValue = staffNotesEditor.value;
-        const cursorPosition = staffNotesEditor.selectionStart;
         
         if (!isEditorFocused) {
           staffNotesEditor.value = updatedOrder.order_notes || '';
@@ -2756,10 +2765,8 @@
 
         // Reattach event listeners
         const reattachListeners = (editor, saveBtn) => {
-          // Remove existing listeners
+          // Clear existing listeners
           const newEditor = editor.cloneNode(true);
-          newEditor.value = editor.value;
-          newEditor.dataset.previousValue = editor.dataset.previousValue;
           editor.parentNode.replaceChild(newEditor, editor);
 
           // Add input event listener
@@ -2791,7 +2798,7 @@
 
           // Add Ctrl+Enter / Cmd+Enter save shortcut
           newEditor.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && saveBtn && !saveBtn.disabled) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveBtn.disabled) {
               e.preventDefault();
               saveBtn.click();
             }
@@ -2807,23 +2814,13 @@
                 saveStaffNotes(updatedOrder.id, newEditor.value, newEditor, newSaveBtn);
               }
             });
-
-            // Ensure the button is properly styled
-            newSaveBtn.className = "action-button save-notes-btn";
-            return [newEditor, newSaveBtn];
           }
 
-          return [newEditor, saveBtn];
+          return newEditor;
         };
 
-        // Reattach all listeners and get the new elements
-        const [newEditor, newSaveBtn] = reattachListeners(staffNotesEditor, saveNotesBtn);
-
-        // Restore focus and cursor position if needed
-        if (isEditorFocused) {
-          newEditor.focus();
-          newEditor.setSelectionRange(cursorPosition, cursorPosition);
-        }
+        // Reattach all listeners
+        reattachListeners(staffNotesEditor, saveNotesBtn);
       }
     }
 
