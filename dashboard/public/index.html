@@ -2023,6 +2023,8 @@
         staffNotesEditor.value = order.order_notes || '';
         staffNotesEditor.dataset.previousValue = order.order_notes || '';
         staffNotesEditor.placeholder = "Add staff notes here...";
+        staffNotesEditor.spellcheck = true;
+        staffNotesEditor.style.resize = "vertical";
         
         const saveNotesBtn = document.createElement("button");
         saveNotesBtn.className = "save-notes-btn";
@@ -2040,6 +2042,14 @@
         saveNotesBtn.addEventListener('click', () => {
           if (staffNotesEditor.value !== staffNotesEditor.dataset.previousValue) {
             saveStaffNotes(order.id, staffNotesEditor.value, staffNotesEditor, saveNotesBtn);
+          }
+        });
+
+        // Also allow saving with Ctrl+Enter or Cmd+Enter
+        staffNotesEditor.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveNotesBtn.disabled) {
+            e.preventDefault();
+            saveNotesBtn.click();
           }
         });
 
@@ -2180,6 +2190,16 @@
                         // Update staff tags to show the claimer is assigned
                         const orderCard = claimBtn.closest('.card');
                         if (orderCard) {
+                          // Update status dropdown first
+                          const statusDropdown = orderCard.querySelector('.status-dropdown');
+                          if (statusDropdown) {
+                            const newStatus = response.order.status || 'pending';
+                            statusDropdown.value = newStatus;
+                            statusDropdown.dataset.previousValue = newStatus;
+                            applyStatusColor(statusDropdown, newStatus);
+                          }
+
+                          // Then update staff tags
                           const assignedStaff = order.assigned_staff ? order.assigned_staff.split(',') : [];
                           updateStaffTagsForOrder(orderCard, assignedStaff);
                         }
@@ -2793,18 +2813,31 @@
         // Update the editor's stored value
         editor.dataset.previousValue = notes;
         
+        // Show success state briefly
         saveBtn.textContent = 'Saved!';
+        saveBtn.disabled = true;
+        
+        // Reset button state after a short delay
         setTimeout(() => {
           saveBtn.textContent = 'Save Notes';
-          saveBtn.disabled = false; // Enable the button for future edits
+          saveBtn.disabled = false;
         }, 2000);
+
+        // Keep editor enabled and focused
+        editor.disabled = false;
+        editor.focus();
 
         ui.showNotification('Staff notes updated successfully');
       } catch (err) {
         console.error('Failed to save staff notes:', err);
         ui.showError('Failed to save staff notes');
+        
+        // Reset button state on error
         saveBtn.textContent = 'Save Notes';
         saveBtn.disabled = false;
+        
+        // Keep editor enabled
+        editor.disabled = false;
       }
     }
   </script>
