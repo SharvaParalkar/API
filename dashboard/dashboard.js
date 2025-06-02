@@ -463,19 +463,47 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
   const username = req.session.user;
   const timestamp = new Date().toISOString();
 
-  if (!orderId || !staffName) {
-    return res.status(400).json({ error: "Missing orderId or staffName" });
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId" });
   }
 
   try {
-    const stmt = db.prepare("UPDATE orders SET assigned_staff = ?, updated_by = ?, last_updated = ? WHERE id = ?");
-    const result = stmt.run(staffName, username, timestamp, orderId);
+    // First check if the order exists and get its current state
+    const current = db.prepare("SELECT claimed_by, status FROM orders WHERE id = ?").get(orderId);
     
-    if (result.changes === 0) {
+    if (!current) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Fetch updated order
+    // Don't allow assigning staff to completed orders
+    if (current.status?.toLowerCase() === 'completed') {
+      return res.status(400).json({ error: "Cannot assign staff to completed orders" });
+    }
+
+    // Only allow staff assignment if:
+    // 1. The order is not claimed by anyone, or
+    // 2. The order is claimed by the current user
+    if (current.claimed_by && current.claimed_by !== username) {
+      return res.status(403).json({ 
+        error: "Cannot assign staff - order claimed by someone else",
+        claimedBy: current.claimed_by
+      });
+    }
+
+    const stmt = db.prepare(`
+      UPDATE orders 
+      SET assigned_staff = ?,
+          updated_by = ?,
+          last_updated = ?
+      WHERE id = ?
+    `);
+    const result = stmt.run(staffName, username, timestamp, orderId);
+    
+    if (result.changes === 0) {
+      throw new Error("Failed to update order");
+    }
+
+    // Fetch the updated order
     const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
     
     // Broadcast the update

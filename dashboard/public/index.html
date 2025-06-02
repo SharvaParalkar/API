@@ -2054,8 +2054,13 @@
         cursor: pointer;
       `;
 
+      let isUnclaiming = false; // Add flag to prevent multiple unclaim attempts
+
       unclaimBtn.addEventListener('click', async () => {
+        if (isUnclaiming) return; // Prevent multiple clicks while unclaiming
+        
         try {
+          isUnclaiming = true;
           unclaimBtn.textContent = 'Unclaiming...';
           unclaimBtn.disabled = true;
           unclaimBtn.style.cursor = 'not-allowed';
@@ -2095,8 +2100,13 @@
               cursor: pointer;
             `;
             
+            let isClaiming = false; // Add flag to prevent multiple claim attempts
+            
             claimBtn.addEventListener('click', async () => {
+              if (isClaiming) return; // Prevent multiple clicks while claiming
+              
               try {
+                isClaiming = true;
                 claimBtn.textContent = 'Claiming...';
                 claimBtn.disabled = true;
                 claimBtn.style.cursor = 'not-allowed';
@@ -2113,6 +2123,8 @@
                     state.allOrders[index] = { ...order };
                   }
                   
+                  // Wait a brief moment before replacing the button to ensure state is updated
+                  await new Promise(resolve => setTimeout(resolve, 100));
                   claimBtn.replaceWith(createUnclaimButton(order));
                 }
               } catch (err) {
@@ -2121,9 +2133,13 @@
                 claimBtn.textContent = 'Claim Order';
                 claimBtn.disabled = false;
                 claimBtn.style.cursor = 'pointer';
+              } finally {
+                isClaiming = false;
               }
             });
             
+            // Wait a brief moment before replacing the button to ensure state is updated
+            await new Promise(resolve => setTimeout(resolve, 100));
             unclaimBtn.replaceWith(claimBtn);
           }
         } catch (err) {
@@ -2132,6 +2148,8 @@
           unclaimBtn.textContent = 'Unclaim';
           unclaimBtn.disabled = false;
           unclaimBtn.style.cursor = 'pointer';
+        } finally {
+          isUnclaiming = false;
         }
       });
 
