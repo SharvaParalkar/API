@@ -2910,80 +2910,59 @@
           state.allOrders[orderIndex].order_notes = notes;
         }
 
-        // Update the editor's stored value
-        editor.dataset.previousValue = notes;
-        editor.value = notes;
-        
-        // Show success state briefly
-        saveBtn.textContent = 'Saved!';
-        saveBtn.disabled = true;
-        saveBtn.style.backgroundColor = "#2ecc71"; // Green for success
-        
-        // Reset button state after a short delay
-        setTimeout(() => {
-          saveBtn.textContent = 'Save Notes';
-          saveBtn.disabled = true; // Start disabled until changes are made
-          saveBtn.style.backgroundColor = "#ccc";
-          saveBtn.style.cursor = "not-allowed";
+        // Show success notification
+        ui.showNotification('Staff notes updated successfully');
+
+        // Fetch fresh order data
+        try {
+          const orderResponse = await fetch(`/dashboard/order/${orderId}`, {
+            credentials: 'include'
+          });
           
-          // Check if the editor is still in the DOM
-          if (!editor.isConnected || !editor.parentNode) {
-            console.warn('Editor no longer in DOM, skipping replacement');
+          if (!orderResponse.ok) {
+            throw new Error('Failed to fetch updated order');
+          }
+          
+          const updatedOrder = await orderResponse.json();
+          
+          // Find the card in the DOM
+          const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+          if (!orderCard) {
+            console.warn('Order card not found in DOM');
             return;
           }
-
-          try {
-            // Re-attach input event listener to ensure it's active
-            const newEditor = editor.cloneNode(true);
-            newEditor.value = editor.value;
-            newEditor.dataset.previousValue = editor.dataset.previousValue;
-            
-            // Re-attach input event listener
-            newEditor.addEventListener('input', () => {
-              const currentValue = newEditor.value;
-              const previousValue = newEditor.dataset.previousValue || '';
-              const hasChanges = currentValue !== previousValue;
-              
-              saveBtn.disabled = !hasChanges;
-              
-              if (hasChanges) {
-                saveBtn.textContent = "Save Notes";
-                saveBtn.style.backgroundColor = "#1f6463";
-                saveBtn.style.cursor = "pointer";
-              } else {
-                saveBtn.textContent = "No Changes";
-                saveBtn.style.backgroundColor = "#ccc";
-                saveBtn.style.cursor = "not-allowed";
-              }
-            });
-            
-            // Safely replace the old editor with the new one
-            const parent = editor.parentNode;
-            if (parent) {
-              parent.replaceChild(newEditor, editor);
-              
-              // Restore focus and cursor position if editor was focused
-              if (wasEditorFocused) {
-                newEditor.focus();
-                newEditor.setSelectionRange(cursorPosition, cursorPosition);
-              }
-              
-              // Trigger input event to ensure button state is correctly managed
-              newEditor.dispatchEvent(new Event('input'));
-            } else {
-              console.warn('Editor parent not found, cannot replace editor');
-            }
-          } catch (replaceError) {
-            console.error('Error replacing editor:', replaceError);
-            // Fallback: just update the existing editor
-            editor.disabled = false;
-            editor.readOnly = false;
-            editor.style.backgroundColor = "";
-            editor.dispatchEvent(new Event('input'));
+          
+          // Create a temporary container
+          const tempContainer = document.createElement('div');
+          
+          // Render a single order into the temporary container
+          await renderOrders([updatedOrder], true, tempContainer);
+          
+          // Get the newly rendered card
+          const newCard = tempContainer.firstChild;
+          if (!newCard) {
+            console.warn('Failed to render new card');
+            return;
           }
-        }, 1500);
+          
+          // Replace the old card with the new one
+          orderCard.parentNode.replaceChild(newCard, orderCard);
+          
+          // Find the new editor and restore focus if needed
+          if (wasEditorFocused) {
+            const newEditor = newCard.querySelector('.staff-notes-editor');
+            if (newEditor) {
+              newEditor.focus();
+              newEditor.setSelectionRange(cursorPosition, cursorPosition);
+            }
+          }
+          
+          console.log('Successfully refreshed order card');
+        } catch (refreshError) {
+          console.error('Failed to refresh card:', refreshError);
+          // Even if refresh fails, the save was successful, so don't throw
+        }
 
-        ui.showNotification('Staff notes updated successfully');
       } catch (err) {
         console.error('Failed to save staff notes:', err);
         ui.showError('Failed to save staff notes');
