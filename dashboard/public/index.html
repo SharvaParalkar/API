@@ -2244,13 +2244,13 @@
                       
                       if (response && response.order) {
                         Object.assign(order, response.order);
-                        updateStaffTagsForOrder(orderCard, [state.currentUser]);
+                        updateStaffTagsForOrder(card, [state.currentUser]);
                         claimBtn.replaceWith(createUnclaimButton(order));
                       }
                     } catch (err) {
                       console.error(`Failed to claim order ${order.id}:`, err);
                       ui.showError(err.message || "Failed to claim order");
-                      claimBtn.textContent = "Claim Order";
+                      claimBtn.textContent = 'Claim Order';
                       claimBtn.disabled = false;
                       claimBtn.classList.remove('claiming');
                     }
