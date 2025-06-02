@@ -491,7 +491,7 @@
 
     .staff-notes-editor {
       width: 100%;
-      min-height: 120px; /* Increased from 80px */
+      min-height: 120px;
       padding: 0.75rem;
       border: 1px solid #ccc;
       border-radius: 0.3rem;
@@ -505,7 +505,7 @@
       max-width: 100%;
       box-sizing: border-box;
       line-height: 1.4;
-      max-height: 300px; /* Added max-height */
+      max-height: 300px;
     }
 
     .staff-notes-editor:focus {
@@ -540,32 +540,45 @@
       word-break: break-word;
       font-style: italic;
       color: #666;
+      background-color: #f9f9f9;
+      border-radius: 0.3rem;
+      padding: 0.75rem;
+      min-height: 2.5rem;
+      line-height: 1.4;
+      border: 1px solid #eee;
+    }
+
+    /* Style for staff notes */
+    .staff-notes-editor {
+      width: 100%;
+      min-height: 120px;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      margin-bottom: 0.5rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+      background-color: #fff;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-width: 100%;
+      box-sizing: border-box;
+      line-height: 1.4;
+      max-height: 300px;
     }
 
     /* Dark mode support */
+    .dark-mode .details-table tr:first-child td:last-child {
+      background-color: #2d2d2d;
+      border-color: #444;
+      color: #aaa;
+    }
+
     .dark-mode .staff-notes-editor {
       background-color: #2d2d2d;
       color: #fff;
       border-color: #444;
-    }
-
-    .dark-mode .staff-notes-editor:focus {
-      border-color: #1f6463;
-      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.2);
-    }
-
-    .dark-mode .details-table tr:first-child td:last-child {
-      color: #aaa;
-    }
-
-    .dark-mode {
-      background-color: #1a1a1a;
-      color: #fff;
-    }
-
-    .dark-mode .card {
-      background-color: #2d2d2d;
-      color: #fff;
     }
 
     .dark-mode .status-dropdown {
