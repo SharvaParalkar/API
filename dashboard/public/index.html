@@ -2041,7 +2041,7 @@
     document.addEventListener("DOMContentLoaded", initialize);
 
     // Helper function to create unclaim button
-    function createUnclaimButton(order) {
+    function createUnclaimButton(order, claimTimestamp = Date.now()) {
       const unclaimBtn = document.createElement('button');
       unclaimBtn.textContent = 'Unclaim';
       unclaimBtn.style.cssText = `
@@ -2054,10 +2054,10 @@
         cursor: pointer;
       `;
 
-      let isUnclaiming = false; // Add flag to prevent multiple unclaim attempts
+      let isUnclaiming = false;
 
       unclaimBtn.addEventListener('click', async () => {
-        if (isUnclaiming) return; // Prevent multiple clicks while unclaiming
+        if (isUnclaiming) return;
         
         try {
           isUnclaiming = true;
@@ -2067,11 +2067,43 @@
 
           const response = await api.unclaimOrder(order.id);
           
-          // Update local order state with server response
+          // Check if unclaim happened within 20 seconds of claim
+          const timeSinceClaim = Date.now() - claimTimestamp;
+          const shouldRefreshCard = timeSinceClaim <= 20000; // 20 seconds
+
+          if (shouldRefreshCard) {
+            // Get the card element
+            const card = unclaimBtn.closest('.card');
+            if (card) {
+              // Fetch fresh order data
+              const orders = await api.fetchOrders();
+              const updatedOrder = orders.find(o => o.id === order.id);
+              
+              if (updatedOrder) {
+                // Update global state
+                const index = state.allOrders.findIndex(o => o.id === order.id);
+                if (index !== -1) {
+                  state.allOrders[index] = updatedOrder;
+                }
+                
+                // Create a new card with fresh data
+                const tempContainer = document.createElement('div');
+                await renderOrders([updatedOrder], false, tempContainer);
+                
+                // Replace the old card with the new one
+                const newCard = tempContainer.firstChild;
+                if (newCard) {
+                  card.replaceWith(newCard);
+                }
+                return; // Exit early as we've handled the update
+              }
+            }
+          }
+
+          // If we didn't refresh the card, proceed with normal update
           if (response && response.order) {
             Object.assign(order, response.order);
             
-            // Update global state
             const index = state.allOrders.findIndex(o => o.id === order.id);
             if (index !== -1) {
               state.allOrders[index] = { ...order };
@@ -2087,7 +2119,6 @@
               setTimeout(() => card.remove(), 300);
             }
           } else {
-            // Create and show claim button
             const claimBtn = document.createElement('button');
             claimBtn.textContent = 'Claim Order';
             claimBtn.style.cssText = `
@@ -2100,10 +2131,10 @@
               cursor: pointer;
             `;
             
-            let isClaiming = false; // Add flag to prevent multiple claim attempts
+            let isClaiming = false;
             
             claimBtn.addEventListener('click', async () => {
-              if (isClaiming) return; // Prevent multiple clicks while claiming
+              if (isClaiming) return;
               
               try {
                 isClaiming = true;
@@ -2113,19 +2144,16 @@
                 
                 const response = await api.claimOrder(order.id);
                 
-                // Update local order state with server response
                 if (response && response.order) {
                   Object.assign(order, response.order);
                   
-                  // Update global state
                   const index = state.allOrders.findIndex(o => o.id === order.id);
                   if (index !== -1) {
                     state.allOrders[index] = { ...order };
                   }
                   
-                  // Wait a brief moment before replacing the button to ensure state is updated
-                  await new Promise(resolve => setTimeout(resolve, 100));
-                  claimBtn.replaceWith(createUnclaimButton(order));
+                  // Pass the claim timestamp to track when this claim happened
+                  claimBtn.replaceWith(createUnclaimButton(order, Date.now()));
                 }
               } catch (err) {
                 console.error(`Failed to claim order ${order.id}:`, err);
@@ -2138,8 +2166,6 @@
               }
             });
             
-            // Wait a brief moment before replacing the button to ensure state is updated
-            await new Promise(resolve => setTimeout(resolve, 100));
             unclaimBtn.replaceWith(claimBtn);
           }
         } catch (err) {
