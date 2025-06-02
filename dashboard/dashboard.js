@@ -784,29 +784,27 @@ app.delete("/dashboard/order/:orderId", requireLogin, (req, res) => {
 
     // Use a transaction to ensure all operations succeed or none do
     db.transaction(() => {
-      // First delete any related records (adjust these queries based on your actual schema)
-      // Example: If you have order_items table
+      // First delete from the files table (this is the key change)
+      try {
+        const deleteFiles = db.prepare("DELETE FROM files WHERE order_id = ? OR order_id = ?");
+        const filesResult = deleteFiles.run(orderId, fullOrderId);
+        console.log(`Deleted ${filesResult.changes} files for order`);
+      } catch (err) {
+        console.log('No files to delete or error:', err.message);
+      }
+
+      // Delete from order_items if exists
       try {
         db.prepare("DELETE FROM order_items WHERE order_id = ? OR order_id = ?").run(orderId, fullOrderId);
       } catch (err) {
-        // If table doesn't exist or no records found, continue
         console.log('No order_items to delete');
       }
 
-      // Example: If you have order_notes table
+      // Delete from order_notes if exists
       try {
         db.prepare("DELETE FROM order_notes WHERE order_id = ? OR order_id = ?").run(orderId, fullOrderId);
       } catch (err) {
-        // If table doesn't exist or no records found, continue
         console.log('No order_notes to delete');
-      }
-
-      // Example: If you have order_files table
-      try {
-        db.prepare("DELETE FROM order_files WHERE order_id = ? OR order_id = ?").run(orderId, fullOrderId);
-      } catch (err) {
-        // If table doesn't exist or no records found, continue
-        console.log('No order_files to delete');
       }
 
       // Finally delete the order itself
@@ -819,6 +817,22 @@ app.delete("/dashboard/order/:orderId", requireLogin, (req, res) => {
 
       console.log('✅ Successfully deleted order:', { orderId, fullOrderId });
     })();
+
+    // Also delete any physical files from the STLS directory
+    try {
+      const files = fs.readdirSync(STLS_DIR);
+      const matchingFiles = files.filter((file) => 
+        file.startsWith(orderId) || file.startsWith(fullOrderId)
+      );
+      
+      matchingFiles.forEach((file) => {
+        const filePath = path.join(STLS_DIR, file);
+        fs.unlinkSync(filePath);
+        console.log('Deleted physical file:', file);
+      });
+    } catch (err) {
+      console.log('No physical files to delete or error:', err.message);
+    }
 
     // Broadcast the deletion to all connected clients
     broadcastUpdate('orderUpdate', {
