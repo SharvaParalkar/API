@@ -2191,10 +2191,10 @@
             throw new Error('Could not find order card');
           }
 
-          // Update state.allOrders to remove the unclaimed order
+          // Update state.allOrders
           const index = state.allOrders.findIndex(o => o.id === order.id);
           if (index !== -1) {
-            state.allOrders.splice(index, 1);
+            state.allOrders[index] = response.order;
           }
 
           if (state.currentTab === "claimed") {
@@ -2204,8 +2204,9 @@
             card.style.transform = "scale(0.9)";
             setTimeout(() => card.remove(), 300);
           } else {
-            // In all tab, update staff tags to show no one is assigned
-            updateStaffTagsForOrder(card, []);
+            // In all tab, update staff tags to remove only the unclaiming user
+            const assignedStaff = response.order.assigned_staff ? response.order.assigned_staff.split(',') : [];
+            updateStaffTagsForOrder(card, assignedStaff);
             
             // Replace unclaim button with claim button
             const claimBtn = document.createElement('button');
@@ -2231,8 +2232,12 @@
 
                 Object.assign(order, response.order);
                 
-                // Update staff tags
-                updateStaffTagsForOrder(card, [state.currentUser]);
+                // Get current assigned staff and add the claiming user
+                const currentAssignedStaff = order.assigned_staff ? order.assigned_staff.split(',') : [];
+                if (!currentAssignedStaff.includes(state.currentUser)) {
+                  currentAssignedStaff.push(state.currentUser);
+                }
+                updateStaffTagsForOrder(card, currentAssignedStaff);
                 
                 const index = state.allOrders.findIndex(o => o.id === order.id);
                 if (index !== -1) {

@@ -622,7 +622,7 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
 
   try {
     // First check if the order exists and get its current state
-    const current = db.prepare("SELECT claimed_by, status FROM orders WHERE id = ?").get(orderId);
+    const current = db.prepare("SELECT claimed_by, status, assigned_staff FROM orders WHERE id = ?").get(orderId);
     
     if (!current) {
       return res.status(404).json({ error: "Order not found" });
@@ -649,17 +649,22 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
 
     // Begin transaction
     db.transaction(() => {
-      // Perform the unclaim operation - reset both claimed_by and assigned_staff
+      // Get current assigned staff and remove the unclaiming user
+      let assignedStaff = current.assigned_staff ? current.assigned_staff.split(',') : [];
+      assignedStaff = assignedStaff.filter(staff => staff !== username);
+      const newAssignedStaff = assignedStaff.length > 0 ? assignedStaff.join(',') : null;
+
+      // Perform the unclaim operation - reset claimed_by and update assigned_staff
       const stmt = db.prepare(`
         UPDATE orders 
         SET claimed_by = NULL, 
-            assigned_staff = NULL,
+            assigned_staff = ?,
             updated_by = ?, 
             last_updated = ? 
         WHERE id = ? AND (claimed_by IS NULL OR claimed_by = ?)
       `);
       
-      const result = stmt.run(username, timestamp, orderId, username);
+      const result = stmt.run(newAssignedStaff, username, timestamp, orderId, username);
       
       if (result.changes === 0) {
         throw new Error("Failed to update order - may have been claimed by someone else");
