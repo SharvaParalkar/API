@@ -1146,6 +1146,28 @@
           errorDiv.style.animation = 'slideOut 0.3s ease-in';
           setTimeout(() => errorDiv.remove(), 300);
         }, 3000);
+      },
+
+      showNotification(message) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background-color: #1f6463;
+          color: white;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          z-index: 1000;
+          animation: slideIn 0.3s ease-out;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          notification.style.animation = 'slideOut 0.3s ease-in';
+          setTimeout(() => notification.remove(), 300);
+        }, 3000);
       }
     };
 
@@ -1506,8 +1528,39 @@
 
     // Add back the applyStatusColor function
     function applyStatusColor(dropdown, status) {
-      const normalized = status.toLowerCase().replace(/\s+/g, "-");
-      dropdown.className = "status-dropdown status-" + normalized;
+      // Normalize the status
+      const normalized = (status || 'pending').toLowerCase().replace(/\s+/g, "-");
+      
+      // Remove any existing status classes
+      dropdown.className = 'status-dropdown';
+      
+      // Add the new status class
+      dropdown.classList.add(`status-${normalized}`);
+      
+      // Apply the color based on status
+      switch (normalized) {
+        case 'pending':
+          dropdown.style.backgroundColor = '#ff6e5f';
+          dropdown.style.color = '#000';
+          break;
+        case 'pre-print':
+          dropdown.style.backgroundColor = '#ffaea5';
+          dropdown.style.color = '#000';
+          break;
+        case 'printing':
+        case 'printing-pay-later':
+          dropdown.style.backgroundColor = '#f4d03f';
+          dropdown.style.color = '#000';
+          break;
+        case 'completed':
+          dropdown.style.backgroundColor = '#2ecc71';
+          dropdown.style.color = '#000';
+          break;
+        default:
+          dropdown.style.backgroundColor = '#ff6e5f'; // Default to pending color
+          dropdown.style.color = '#000';
+          break;
+      }
     }
 
     // Add back the autoEstimateOrder function
@@ -1613,98 +1666,6 @@
       }
     }
 
-    // Add back missing essential functions
-    
-    // Add necessary CSS animations
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-      @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-      }
-    `;
-    document.head.appendChild(style);
-
-    // Add error handling wrapper for async functions
-    const withErrorHandling = (fn) => async (...args) => {
-      try {
-        return await fn(...args);
-      } catch (err) {
-        console.error('❌ Error:', err);
-        ui.showError(err.message || 'An error occurred');
-        throw err;
-      }
-    };
-
-    // Wrap API calls with error handling
-    Object.keys(api).forEach(key => {
-      if (typeof api[key] === 'function') {
-        api[key] = withErrorHandling(api[key]);
-      }
-    });
-
-    // Add back the updateOrderCard function
-    function updateOrderCard(card, order) {
-      // Update status dropdown
-      const statusDropdown = card.querySelector('.status-dropdown');
-      if (statusDropdown) {
-        statusDropdown.value = order.status || 'pending';
-        applyStatusColor(statusDropdown, order.status || 'pending');
-      }
-
-      // Update price
-      const priceElement = card.querySelector('p');
-      if (priceElement) {
-        priceElement.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : '—'}`;
-      }
-    }
-
-    // Create staff assignment dropdown
-    function createStaffDropdown(order) {
-      const staffSelect = document.createElement("select");
-      staffSelect.className = "staff-dropdown";
-      staffSelect.style.padding = "0.4rem";
-      staffSelect.style.borderRadius = "0.3rem";
-      staffSelect.style.border = "1px solid #ccc";
-      staffSelect.style.marginLeft = "0.5rem";
-
-      // Add empty option
-      const emptyOption = document.createElement("option");
-      emptyOption.value = "";
-      emptyOption.textContent = "-- Select Staff --";
-      staffSelect.appendChild(emptyOption);
-
-      // Add staff options
-      state.staffMembers.forEach(staff => {
-        const option = document.createElement("option");
-        option.value = staff.username;
-        option.textContent = staff.displayName;
-        if (staff.username === order.assigned_staff) {
-          option.selected = true;
-        }
-        staffSelect.appendChild(option);
-      });
-
-      // Handle staff assignment
-      staffSelect.addEventListener("change", async () => {
-        try {
-          const newStaff = staffSelect.value;
-          const response = await api.assignStaff(order.id, newStaff);
-          order.assigned_staff = newStaff;
-        } catch (err) {
-          console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
-          staffSelect.value = order.assigned_staff || ""; // Revert on error
-          ui.showError(`Failed to assign staff: ${err.message}`);
-        }
-      });
-
-      return staffSelect;
-    }
-
     // Add back the renderOrders function (complete version)
     async function renderOrders(orders, expandDetails = false, container = null) {
       const grid = container || document.getElementById("orderGrid");
@@ -1731,8 +1692,8 @@
         const statusDropdown = document.createElement("select");
         statusDropdown.className = "status-dropdown";
         statusDropdown.dataset.previousValue = currentStatus;
-        applyStatusColor(statusDropdown, currentStatus);
 
+        // Create and append status options
         statusOptions.forEach((status) => {
           const option = document.createElement("option");
           option.value = status;
@@ -1745,6 +1706,9 @@
           }
           statusDropdown.appendChild(option);
         });
+
+        // Apply initial status color
+        applyStatusColor(statusDropdown, currentStatus);
 
         // Single event handler for status changes
         statusDropdown.addEventListener("change", async () => {
@@ -2044,7 +2008,19 @@
           try {
             const update = JSON.parse(e.data);
             console.log('📦 Received order update:', update);
-            handleOrderUpdate(update.order);
+
+            // If it's a new order, add it to the state and refresh the view
+            if (update.type === 'new') {
+              console.log('🆕 New order received:', update.order);
+              state.allOrders.unshift(update.order);
+              const query = document.getElementById("searchInput").value;
+              filterOrders(query);
+              
+              // Show notification for new order
+              ui.showNotification('New order received!');
+            } else {
+              handleOrderUpdate(update.order);
+            }
           } catch (err) {
             console.error('❌ Failed to process order update:', err);
             ui.showError('Failed to process update');
