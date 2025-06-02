@@ -332,6 +332,28 @@ function broadcastUpdate(eventType, data) {
   });
 }
 
+// Watch for new orders
+let lastOrderId = null;
+setInterval(async () => {
+  try {
+    // Get the latest order
+    const latestOrder = db.prepare("SELECT * FROM orders ORDER BY submitted_at DESC LIMIT 1").get();
+    
+    if (latestOrder && (!lastOrderId || latestOrder.id !== lastOrderId)) {
+      console.log('🆕 New order detected:', latestOrder.id);
+      lastOrderId = latestOrder.id;
+      
+      // Broadcast to all connected clients
+      broadcastUpdate('orderUpdate', {
+        type: 'new',
+        order: latestOrder
+      });
+    }
+  } catch (err) {
+    console.error('❌ Error checking for new orders:', err);
+  }
+}, 1000); // Check every second
+
 // 🔄 Update status
 app.post("/dashboard/update-status", requireLogin, (req, res) => {
   const { orderId, status } = req.body;

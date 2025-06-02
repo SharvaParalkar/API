@@ -2009,16 +2009,24 @@
             const update = JSON.parse(e.data);
             console.log('📦 Received order update:', update);
 
-            // If it's a new order, add it to the state and refresh the view
+            // Handle new orders
             if (update.type === 'new') {
               console.log('🆕 New order received:', update.order);
-              state.allOrders.unshift(update.order);
-              const query = document.getElementById("searchInput").value;
-              filterOrders(query);
               
-              // Show notification for new order
-              ui.showNotification('New order received!');
+              // Add to state if not already present
+              const exists = state.allOrders.some(order => order.id === update.order.id);
+              if (!exists) {
+                state.allOrders.unshift(update.order);
+                
+                // Show notification
+                ui.showNotification('New order received!');
+                
+                // Refresh the view
+                const query = document.getElementById("searchInput").value;
+                filterOrders(query);
+              }
             } else {
+              // Handle updates to existing orders
               handleOrderUpdate(update.order);
             }
           } catch (err) {
