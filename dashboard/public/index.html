@@ -2060,8 +2060,6 @@
         staffNotesEditor.placeholder = "Add staff notes here...";
         staffNotesEditor.spellcheck = true;
         staffNotesEditor.style.resize = "vertical";
-        staffNotesEditor.disabled = false;
-        staffNotesEditor.readOnly = false;
         
         const saveNotesBtn = document.createElement("button");
         saveNotesBtn.className = "save-notes-btn";
@@ -2088,18 +2086,11 @@
           }
         });
 
-        // Also handle paste events and other text changes
-        staffNotesEditor.addEventListener('paste', () => {
-          setTimeout(() => {
-            staffNotesEditor.dispatchEvent(new Event('input'));
-          }, 0);
-        });
-
-        // Handle cut events
-        staffNotesEditor.addEventListener('cut', () => {
-          setTimeout(() => {
-            staffNotesEditor.dispatchEvent(new Event('input'));
-          }, 0);
+        // Handle paste and cut events
+        ['paste', 'cut'].forEach(eventName => {
+          staffNotesEditor.addEventListener(eventName, () => {
+            setTimeout(() => staffNotesEditor.dispatchEvent(new Event('input')), 0);
+          });
         });
 
         // Handle save button click
@@ -2735,69 +2726,91 @@
       if (staffNotesEditor && updatedOrder.order_notes !== undefined) {
         // Only update if the editor is not currently focused (being edited)
         const isEditorFocused = staffNotesEditor === document.activeElement;
+        const currentValue = staffNotesEditor.value;
         
         if (!isEditorFocused) {
-          try {
-            // Check if the editor is still in the DOM
-            if (!staffNotesEditor.isConnected || !staffNotesEditor.parentNode) {
-              console.warn('Editor no longer in DOM during update, skipping replacement');
-              return;
-            }
+          staffNotesEditor.value = updatedOrder.order_notes || '';
+          staffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+        }
 
-            // Create new editor to ensure fresh event listeners
-            const newEditor = staffNotesEditor.cloneNode(true);
-            newEditor.value = updatedOrder.order_notes || '';
-            newEditor.dataset.previousValue = updatedOrder.order_notes || '';
-            
-            // Add input event listener
-            newEditor.addEventListener('input', () => {
-              const currentValue = newEditor.value;
-              const previousValue = newEditor.dataset.previousValue || '';
-              const hasChanges = currentValue !== previousValue;
-              
-              if (saveNotesBtn) {
-                saveNotesBtn.disabled = !hasChanges;
-                
-                if (hasChanges) {
-                  saveNotesBtn.textContent = "Save Notes";
-                  saveNotesBtn.style.backgroundColor = "#1f6463";
-                  saveNotesBtn.style.cursor = "pointer";
-                } else {
-                  saveNotesBtn.textContent = "No Changes";
-                  saveNotesBtn.style.backgroundColor = "#ccc";
-                  saveNotesBtn.style.cursor = "not-allowed";
-                }
-              }
-            });
-            
-            // Safely replace old editor with new one
-            const parent = staffNotesEditor.parentNode;
-            if (parent) {
-              parent.replaceChild(newEditor, staffNotesEditor);
-              
-              // Reset save button state
-              if (saveNotesBtn) {
-                saveNotesBtn.textContent = "Save Notes";
-                saveNotesBtn.disabled = true;
-                saveNotesBtn.style.backgroundColor = "#ccc";
-                saveNotesBtn.style.cursor = "not-allowed";
-              }
-              
-              // Trigger input event to update button state
-              newEditor.dispatchEvent(new Event('input'));
-            } else {
-              console.warn('Editor parent not found during update, cannot replace editor');
-            }
-          } catch (replaceError) {
-            console.error('Error replacing editor during update:', replaceError);
-            // Fallback: just update the existing editor
-            staffNotesEditor.value = updatedOrder.order_notes || '';
-            staffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
-            staffNotesEditor.disabled = false;
-            staffNotesEditor.readOnly = false;
-            staffNotesEditor.dispatchEvent(new Event('input'));
+        // Ensure the editor remains editable
+        staffNotesEditor.disabled = false;
+        staffNotesEditor.readOnly = false;
+
+        // Reset save button state
+        if (saveNotesBtn) {
+          const hasChanges = currentValue !== (updatedOrder.order_notes || '');
+          saveNotesBtn.disabled = !hasChanges;
+          
+          if (hasChanges) {
+            saveNotesBtn.textContent = "Save Notes";
+            saveNotesBtn.style.backgroundColor = "#1f6463";
+            saveNotesBtn.style.cursor = "pointer";
+          } else {
+            saveNotesBtn.textContent = "No Changes";
+            saveNotesBtn.style.backgroundColor = "#ccc";
+            saveNotesBtn.style.cursor = "not-allowed";
           }
         }
+
+        // Reattach event listeners
+        const reattachListeners = (editor, saveBtn) => {
+          // Clear existing listeners
+          const newEditor = editor.cloneNode(true);
+          editor.parentNode.replaceChild(newEditor, editor);
+
+          // Add input event listener
+          newEditor.addEventListener('input', () => {
+            const currentValue = newEditor.value;
+            const previousValue = newEditor.dataset.previousValue || '';
+            const hasChanges = currentValue !== previousValue;
+            
+            if (saveBtn) {
+              saveBtn.disabled = !hasChanges;
+              if (hasChanges) {
+                saveBtn.textContent = "Save Notes";
+                saveBtn.style.backgroundColor = "#1f6463";
+                saveBtn.style.cursor = "pointer";
+              } else {
+                saveBtn.textContent = "No Changes";
+                saveBtn.style.backgroundColor = "#ccc";
+                saveBtn.style.cursor = "not-allowed";
+              }
+            }
+          });
+
+          // Handle paste and cut events
+          ['paste', 'cut'].forEach(eventName => {
+            newEditor.addEventListener(eventName, () => {
+              setTimeout(() => newEditor.dispatchEvent(new Event('input')), 0);
+            });
+          });
+
+          // Add Ctrl+Enter / Cmd+Enter save shortcut
+          newEditor.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveBtn.disabled) {
+              e.preventDefault();
+              saveBtn.click();
+            }
+          });
+
+          // Update save button click handler
+          if (saveBtn) {
+            const newSaveBtn = saveBtn.cloneNode(true);
+            saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+            
+            newSaveBtn.addEventListener('click', () => {
+              if (newEditor.value !== newEditor.dataset.previousValue) {
+                saveStaffNotes(updatedOrder.id, newEditor.value, newEditor, newSaveBtn);
+              }
+            });
+          }
+
+          return newEditor;
+        };
+
+        // Reattach all listeners
+        reattachListeners(staffNotesEditor, saveNotesBtn);
       }
     }
 
