@@ -623,7 +623,9 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
     // Broadcast the update
     broadcastUpdate('orderUpdate', {
       type: 'claim',
-      order: updatedOrder
+      order: updatedOrder,
+      timestamp: timestamp,
+      claimedBy: username
     });
 
     res.json({ success: true, order: updatedOrder });
@@ -710,10 +712,13 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
     // Fetch the final state of the order
     const finalOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
     
-    // Broadcast the update
+    // Broadcast the update with additional context
     broadcastUpdate('orderUpdate', {
       type: 'unclaim',
-      order: finalOrder
+      order: finalOrder,
+      timestamp: timestamp,
+      previousClaimant: username,
+      assignedStaff: finalOrder.assigned_staff
     });
 
     res.json({ success: true, order: finalOrder });

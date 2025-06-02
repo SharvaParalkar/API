@@ -827,50 +827,67 @@
 
       // Update claim/unclaim button
       const claimBtn = orderCard.querySelector('button:last-child');
-      const unclaimBtn = orderCard.querySelector('button[textContent="Unclaim"]');
-
-      if (updatedOrder.claimed_by === state.currentUser) {
-        if (claimBtn && !unclaimBtn) {
-          claimBtn.replaceWith(createUnclaimButton(updatedOrder));
-        }
-      } else {
-        const newClaimBtn = document.createElement('button');
-        newClaimBtn.className = 'action-button';
-        
-        if (updatedOrder.claimed_by) {
-          newClaimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
-          newClaimBtn.disabled = true;
+      if (claimBtn) {
+        if (updatedOrder.status?.toLowerCase() === 'completed') {
+          // Replace with completed label
+          const completedLabel = document.createElement("button");
+          completedLabel.textContent = "Completed";
+          completedLabel.disabled = true;
+          completedLabel.style.backgroundColor = "#999";
+          completedLabel.style.border = "none";
+          completedLabel.style.color = "#666";
+          completedLabel.style.padding = "0.5rem 1rem";
+          completedLabel.style.borderRadius = "0.5rem";
+          completedLabel.style.marginTop = "0.5rem";
+          completedLabel.style.cursor = "not-allowed";
+          claimBtn.replaceWith(completedLabel);
+        } else if (updatedOrder.claimed_by === state.currentUser) {
+          // Replace with unclaim button if not already an unclaim button
+          if (!claimBtn.textContent.includes('Unclaim')) {
+            claimBtn.replaceWith(createUnclaimButton(updatedOrder));
+          }
         } else {
-          newClaimBtn.textContent = 'Claim Order';
-          newClaimBtn.addEventListener('click', async () => {
-            try {
-              newClaimBtn.textContent = 'Claiming...';
-              newClaimBtn.disabled = true;
-              newClaimBtn.classList.add('claiming');
+          // Update or replace with claim button
+          const newClaimBtn = document.createElement('button');
+          newClaimBtn.className = 'action-button';
+          
+          if (updatedOrder.claimed_by) {
+            newClaimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
+            newClaimBtn.disabled = true;
+            newClaimBtn.style.backgroundColor = '#999';
+            newClaimBtn.style.cursor = 'not-allowed';
+          } else {
+            newClaimBtn.textContent = 'Claim Order';
+            newClaimBtn.addEventListener('click', async () => {
+              try {
+                newClaimBtn.textContent = 'Claiming...';
+                newClaimBtn.disabled = true;
+                newClaimBtn.classList.add('claiming');
 
-              const response = await api.claimOrder(updatedOrder.id);
-              
-              if (response && response.order) {
-                Object.assign(updatedOrder, response.order);
-                updateStaffTagsForOrder(orderCard, [state.currentUser]);
-                newClaimBtn.replaceWith(createUnclaimButton(updatedOrder));
+                const response = await api.claimOrder(updatedOrder.id);
+                
+                if (response && response.order) {
+                  Object.assign(updatedOrder, response.order);
+                  updateStaffTagsForOrder(orderCard, [state.currentUser]);
+                  newClaimBtn.replaceWith(createUnclaimButton(updatedOrder));
+                }
+              } catch (err) {
+                console.error(`Failed to claim order ${updatedOrder.id}:`, err);
+                ui.showError(err.message || "Failed to claim order");
+                newClaimBtn.textContent = 'Claim Order';
+                newClaimBtn.disabled = false;
+                newClaimBtn.classList.remove('claiming');
               }
-            } catch (err) {
-              console.error(`Failed to claim order ${updatedOrder.id}:`, err);
-              ui.showError(err.message || "Failed to claim order");
-              newClaimBtn.textContent = 'Claim Order';
-              newClaimBtn.disabled = false;
-              newClaimBtn.classList.remove('claiming');
-            }
-          });
-        }
-
-        if (claimBtn) {
+            });
+          }
+          
           claimBtn.replaceWith(newClaimBtn);
-        } else if (unclaimBtn) {
-          unclaimBtn.replaceWith(newClaimBtn);
         }
       }
+
+      // Update staff tags
+      const assignedStaff = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
+      updateStaffTagsForOrder(orderCard, assignedStaff);
 
       // Update other card elements
       updateCardElements(orderCard, updatedOrder);
@@ -2057,6 +2074,15 @@
               }
             } else {
               // Handle updates to existing orders
+              console.log(`🔄 Processing ${update.type} update for order ${update.order.id}`);
+              
+              // Show notifications for claim/unclaim events
+              if (update.type === 'claim' && update.order.claimed_by !== state.currentUser) {
+                ui.showNotification(`Order ${update.order.id} was claimed by ${update.order.claimed_by}`);
+              } else if (update.type === 'unclaim' && update.order.claimed_by === null) {
+                ui.showNotification(`Order ${update.order.id} was unclaimed`);
+              }
+              
               handleOrderUpdate(update.order);
             }
           } catch (err) {
@@ -2309,18 +2335,99 @@
         return;
       }
 
-      // Update staff tags
-      const assignedStaff = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
-      updateStaffTagsForOrder(orderCard, assignedStaff);
+      // Handle claimed tab visibility
+      if (state.currentTab === "claimed") {
+        const shouldBeVisible = updatedOrder.claimed_by === state.currentUser && 
+                              updatedOrder.assigned_staff === state.currentUser &&
+                              updatedOrder.status?.toLowerCase() !== "completed";
+        
+        if (!shouldBeVisible) {
+          console.log(`Removing card ${updatedOrder.id} from claimed view`);
+          orderCard.style.transition = "all 0.3s ease";
+          orderCard.style.opacity = "0";
+          orderCard.style.transform = "scale(0.9)";
+          setTimeout(() => {
+            if (orderCard.isConnected) {
+              orderCard.remove();
+            }
+          }, 300);
+          return;
+        }
+      }
 
       // Update status dropdown
       const statusDropdown = orderCard.querySelector('.status-dropdown');
       if (statusDropdown) {
         const newStatus = updatedOrder.status || 'pending';
+        console.log(`Updating status for order ${updatedOrder.id} to:`, newStatus);
         statusDropdown.value = newStatus;
         statusDropdown.dataset.previousValue = newStatus;
         applyStatusColor(statusDropdown, newStatus);
       }
+
+      // Update claim/unclaim button
+      const claimBtn = orderCard.querySelector('button:last-child');
+      if (claimBtn) {
+        if (updatedOrder.status?.toLowerCase() === 'completed') {
+          // Replace with completed label
+          const completedLabel = document.createElement("button");
+          completedLabel.textContent = "Completed";
+          completedLabel.disabled = true;
+          completedLabel.style.backgroundColor = "#999";
+          completedLabel.style.border = "none";
+          completedLabel.style.color = "#666";
+          completedLabel.style.padding = "0.5rem 1rem";
+          completedLabel.style.borderRadius = "0.5rem";
+          completedLabel.style.marginTop = "0.5rem";
+          completedLabel.style.cursor = "not-allowed";
+          claimBtn.replaceWith(completedLabel);
+        } else if (updatedOrder.claimed_by === state.currentUser) {
+          // Replace with unclaim button if not already an unclaim button
+          if (!claimBtn.textContent.includes('Unclaim')) {
+            claimBtn.replaceWith(createUnclaimButton(updatedOrder));
+          }
+        } else {
+          // Update or replace with claim button
+          const newClaimBtn = document.createElement('button');
+          newClaimBtn.className = 'action-button';
+          
+          if (updatedOrder.claimed_by) {
+            newClaimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
+            newClaimBtn.disabled = true;
+            newClaimBtn.style.backgroundColor = '#999';
+            newClaimBtn.style.cursor = 'not-allowed';
+          } else {
+            newClaimBtn.textContent = 'Claim Order';
+            newClaimBtn.addEventListener('click', async () => {
+              try {
+                newClaimBtn.textContent = 'Claiming...';
+                newClaimBtn.disabled = true;
+                newClaimBtn.classList.add('claiming');
+
+                const response = await api.claimOrder(updatedOrder.id);
+                
+                if (response && response.order) {
+                  Object.assign(updatedOrder, response.order);
+                  updateStaffTagsForOrder(orderCard, [state.currentUser]);
+                  newClaimBtn.replaceWith(createUnclaimButton(updatedOrder));
+                }
+              } catch (err) {
+                console.error(`Failed to claim order ${updatedOrder.id}:`, err);
+                ui.showError(err.message || "Failed to claim order");
+                newClaimBtn.textContent = 'Claim Order';
+                newClaimBtn.disabled = false;
+                newClaimBtn.classList.remove('claiming');
+              }
+            });
+          }
+          
+          claimBtn.replaceWith(newClaimBtn);
+        }
+      }
+
+      // Update staff tags
+      const assignedStaff = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
+      updateStaffTagsForOrder(orderCard, assignedStaff);
 
       // Update other card elements
       updateCardElements(orderCard, updatedOrder);
