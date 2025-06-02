@@ -613,46 +613,80 @@
     }
 
     .staff-dropdown {
-      min-height: 100px;
-      padding: 0.4rem;
-      border-radius: 0.3rem;
-      border: 1px solid #ccc;
-      background-color: white;
-      font-size: 0.9rem;
+      display: none;
+    }
+
+    /* Custom dropdown styles */
+    .custom-dropdown {
+      position: relative;
       width: 100%;
+      font-size: 0.9rem;
     }
 
-    .staff-dropdown option {
-      padding: 0.3rem;
-      margin: 0.1rem 0;
-      border-radius: 0.2rem;
+    .dropdown-button {
+      width: 100%;
+      padding: 0.4rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      background-color: white;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .staff-dropdown option:checked {
-      background-color: #1f6463;
-      color: white;
+    .dropdown-button:after {
+      content: '▼';
+      font-size: 0.8rem;
+      margin-left: 0.5rem;
     }
 
-    .staff-dropdown option:hover {
-      background-color: #e0e0e0;
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background-color: white;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      margin-top: 0.2rem;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
-    /* Dark mode support for staff dropdown */
-    .dark-mode .staff-dropdown {
+    .dropdown-content.show {
+      display: block;
+    }
+
+    .dropdown-item {
+      padding: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+
+    .dropdown-item:hover {
+      background-color: #f5f5f5;
+    }
+
+    .dropdown-item input[type="checkbox"] {
+      margin: 0;
+    }
+
+    /* Dark mode support */
+    .dark-mode .dropdown-button,
+    .dark-mode .dropdown-content {
       background-color: #2d2d2d;
       color: #fff;
       border-color: #4d4d4d;
     }
 
-    .dark-mode .staff-dropdown option {
-      background-color: #2d2d2d;
-    }
-
-    .dark-mode .staff-dropdown option:checked {
-      background-color: #1f6463;
-    }
-
-    .dark-mode .staff-dropdown option:hover {
+    .dark-mode .dropdown-item:hover {
       background-color: #3d3d3d;
     }
   </style>
@@ -1815,52 +1849,117 @@
           hour12: true,
         });
 
-        // Create staff assignment dropdown
-        const staffSelect = document.createElement("select");
-        staffSelect.className = "staff-dropdown";
-        staffSelect.style.padding = "0.4rem";
-        staffSelect.style.borderRadius = "0.3rem";
-        staffSelect.style.border = "1px solid #ccc";
-        staffSelect.style.marginLeft = "0.5rem";
-        staffSelect.multiple = true; // Enable multiple selection
+        // Create custom staff dropdown
+        const createStaffDropdown = (order, table) => {
+          const dropdownContainer = document.createElement('div');
+          dropdownContainer.className = 'custom-dropdown';
 
-        // Add staff options
-        state.staffMembers.forEach(staff => {
-          const option = document.createElement("option");
-          option.value = staff.username;
-          option.textContent = staff.displayName;
-          // Check if this staff member is in the assigned_staff array
-          if (Array.isArray(order.assigned_staff) && order.assigned_staff.includes(staff.username)) {
-            option.selected = true;
-          }
-          staffSelect.appendChild(option);
-        });
+          const button = document.createElement('button');
+          button.className = 'dropdown-button';
+          button.type = 'button';
+          
+          const updateButtonText = (selectedStaff) => {
+            button.textContent = selectedStaff.length > 0 
+              ? selectedStaff.map(username => {
+                  const staff = state.staffMembers.find(s => s.username === username);
+                  return staff ? staff.displayName : username;
+                }).join(', ')
+              : '-- Select Staff --';
+          };
 
-        // Handle staff assignment
-        staffSelect.addEventListener("change", async (event) => {
-          try {
-            const selectedStaff = event.target.value;
-            const response = await api.assignStaff(order.id, selectedStaff);
-            if (response.order) {
-              order.assigned_staff = response.order.assigned_staff;
-              // Update the UI to reflect the changes
-              const staffCell = [...table.querySelectorAll('td')].find(td => 
-                td.textContent.trim().startsWith('Staff:')
-              )?.nextElementSibling;
-              if (staffCell) {
-                staffCell.textContent = order.assigned_staff.length ? order.assigned_staff.join(", ") : "—";
+          const dropdownContent = document.createElement('div');
+          dropdownContent.className = 'dropdown-content';
+
+          // Initialize selected staff from order
+          const selectedStaff = Array.isArray(order.assigned_staff) ? [...order.assigned_staff] : 
+                               order.assigned_staff ? [order.assigned_staff] : [];
+          updateButtonText(selectedStaff);
+
+          // Create checkbox items for each staff member
+          state.staffMembers.forEach(staff => {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `staff-${staff.username}-${order.id}`;
+            checkbox.checked = selectedStaff.includes(staff.username);
+
+            const label = document.createElement('label');
+            label.htmlFor = checkbox.id;
+            label.textContent = staff.displayName;
+
+            item.appendChild(checkbox);
+            item.appendChild(label);
+
+            // Handle checkbox changes
+            checkbox.addEventListener('change', async () => {
+              try {
+                if (checkbox.checked) {
+                  if (!selectedStaff.includes(staff.username)) {
+                    selectedStaff.push(staff.username);
+                  }
+                } else {
+                  const index = selectedStaff.indexOf(staff.username);
+                  if (index !== -1) {
+                    selectedStaff.splice(index, 1);
+                  }
+                }
+
+                updateButtonText(selectedStaff);
+
+                // Send update to server
+                const response = await api.assignStaff(order.id, staff.username);
+                if (response.order) {
+                  order.assigned_staff = response.order.assigned_staff;
+                  // Update the UI to reflect the changes
+                  const staffCell = [...table.querySelectorAll('td')].find(td => 
+                    td.textContent.trim().startsWith('Staff:')
+                  )?.nextElementSibling;
+                  if (staffCell) {
+                    staffCell.textContent = order.assigned_staff.length ? 
+                      order.assigned_staff.map(username => {
+                        const staff = state.staffMembers.find(s => s.username === username);
+                        return staff ? staff.displayName : username;
+                      }).join(", ") : "—";
+                  }
+                }
+              } catch (err) {
+                console.error(`❌ Failed to update staff for order ${order.id}:`, err);
+                checkbox.checked = !checkbox.checked; // Revert the checkbox
+                if (checkbox.checked) {
+                  selectedStaff.push(staff.username);
+                } else {
+                  const index = selectedStaff.indexOf(staff.username);
+                  if (index !== -1) {
+                    selectedStaff.splice(index, 1);
+                  }
+                }
+                updateButtonText(selectedStaff);
+                ui.showError(`Failed to update staff: ${err.message}`);
               }
-            }
-          } catch (err) {
-            console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
-            // Reset selections to match current state
-            Array.from(staffSelect.options).forEach(option => {
-              option.selected = Array.isArray(order.assigned_staff) && 
-                              order.assigned_staff.includes(option.value);
             });
-            ui.showError(`Failed to assign staff: ${err.message}`);
-          }
-        });
+
+            dropdownContent.appendChild(item);
+          });
+
+          // Toggle dropdown on button click
+          button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownContent.classList.toggle('show');
+          });
+
+          // Close dropdown when clicking outside
+          document.addEventListener('click', (e) => {
+            if (!dropdownContainer.contains(e.target)) {
+              dropdownContent.classList.remove('show');
+            }
+          });
+
+          dropdownContainer.appendChild(button);
+          dropdownContainer.appendChild(dropdownContent);
+          return dropdownContainer;
+        };
 
         [
           ["Email", order.email],
@@ -1874,7 +1973,7 @@
           const row = document.createElement("tr");
           if (label === "Staff") {
             row.innerHTML = `<td>${label}:</td><td></td>`;
-            row.cells[1].appendChild(staffSelect);
+            row.cells[1].appendChild(createStaffDropdown(order, table));
           } else {
             row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
           }
