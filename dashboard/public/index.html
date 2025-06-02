@@ -2031,12 +2031,16 @@
 
         // Handle changes to staff notes
         staffNotesEditor.addEventListener('input', () => {
-          saveNotesBtn.disabled = staffNotesEditor.value === staffNotesEditor.dataset.previousValue;
+          const currentValue = staffNotesEditor.value;
+          const previousValue = staffNotesEditor.dataset.previousValue;
+          saveNotesBtn.disabled = currentValue === previousValue;
         });
 
         // Handle save button click
         saveNotesBtn.addEventListener('click', () => {
-          saveStaffNotes(order.id, staffNotesEditor.value, staffNotesEditor, saveNotesBtn);
+          if (staffNotesEditor.value !== staffNotesEditor.dataset.previousValue) {
+            saveStaffNotes(order.id, staffNotesEditor.value, staffNotesEditor, saveNotesBtn);
+          }
         });
 
         staffNotesContentCell.appendChild(staffNotesEditor);
@@ -2666,6 +2670,13 @@
 
       // Update other card elements
       updateCardElements(orderCard, updatedOrder);
+
+      // Update staff notes if they exist
+      const staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
+      if (staffNotesEditor && updatedOrder.order_notes !== undefined) {
+        staffNotesEditor.value = updatedOrder.order_notes;
+        staffNotesEditor.dataset.previousValue = updatedOrder.order_notes;
+      }
     }
 
     // Add the delete confirmation overlay to the body
@@ -2785,7 +2796,7 @@
         saveBtn.textContent = 'Saved!';
         setTimeout(() => {
           saveBtn.textContent = 'Save Notes';
-          saveBtn.disabled = editor.value === editor.dataset.previousValue;
+          saveBtn.disabled = false; // Enable the button for future edits
         }, 2000);
 
         ui.showNotification('Staff notes updated successfully');
