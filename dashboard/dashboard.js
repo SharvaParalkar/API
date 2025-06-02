@@ -11,6 +11,7 @@ const http = require('http');
 // Constants and Database setup
 const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
 const dbPath = path.join(__dirname, "../DB/db/filamentbros.sqlite");
+const CLAIM_COOLDOWN_MS = 1000; // 1 second cooldown
 
 // Database connection with better error handling
 let db;
@@ -524,9 +525,20 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
   const { orderId } = req.body;
   const username = req.session.user;
   const timestamp = new Date().toISOString();
+  const now = Date.now();
 
   if (!orderId) {
     return res.status(400).json({ error: "Missing orderId" });
+  }
+
+  // Check cooldown
+  const key = `${username}:${orderId}`;
+  const lastOpTime = lastOperationTimes.get(key) || 0;
+  if (now - lastOpTime < CLAIM_COOLDOWN_MS) {
+    return res.status(429).json({ 
+      error: "Please wait before performing another claim/unclaim operation",
+      retryAfter: CLAIM_COOLDOWN_MS - (now - lastOpTime)
+    });
   }
 
   try {
@@ -559,6 +571,9 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
+    // Update last operation time
+    lastOperationTimes.set(key, now);
+
     // Fetch the updated order
     const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
     
@@ -580,9 +595,20 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
   const { orderId } = req.body;
   const username = req.session.user;
   const timestamp = new Date().toISOString();
+  const now = Date.now();
 
   if (!orderId) {
     return res.status(400).json({ error: "Missing orderId" });
+  }
+
+  // Check cooldown
+  const key = `${username}:${orderId}`;
+  const lastOpTime = lastOperationTimes.get(key) || 0;
+  if (now - lastOpTime < CLAIM_COOLDOWN_MS) {
+    return res.status(429).json({ 
+      error: "Please wait before performing another claim/unclaim operation",
+      retryAfter: CLAIM_COOLDOWN_MS - (now - lastOpTime)
+    });
   }
 
   try {
@@ -626,6 +652,9 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
     if (result.changes === 0) {
       throw new Error("Failed to update order");
     }
+
+    // Update last operation time
+    lastOperationTimes.set(key, now);
 
     // Fetch the updated order
     const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
@@ -688,3 +717,6 @@ server.listen(PORT, () => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Add at the top with other constants
+const lastOperationTimes = new Map();

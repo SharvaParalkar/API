@@ -661,7 +661,8 @@
       staffMembers: [],
       lastOrderHash: null,
       lastRefreshTime: 0,
-      minRefreshInterval: 5000
+      minRefreshInterval: 5000,
+      buttonStates: new Map()
     };
 
     // First full load
@@ -699,6 +700,13 @@
       // Get the existing card if it exists
       const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
       
+      // Don't update if button is in a transitional state
+      const claimKey = `claim-${updatedOrder.id}`;
+      const unclaimKey = `unclaim-${updatedOrder.id}`;
+      if (state.buttonStates.get(claimKey) || state.buttonStates.get(unclaimKey)) {
+        return;
+      }
+
       // Handle claimed tab visibility
       if (state.currentTab === "claimed") {
         const shouldBeVisible = updatedOrder.claimed_by === state.currentUser && 
@@ -982,10 +990,15 @@
             body: JSON.stringify({ orderId }),
             credentials: 'include'
           });
+          
           if (!res.ok) {
             const data = await res.json();
-            throw new Error(data.error || `HTTP error! status: ${res.status}`);
+            const error = new Error(data.error || `HTTP error! status: ${res.status}`);
+            error.status = res.status;
+            error.retryAfter = data.retryAfter;
+            throw error;
           }
+          
           return await res.json();
         } catch (err) {
           await handleError(err, 'claimOrder');
@@ -1001,10 +1014,15 @@
             body: JSON.stringify({ orderId }),
             credentials: 'include'
           });
+          
           if (!res.ok) {
             const data = await res.json();
-            throw new Error(data.error || `HTTP error! status: ${res.status}`);
+            const error = new Error(data.error || `HTTP error! status: ${res.status}`);
+            error.status = res.status;
+            error.retryAfter = data.retryAfter;
+            throw error;
           }
+          
           return await res.json();
         } catch (err) {
           await handleError(err, 'unclaimOrder');
@@ -1896,7 +1914,11 @@
 
                   if (!isClaimed) {
                     claimBtn.addEventListener("click", async () => {
+                      const buttonKey = `claim-${order.id}`;
+                      if (state.buttonStates.get(buttonKey)) return;
+                      
                       try {
+                        state.buttonStates.set(buttonKey, true);
                         claimBtn.textContent = "Claiming...";
                         claimBtn.disabled = true;
                         claimBtn.style.cursor = "not-allowed";
@@ -1905,16 +1927,29 @@
                         
                         if (response && response.order) {
                           Object.assign(order, response.order);
-                          claimBtn.replaceWith(createUnclaimButton(order));
+                          claimBtn.replaceWith(createUnclaimButton(order, Date.now()));
                         }
                       } catch (err) {
                         console.error(`Failed to claim order ${order.id}:`, err);
-                        ui.showError(err.message || "Failed to claim order");
                         
-                        claimBtn.textContent = "Claim Order";
-                        claimBtn.disabled = false;
-                        claimBtn.style.backgroundColor = "#ccc";
-                        claimBtn.style.cursor = "pointer";
+                        if (err.status === 429) {
+                          const retryAfter = err.retryAfter || 1000;
+                          claimBtn.textContent = 'Please wait...';
+                          setTimeout(() => {
+                            claimBtn.textContent = 'Claim Order';
+                            claimBtn.disabled = false;
+                            claimBtn.style.backgroundColor = "#ccc";
+                            claimBtn.style.cursor = 'pointer';
+                            state.buttonStates.delete(buttonKey);
+                          }, retryAfter);
+                        } else {
+                          ui.showError(err.message || "Failed to claim order");
+                          claimBtn.textContent = 'Claim Order';
+                          claimBtn.disabled = false;
+                          claimBtn.style.backgroundColor = "#ccc";
+                          claimBtn.style.cursor = 'pointer';
+                          state.buttonStates.delete(buttonKey);
+                        }
                       }
                     });
                   }
@@ -2055,12 +2090,14 @@
       `;
 
       let isUnclaiming = false;
+      const buttonKey = `unclaim-${order.id}`;
 
       unclaimBtn.addEventListener('click', async () => {
-        if (isUnclaiming) return;
+        if (isUnclaiming || state.buttonStates.get(buttonKey)) return;
         
         try {
           isUnclaiming = true;
+          state.buttonStates.set(buttonKey, true);
           unclaimBtn.textContent = 'Unclaiming...';
           unclaimBtn.disabled = true;
           unclaimBtn.style.cursor = 'not-allowed';
@@ -2118,62 +2155,26 @@
               card.style.transform = "scale(0.9)";
               setTimeout(() => card.remove(), 300);
             }
-          } else {
-            const claimBtn = document.createElement('button');
-            claimBtn.textContent = 'Claim Order';
-            claimBtn.style.cssText = `
-              background-color: #ccc;
-              border: none;
-              color: #333;
-              padding: 0.5rem 1rem;
-              border-radius: 0.5rem;
-              margin-top: 0.5rem;
-              cursor: pointer;
-            `;
-            
-            let isClaiming = false;
-            
-            claimBtn.addEventListener('click', async () => {
-              if (isClaiming) return;
-              
-              try {
-                isClaiming = true;
-                claimBtn.textContent = 'Claiming...';
-                claimBtn.disabled = true;
-                claimBtn.style.cursor = 'not-allowed';
-                
-                const response = await api.claimOrder(order.id);
-                
-                if (response && response.order) {
-                  Object.assign(order, response.order);
-                  
-                  const index = state.allOrders.findIndex(o => o.id === order.id);
-                  if (index !== -1) {
-                    state.allOrders[index] = { ...order };
-                  }
-                  
-                  // Pass the claim timestamp to track when this claim happened
-                  claimBtn.replaceWith(createUnclaimButton(order, Date.now()));
-                }
-              } catch (err) {
-                console.error(`Failed to claim order ${order.id}:`, err);
-                ui.showError(err.message || "Failed to claim order");
-                claimBtn.textContent = 'Claim Order';
-                claimBtn.disabled = false;
-                claimBtn.style.cursor = 'pointer';
-              } finally {
-                isClaiming = false;
-              }
-            });
-            
-            unclaimBtn.replaceWith(claimBtn);
           }
         } catch (err) {
           console.error(`Failed to unclaim order ${order.id}:`, err);
-          ui.showError(err.message || "Failed to unclaim order");
-          unclaimBtn.textContent = 'Unclaim';
-          unclaimBtn.disabled = false;
-          unclaimBtn.style.cursor = 'pointer';
+          
+          if (err.status === 429) {
+            const retryAfter = err.retryAfter || 1000;
+            unclaimBtn.textContent = 'Please wait...';
+            setTimeout(() => {
+              unclaimBtn.textContent = 'Unclaim';
+              unclaimBtn.disabled = false;
+              unclaimBtn.style.cursor = 'pointer';
+              state.buttonStates.delete(buttonKey);
+            }, retryAfter);
+          } else {
+            ui.showError(err.message || "Failed to unclaim order");
+            unclaimBtn.textContent = 'Unclaim';
+            unclaimBtn.disabled = false;
+            unclaimBtn.style.cursor = 'pointer';
+            state.buttonStates.delete(buttonKey);
+          }
         } finally {
           isUnclaiming = false;
         }
