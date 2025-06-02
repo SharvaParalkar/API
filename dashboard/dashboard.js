@@ -772,13 +772,41 @@ app.delete("/dashboard/order/:orderId", requireLogin, (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Delete the order
-    const stmt = db.prepare("DELETE FROM orders WHERE id = ?");
-    const result = stmt.run(orderId);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ error: "Order not found" });
-    }
+    // Use a transaction to ensure all operations succeed or none do
+    db.transaction(() => {
+      // First delete any related records (adjust these queries based on your actual schema)
+      // Example: If you have order_items table
+      try {
+        db.prepare("DELETE FROM order_items WHERE order_id = ?").run(orderId);
+      } catch (err) {
+        // If table doesn't exist or no records found, continue
+        console.log('No order_items to delete');
+      }
+
+      // Example: If you have order_notes table
+      try {
+        db.prepare("DELETE FROM order_notes WHERE order_id = ?").run(orderId);
+      } catch (err) {
+        // If table doesn't exist or no records found, continue
+        console.log('No order_notes to delete');
+      }
+
+      // Example: If you have order_files table
+      try {
+        db.prepare("DELETE FROM order_files WHERE order_id = ?").run(orderId);
+      } catch (err) {
+        // If table doesn't exist or no records found, continue
+        console.log('No order_files to delete');
+      }
+
+      // Finally delete the order itself
+      const stmt = db.prepare("DELETE FROM orders WHERE id = ?");
+      const result = stmt.run(orderId);
+      
+      if (result.changes === 0) {
+        throw new Error("Order not found");
+      }
+    })();
 
     // Broadcast the deletion to all connected clients
     broadcastUpdate('orderUpdate', {
@@ -791,7 +819,10 @@ app.delete("/dashboard/order/:orderId", requireLogin, (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("❌ Failed to delete order:", err.message);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ 
+      error: "Failed to delete order", 
+      details: err.message 
+    });
   }
 });
 

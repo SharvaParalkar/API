@@ -682,7 +682,7 @@
     .delete-btn {
       position: absolute;
       top: 0.75rem;
-      left: 0.75rem;
+      right: 0.75rem;
       background-color: #ff4444;
       color: white;
       border: none;
@@ -692,6 +692,7 @@
       font-size: 0.9rem;
       opacity: 0.8;
       transition: opacity 0.2s ease;
+      z-index: 1;
     }
 
     .delete-btn:hover {
@@ -2578,7 +2579,10 @@
     // Function to delete order
     async function deleteOrder(orderId) {
       try {
-        const response = await fetch(`/dashboard/order/${orderId}`, {
+        // Remove 'order_' prefix if it exists
+        const cleanOrderId = orderId.replace(/^order_/, '');
+        
+        const response = await fetch(`/dashboard/order/${cleanOrderId}`, {
           method: 'DELETE',
           credentials: 'include'
         });
