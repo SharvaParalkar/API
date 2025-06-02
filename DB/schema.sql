@@ -6,7 +6,7 @@ CREATE TABLE orders (
   phone TEXT,
   submitted_at DATETIME,
   status TEXT,
-  assigned_staff TEXT,
+  assigned_staff TEXT,  -- This will now store a JSON array of staff members
   est_price REAL,
   assigned_price REAL,
   payment_status TEXT,
@@ -16,6 +16,9 @@ CREATE TABLE orders (
   last_updated DATETIME,  -- timestamp of last update
   claimed_by TEXT     -- track who claimed the order
 );
+
+-- Add index for assigned_staff to improve search performance
+CREATE INDEX IF NOT EXISTS idx_orders_assigned_staff ON orders(assigned_staff);
 
 -- files
 CREATE TABLE IF NOT EXISTS files (

@@ -611,6 +611,50 @@
       background-color: #999;
       cursor: not-allowed;
     }
+
+    .staff-dropdown {
+      min-height: 100px;
+      padding: 0.4rem;
+      border-radius: 0.3rem;
+      border: 1px solid #ccc;
+      background-color: white;
+      font-size: 0.9rem;
+      width: 100%;
+    }
+
+    .staff-dropdown option {
+      padding: 0.3rem;
+      margin: 0.1rem 0;
+      border-radius: 0.2rem;
+    }
+
+    .staff-dropdown option:checked {
+      background-color: #1f6463;
+      color: white;
+    }
+
+    .staff-dropdown option:hover {
+      background-color: #e0e0e0;
+    }
+
+    /* Dark mode support for staff dropdown */
+    .dark-mode .staff-dropdown {
+      background-color: #2d2d2d;
+      color: #fff;
+      border-color: #4d4d4d;
+    }
+
+    .dark-mode .staff-dropdown option {
+      background-color: #2d2d2d;
+    }
+
+    .dark-mode .staff-dropdown option:checked {
+      background-color: #1f6463;
+    }
+
+    .dark-mode .staff-dropdown option:hover {
+      background-color: #3d3d3d;
+    }
   </style>
 </head>
 
@@ -1287,22 +1331,18 @@
       // First, filter based on the current tab
       let filtered = [...state.allOrders];
 
-      // For claimed tab, ONLY show orders claimed by current user
+      // For claimed tab, show orders claimed by current user OR where user is in assigned_staff
       if (state.currentTab === "claimed") {
         const validStaffMembers = state.staffMembers.map(staff => staff.username);
         filtered = filtered.filter(order => {
-          console.log('Checking order:', order.id, {
-            claimed_by: order.claimed_by,
-            assigned_staff: order.assigned_staff,
-            isValidStaff: validStaffMembers.includes(order.assigned_staff),
-            status: order.status
-          });
-          return (
-            order.claimed_by === state.currentUser &&
-            order.assigned_staff === state.currentUser &&
-            validStaffMembers.includes(order.assigned_staff) &&
-            order.status?.toLowerCase() !== "completed"
-          );
+          const isAssigned = Array.isArray(order.assigned_staff) && 
+                            order.assigned_staff.includes(state.currentUser);
+          const isClaimed = order.claimed_by === state.currentUser;
+          const isValidStaff = Array.isArray(order.assigned_staff) && 
+                              order.assigned_staff.every(staff => validStaffMembers.includes(staff));
+          const isNotCompleted = order.status?.toLowerCase() !== "completed";
+          
+          return (isClaimed || isAssigned) && isValidStaff && isNotCompleted;
         });
         console.log('Filtered claimed orders:', filtered.length);
       }
@@ -1325,7 +1365,10 @@
       // Apply staff filter if selected
       if (staffFilter) {
         console.log('Applying staff filter:', staffFilter);
-        filtered = filtered.filter(order => order.assigned_staff === staffFilter);
+        filtered = filtered.filter(order => 
+          Array.isArray(order.assigned_staff) && 
+          order.assigned_staff.includes(staffFilter)
+        );
       }
 
       console.log(`✨ Found ${filtered.length} matching orders after all filters`);
@@ -1779,33 +1822,42 @@
         staffSelect.style.borderRadius = "0.3rem";
         staffSelect.style.border = "1px solid #ccc";
         staffSelect.style.marginLeft = "0.5rem";
-
-        // Add empty option
-        const emptyOption = document.createElement("option");
-        emptyOption.value = "";
-        emptyOption.textContent = "-- Select Staff --";
-        staffSelect.appendChild(emptyOption);
+        staffSelect.multiple = true; // Enable multiple selection
 
         // Add staff options
         state.staffMembers.forEach(staff => {
           const option = document.createElement("option");
           option.value = staff.username;
           option.textContent = staff.displayName;
-          if (staff.username === order.assigned_staff) {
+          // Check if this staff member is in the assigned_staff array
+          if (Array.isArray(order.assigned_staff) && order.assigned_staff.includes(staff.username)) {
             option.selected = true;
           }
           staffSelect.appendChild(option);
         });
 
         // Handle staff assignment
-        staffSelect.addEventListener("change", async () => {
+        staffSelect.addEventListener("change", async (event) => {
           try {
-            const newStaff = staffSelect.value;
-            const response = await api.assignStaff(order.id, newStaff);
-            order.assigned_staff = newStaff;
+            const selectedStaff = event.target.value;
+            const response = await api.assignStaff(order.id, selectedStaff);
+            if (response.order) {
+              order.assigned_staff = response.order.assigned_staff;
+              // Update the UI to reflect the changes
+              const staffCell = [...table.querySelectorAll('td')].find(td => 
+                td.textContent.trim().startsWith('Staff:')
+              )?.nextElementSibling;
+              if (staffCell) {
+                staffCell.textContent = order.assigned_staff.length ? order.assigned_staff.join(", ") : "—";
+              }
+            }
           } catch (err) {
             console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
-            staffSelect.value = order.assigned_staff || ""; // Revert on error
+            // Reset selections to match current state
+            Array.from(staffSelect.options).forEach(option => {
+              option.selected = Array.isArray(order.assigned_staff) && 
+                              order.assigned_staff.includes(option.value);
+            });
             ui.showError(`Failed to assign staff: ${err.message}`);
           }
         });
@@ -1813,7 +1865,7 @@
         [
           ["Email", order.email],
           ["Phone", order.phone],
-          ["Staff", order.assigned_staff || "—"],
+          ["Staff", Array.isArray(order.assigned_staff) ? order.assigned_staff.join(", ") : "—"],
           ["Customer Notes", order.notes || "—"],
           ["Staff Notes", order.order_notes || "—"],
           ["Submitted At", formattedDate],

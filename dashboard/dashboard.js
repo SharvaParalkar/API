@@ -182,14 +182,17 @@ app.get("/dashboard/data", requireLogin, (req, res) => {
     // Filter for claimed orders tab
     if (showClaimed === 'true') {
       conditions.push(`
-        claimed_by = ? 
-        AND assigned_staff = ? 
-        AND assigned_staff IS NOT NULL 
-        AND assigned_staff != '' 
-        AND assigned_staff IN ('sharva', 'nathan', 'evan', 'peter', 'pablo')
+        (claimed_by = ? OR 
+        (assigned_staff IS NOT NULL AND assigned_staff != '' AND 
+         (assigned_staff LIKE ? OR assigned_staff LIKE ? OR assigned_staff LIKE ?)))
         AND (status IS NULL OR LOWER(status) != 'completed')
       `);
-      params.push(username, username);
+      params.push(
+        username,
+        `%"${username}"%`,  // For when username is in middle of array
+        `[%"${username}"%`, // For when username is at start of array
+        `%"${username}"]%`  // For when username is at end of array
+      );
     }
 
     // Only fetch completed orders if explicitly requested
@@ -214,9 +217,15 @@ app.get("/dashboard/data", requireLogin, (req, res) => {
 
     console.log('📊 Executing query:', query, 'with params:', params);
     const rows = db.prepare(query).all(...params);
-    console.log(`📦 Fetched ${rows.length} orders`);
     
-    res.json(rows);
+    // Parse assigned_staff JSON for each row
+    const processedRows = rows.map(row => ({
+      ...row,
+      assigned_staff: row.assigned_staff ? JSON.parse(row.assigned_staff) : []
+    }));
+    
+    console.log(`📦 Fetched ${processedRows.length} orders`);
+    res.json(processedRows);
   } catch (err) {
     console.error("❌ Failed to fetch orders:", err.message);
     res.status(500).json({ error: "Internal server error" });
@@ -491,7 +500,7 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
 
   try {
     // First check if the order exists and get its current state
-    const current = db.prepare("SELECT claimed_by, status FROM orders WHERE id = ?").get(orderId);
+    const current = db.prepare("SELECT claimed_by, status, assigned_staff FROM orders WHERE id = ?").get(orderId);
     
     if (!current) {
       return res.status(404).json({ error: "Order not found" });
@@ -502,14 +511,26 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
       return res.status(400).json({ error: "Cannot assign staff to completed orders" });
     }
 
-    // Only allow staff assignment if:
-    // 1. The order is not claimed by anyone, or
-    // 2. The order is claimed by the current user
-    if (current.claimed_by && current.claimed_by !== username) {
-      return res.status(403).json({ 
-        error: "Cannot assign staff - order claimed by someone else",
-        claimedBy: current.claimed_by
-      });
+    // Parse current assigned staff
+    let assignedStaff = [];
+    try {
+      assignedStaff = current.assigned_staff ? JSON.parse(current.assigned_staff) : [];
+    } catch (e) {
+      // If current assigned_staff is not valid JSON, treat it as a single value
+      assignedStaff = current.assigned_staff ? [current.assigned_staff] : [];
+    }
+
+    // If staffName is empty, remove all staff
+    if (!staffName) {
+      assignedStaff = [];
+    } else {
+      // If staff member already exists, remove them, otherwise add them
+      const index = assignedStaff.indexOf(staffName);
+      if (index === -1) {
+        assignedStaff.push(staffName);
+      } else {
+        assignedStaff.splice(index, 1);
+      }
     }
 
     const stmt = db.prepare(`
@@ -519,7 +540,7 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
           last_updated = ?
       WHERE id = ?
     `);
-    const result = stmt.run(staffName, username, timestamp, orderId);
+    const result = stmt.run(JSON.stringify(assignedStaff), username, timestamp, orderId);
     
     if (result.changes === 0) {
       throw new Error("Failed to update order");
@@ -609,7 +630,7 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
 
   try {
     // First check if the order exists and get its current state
-    const current = db.prepare("SELECT claimed_by, status FROM orders WHERE id = ?").get(orderId);
+    const current = db.prepare("SELECT claimed_by, status, assigned_staff FROM orders WHERE id = ?").get(orderId);
     
     if (!current) {
       return res.status(404).json({ error: "Order not found" });
@@ -628,46 +649,47 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
       });
     }
 
-    // If not claimed at all, return success (idempotent operation)
-    if (!current.claimed_by) {
-      const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
-      return res.json({ success: true, order });
+    // Parse current assigned staff
+    let assignedStaff = [];
+    try {
+      assignedStaff = current.assigned_staff ? JSON.parse(current.assigned_staff) : [];
+    } catch (e) {
+      assignedStaff = current.assigned_staff ? [current.assigned_staff] : [];
     }
+
+    // Remove the current user from assigned staff
+    assignedStaff = assignedStaff.filter(staff => staff !== username);
 
     // Begin transaction
     db.transaction(() => {
-      // Perform the unclaim operation - reset both claimed_by and assigned_staff
       const stmt = db.prepare(`
         UPDATE orders 
-        SET claimed_by = NULL, 
-            assigned_staff = NULL,
+        SET claimed_by = CASE WHEN ? THEN NULL ELSE claimed_by END,
+            assigned_staff = ?,
             updated_by = ?, 
             last_updated = ? 
         WHERE id = ? AND (claimed_by IS NULL OR claimed_by = ?)
       `);
       
-      const result = stmt.run(username, timestamp, orderId, username);
+      const result = stmt.run(
+        current.claimed_by === username, // Only reset claimed_by if it matches current user
+        JSON.stringify(assignedStaff),
+        username,
+        timestamp,
+        orderId,
+        username
+      );
       
       if (result.changes === 0) {
         throw new Error("Failed to update order - may have been claimed by someone else");
       }
-
-      // Fetch the updated order to confirm the changes
-      const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
-      
-      if (!updatedOrder) {
-        throw new Error("Failed to fetch updated order");
-      }
-
-      if (updatedOrder.claimed_by !== null) {
-        throw new Error("Order is still claimed after unclaim operation");
-      }
-
-      return updatedOrder;
     })();
 
     // Fetch the final state of the order
     const finalOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    
+    // Parse assigned_staff for the response
+    finalOrder.assigned_staff = finalOrder.assigned_staff ? JSON.parse(finalOrder.assigned_staff) : [];
     
     // Broadcast the update
     broadcastUpdate('orderUpdate', {
