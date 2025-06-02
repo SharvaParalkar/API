@@ -798,19 +798,54 @@
           }
         } else {
           // If not claimed by current user, show appropriate claim button
-          if (updatedOrder.claimed_by) {
-            if (claimBtn) {
-              claimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
-              claimBtn.disabled = true;
-              claimBtn.style.backgroundColor = '#999';
-              claimBtn.style.cursor = 'not-allowed';
+          if (claimBtn || unclaimBtn) {
+            const newClaimBtn = document.createElement('button');
+            if (updatedOrder.claimed_by) {
+              newClaimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
+              newClaimBtn.disabled = true;
+              newClaimBtn.style.backgroundColor = '#999';
+              newClaimBtn.style.cursor = 'not-allowed';
+            } else {
+              newClaimBtn.textContent = 'Claim Order';
+              newClaimBtn.disabled = false;
+              newClaimBtn.style.backgroundColor = '#ccc';
+              newClaimBtn.style.cursor = 'pointer';
+              
+              // Add claim functionality
+              newClaimBtn.addEventListener('click', async () => {
+                try {
+                  newClaimBtn.textContent = 'Claiming...';
+                  newClaimBtn.disabled = true;
+                  newClaimBtn.style.cursor = 'not-allowed';
+
+                  const response = await api.claimOrder(updatedOrder.id);
+                  
+                  if (response && response.order) {
+                    Object.assign(updatedOrder, response.order);
+                    newClaimBtn.replaceWith(createUnclaimButton(updatedOrder));
+                  }
+                } catch (err) {
+                  console.error(`Failed to claim order ${updatedOrder.id}:`, err);
+                  ui.showError(err.message || "Failed to claim order");
+                  newClaimBtn.textContent = 'Claim Order';
+                  newClaimBtn.disabled = false;
+                  newClaimBtn.style.cursor = 'pointer';
+                }
+              });
             }
-          } else {
+
+            newClaimBtn.style.cssText = `
+              border: none;
+              color: #333;
+              padding: 0.5rem 1rem;
+              border-radius: 0.5rem;
+              margin-top: 0.5rem;
+            `;
+
             if (claimBtn) {
-              claimBtn.textContent = 'Claim Order';
-              claimBtn.disabled = false;
-              claimBtn.style.backgroundColor = '#ccc';
-              claimBtn.style.cursor = 'pointer';
+              claimBtn.replaceWith(newClaimBtn);
+            } else if (unclaimBtn) {
+              unclaimBtn.replaceWith(newClaimBtn);
             }
           }
         }
