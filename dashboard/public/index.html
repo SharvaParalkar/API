@@ -1762,14 +1762,27 @@
 
               unclaimBtn.addEventListener("click", async () => {
                 try {
+                  // Update UI immediately
+                  unclaimBtn.textContent = "Unclaiming...";
+                  unclaimBtn.disabled = true;
+                  unclaimBtn.style.cursor = "not-allowed";
+
                   await api.unclaimOrder(order.id);
+                  
                   // Remove the order from the current view if we're in claimed tab
                   if (state.currentTab === "claimed") {
                     const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
                     if (orderCard) {
                       orderCard.remove();
                     }
+                  } else {
+                    // If we're in all orders tab, convert to claim button
+                    unclaimBtn.textContent = "Claim Order";
+                    unclaimBtn.disabled = false;
+                    unclaimBtn.style.backgroundColor = "#ccc";
+                    unclaimBtn.style.cursor = "pointer";
                   }
+                  
                   // Update the order in state
                   const index = state.allOrders.findIndex(o => o.id === order.id);
                   if (index !== -1) {
@@ -1779,12 +1792,21 @@
                       assigned_staff: null
                     };
                   }
-                  // Refresh the view
-                  const query = document.getElementById("searchInput").value;
-                  filterOrders(query);
+                  
+                  // Only refresh if we're in claimed tab (since we removed the card above)
+                  if (state.currentTab === "all") {
+                    // Update the order object
+                    order.claimed_by = null;
+                    order.assigned_staff = null;
+                  }
                 } catch (err) {
                   console.error(`Failed to unclaim order ${order.id}:`, err);
                   ui.showError(err.message || "Failed to unclaim order");
+                  
+                  // Revert UI on error
+                  unclaimBtn.textContent = "Unclaim";
+                  unclaimBtn.disabled = false;
+                  unclaimBtn.style.cursor = "pointer";
                 }
               });
 
@@ -1820,14 +1842,36 @@
                 if (!isClaimed) {
                   claimBtn.addEventListener("click", async () => {
                     try {
+                      // Update UI immediately
+                      claimBtn.textContent = "Claiming...";
+                      claimBtn.disabled = true;
+                      claimBtn.style.backgroundColor = "#999";
+                      claimBtn.style.cursor = "not-allowed";
+
                       await api.claimOrder(order.id);
+                      
+                      // Update the button to show it's claimed by current user
+                      claimBtn.textContent = `Claimed by ${state.currentUser}`;
+                      claimBtn.style.backgroundColor = "#999";
+                      
+                      // Update the order object
                       order.claimed_by = state.currentUser;
-                      order.assigned_staff = state.currentUser; // Also set assigned staff
-                      const query = document.getElementById("searchInput").value;
-                      filterOrders(query);
+                      order.assigned_staff = state.currentUser;
+                      
+                      // If we're in claimed tab, move this order there by refreshing
+                      if (state.currentTab === "claimed") {
+                        const query = document.getElementById("searchInput").value;
+                        filterOrders(query);
+                      }
                     } catch (err) {
                       console.error(`Failed to claim order ${order.id}:`, err);
                       ui.showError(err.message || "Failed to claim order");
+                      
+                      // Revert UI on error
+                      claimBtn.textContent = "Claim Order";
+                      claimBtn.disabled = false;
+                      claimBtn.style.backgroundColor = "#ccc";
+                      claimBtn.style.cursor = "pointer";
                     }
                   });
                 }
