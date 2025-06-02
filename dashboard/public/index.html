@@ -696,21 +696,62 @@
         state.allOrders.unshift(updatedOrder);
       }
 
-      // If we're in claimed tab and this order was unclaimed, remove it
-      if (state.currentTab === "claimed" && updatedOrder.claimed_by !== state.currentUser) {
-        const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
-        if (orderCard) {
-          orderCard.remove();
+      // Get the existing card if it exists
+      const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
+      
+      // Handle claimed tab visibility
+      if (state.currentTab === "claimed") {
+        const shouldBeVisible = updatedOrder.claimed_by === state.currentUser && 
+                              updatedOrder.assigned_staff === state.currentUser &&
+                              updatedOrder.status?.toLowerCase() !== "completed";
+        
+        if (!shouldBeVisible && orderCard) {
+          // Smoothly remove the card if it shouldn't be visible
+          orderCard.style.transition = "all 0.3s ease";
+          orderCard.style.opacity = "0";
+          orderCard.style.transform = "scale(0.9)";
+          setTimeout(() => orderCard.remove(), 300);
+          return;
         }
-        return;
       }
 
-      // Update UI if the order is currently visible
-      const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
       if (orderCard) {
-        updateOrderCard(orderCard, updatedOrder);
+        // Update existing card
+        const claimBtn = orderCard.querySelector('button:last-child');
+        const unclaimBtn = orderCard.querySelector('button[textContent="Unclaim"]');
+        
+        // Update status dropdown
+        const statusDropdown = orderCard.querySelector('.status-dropdown');
+        if (statusDropdown) {
+          statusDropdown.value = updatedOrder.status || 'pending';
+          applyStatusColor(statusDropdown, updatedOrder.status || 'pending');
+        }
+
+        // Update staff assignment
+        const staffSelect = orderCard.querySelector('.staff-dropdown');
+        if (staffSelect) {
+          staffSelect.value = updatedOrder.assigned_staff || '';
+        }
+
+        // Update claim/unclaim button
+        if (claimBtn) {
+          if (updatedOrder.claimed_by) {
+            claimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
+            claimBtn.disabled = true;
+            claimBtn.style.backgroundColor = '#999';
+            claimBtn.style.cursor = 'not-allowed';
+          } else {
+            claimBtn.textContent = 'Claim Order';
+            claimBtn.disabled = false;
+            claimBtn.style.backgroundColor = '#ccc';
+            claimBtn.style.cursor = 'pointer';
+          }
+        }
+
+        // Update other card elements
+        updateCardElements(orderCard, updatedOrder);
       } else {
-        // If the card isn't visible but should be, reapply filters
+        // If the card doesn't exist but should be visible, reapply filters
         const query = document.getElementById("searchInput").value;
         filterOrders(query);
       }
@@ -1777,15 +1818,22 @@
                     order.assigned_staff = null;
                   }
                   
+                  // If in claimed tab, smoothly remove the card
+                  if (state.currentTab === "claimed") {
+                    const card = unclaimBtn.closest('.card');
+                    if (card) {
+                      card.style.transition = "all 0.3s ease";
+                      card.style.opacity = "0";
+                      card.style.transform = "scale(0.9)";
+                      setTimeout(() => card.remove(), 300);
+                    }
+                  }
+                  
                   // Update the order in global state
                   const index = state.allOrders.findIndex(o => o.id === order.id);
                   if (index !== -1) {
                     state.allOrders[index] = { ...order };
                   }
-                  
-                  // Trigger a full UI refresh to update all cards
-                  const query = document.getElementById("searchInput").value;
-                  filterOrders(query);
                   
                 } catch (err) {
                   console.error(`Failed to unclaim order ${order.id}:`, err);
@@ -1848,17 +1896,12 @@
                       
                       // Update this specific button
                       claimBtn.textContent = `Claimed by ${state.currentUser}`;
-                      claimBtn.style.backgroundColor = "#999";
                       
                       // Update the order in global state
                       const index = state.allOrders.findIndex(o => o.id === order.id);
                       if (index !== -1) {
                         state.allOrders[index] = { ...order };
                       }
-                      
-                      // Trigger a full UI refresh to update all cards
-                      const query = document.getElementById("searchInput").value;
-                      filterOrders(query);
                       
                     } catch (err) {
                       console.error(`Failed to claim order ${order.id}:`, err);
