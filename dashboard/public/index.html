@@ -2726,21 +2726,39 @@
       
       if (staffNotesEditor && updatedOrder.order_notes !== undefined) {
         // Only update if the editor is not currently focused (being edited)
-        // and the notes actually changed
-        const currentNotes = staffNotesEditor.value || '';
-        const newNotes = updatedOrder.order_notes || '';
         const isEditorFocused = staffNotesEditor === document.activeElement;
         
-        // If the editor is focused or the user is actively editing, don't update
         if (!isEditorFocused) {
-          staffNotesEditor.value = newNotes;
-          staffNotesEditor.dataset.previousValue = newNotes;
+          // Create new editor to ensure fresh event listeners
+          const newEditor = staffNotesEditor.cloneNode(true);
+          newEditor.value = updatedOrder.order_notes || '';
+          newEditor.dataset.previousValue = updatedOrder.order_notes || '';
           
-          // Ensure the editor remains enabled
-          staffNotesEditor.disabled = false;
-          staffNotesEditor.readOnly = false;
+          // Add input event listener
+          newEditor.addEventListener('input', () => {
+            const currentValue = newEditor.value;
+            const previousValue = newEditor.dataset.previousValue || '';
+            const hasChanges = currentValue !== previousValue;
+            
+            if (saveNotesBtn) {
+              saveNotesBtn.disabled = !hasChanges;
+              
+              if (hasChanges) {
+                saveNotesBtn.textContent = "Save Notes";
+                saveNotesBtn.style.backgroundColor = "#1f6463";
+                saveNotesBtn.style.cursor = "pointer";
+              } else {
+                saveNotesBtn.textContent = "No Changes";
+                saveNotesBtn.style.backgroundColor = "#ccc";
+                saveNotesBtn.style.cursor = "not-allowed";
+              }
+            }
+          });
           
-          // Update save button state
+          // Replace old editor with new one
+          staffNotesEditor.parentNode.replaceChild(newEditor, staffNotesEditor);
+          
+          // Reset save button state
           if (saveNotesBtn) {
             saveNotesBtn.textContent = "Save Notes";
             saveNotesBtn.disabled = true;
@@ -2748,8 +2766,8 @@
             saveNotesBtn.style.cursor = "not-allowed";
           }
           
-          // Trigger input event to update save button state
-          staffNotesEditor.dispatchEvent(new Event('input'));
+          // Trigger input event to update button state
+          newEditor.dispatchEvent(new Event('input'));
         }
       }
       
@@ -2901,19 +2919,41 @@
           saveBtn.style.backgroundColor = "#ccc";
           saveBtn.style.cursor = "not-allowed";
           
-          // Ensure editor remains enabled and properly styled
-          editor.disabled = false;
-          editor.readOnly = false;
-          editor.style.backgroundColor = "";
+          // Re-attach input event listener to ensure it's active
+          const newEditor = editor.cloneNode(true);
+          newEditor.value = editor.value;
+          newEditor.dataset.previousValue = editor.dataset.previousValue;
+          
+          // Re-attach input event listener
+          newEditor.addEventListener('input', () => {
+            const currentValue = newEditor.value;
+            const previousValue = newEditor.dataset.previousValue || '';
+            const hasChanges = currentValue !== previousValue;
+            
+            saveBtn.disabled = !hasChanges;
+            
+            if (hasChanges) {
+              saveBtn.textContent = "Save Notes";
+              saveBtn.style.backgroundColor = "#1f6463";
+              saveBtn.style.cursor = "pointer";
+            } else {
+              saveBtn.textContent = "No Changes";
+              saveBtn.style.backgroundColor = "#ccc";
+              saveBtn.style.cursor = "not-allowed";
+            }
+          });
+          
+          // Replace the old editor with the new one
+          editor.parentNode.replaceChild(newEditor, editor);
           
           // Restore focus and cursor position if editor was focused
           if (wasEditorFocused) {
-            editor.focus();
-            editor.setSelectionRange(cursorPosition, cursorPosition);
+            newEditor.focus();
+            newEditor.setSelectionRange(cursorPosition, cursorPosition);
           }
           
           // Trigger input event to ensure button state is correctly managed
-          editor.dispatchEvent(new Event('input'));
+          newEditor.dispatchEvent(new Event('input'));
         }, 1500);
 
         ui.showNotification('Staff notes updated successfully');
