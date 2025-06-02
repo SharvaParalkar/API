@@ -791,8 +791,8 @@
       
       // Handle claimed tab visibility
       if (state.currentTab === "claimed") {
-        const shouldBeVisible = updatedOrder.claimed_by === state.currentUser && 
-                              updatedOrder.assigned_staff === state.currentUser &&
+        const assignedStaffList = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
+        const shouldBeVisible = assignedStaffList.includes(state.currentUser) &&
                               updatedOrder.status?.toLowerCase() !== "completed";
         
         if (!shouldBeVisible && orderCard) {
@@ -801,6 +801,11 @@
           orderCard.style.opacity = "0";
           orderCard.style.transform = "scale(0.9)";
           setTimeout(() => orderCard.remove(), 300);
+          return;
+        } else if (shouldBeVisible && !orderCard) {
+          // If the order should be visible but isn't, reapply filters to add it
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
           return;
         }
       }
@@ -1354,20 +1359,24 @@
       // First, filter based on the current tab
       let filtered = [...state.allOrders];
 
-      // For claimed tab, ONLY show orders claimed by current user
+      // For claimed tab, show orders where user is either the claimer or assigned staff
       if (state.currentTab === "claimed") {
         const validStaffMembers = state.staffMembers.map(staff => staff.username);
         filtered = filtered.filter(order => {
+          const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
           console.log('Checking order:', order.id, {
             claimed_by: order.claimed_by,
-            assigned_staff: order.assigned_staff,
-            isValidStaff: validStaffMembers.includes(order.assigned_staff),
-            status: order.status
+            assigned_staff: assignedStaffList,
+            isValidStaff: assignedStaffList.every(staff => validStaffMembers.includes(staff)),
+            status: order.status,
+            currentUser: state.currentUser
           });
           return (
-            order.claimed_by === state.currentUser &&
-            order.assigned_staff === state.currentUser &&
-            validStaffMembers.includes(order.assigned_staff) &&
+            // Show if user is assigned as staff
+            assignedStaffList.includes(state.currentUser) &&
+            // Ensure all assigned staff are valid
+            assignedStaffList.every(staff => validStaffMembers.includes(staff)) &&
+            // Don't show completed orders
             order.status?.toLowerCase() !== "completed"
           );
         });
@@ -1392,7 +1401,10 @@
       // Apply staff filter if selected
       if (staffFilter) {
         console.log('Applying staff filter:', staffFilter);
-        filtered = filtered.filter(order => order.assigned_staff === staffFilter);
+        filtered = filtered.filter(order => {
+          const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
+          return assignedStaffList.includes(staffFilter);
+        });
       }
 
       console.log(`✨ Found ${filtered.length} matching orders after all filters`);
