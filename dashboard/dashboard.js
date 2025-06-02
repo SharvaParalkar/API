@@ -182,14 +182,17 @@ app.get("/dashboard/data", requireLogin, (req, res) => {
     // Filter for claimed orders tab
     if (showClaimed === 'true') {
       conditions.push(`
-        claimed_by = ? 
-        AND assigned_staff = ? 
+        (
+          assigned_staff LIKE ? OR 
+          assigned_staff LIKE ? OR 
+          assigned_staff LIKE ?
+        )
         AND assigned_staff IS NOT NULL 
         AND assigned_staff != '' 
-        AND assigned_staff IN ('sharva', 'nathan', 'evan', 'peter', 'pablo')
         AND (status IS NULL OR LOWER(status) != 'completed')
       `);
-      params.push(username, username);
+      // Match start, middle, or end of comma-separated list
+      params.push(username + ',%', '%,' + username + ',%', '%,' + username);
     }
 
     // Only fetch completed orders if explicitly requested

@@ -1327,16 +1327,9 @@
       if (state.currentTab === "claimed") {
         const validStaffMembers = state.staffMembers.map(staff => staff.username);
         filtered = filtered.filter(order => {
-          console.log('Checking order:', order.id, {
-            claimed_by: order.claimed_by,
-            assigned_staff: order.assigned_staff,
-            isValidStaff: validStaffMembers.includes(order.assigned_staff),
-            status: order.status
-          });
+          const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
           return (
-            order.claimed_by === state.currentUser &&
-            order.assigned_staff === state.currentUser &&
-            validStaffMembers.includes(order.assigned_staff) &&
+            assignedStaffList.includes(state.currentUser) &&
             order.status?.toLowerCase() !== "completed"
           );
         });
