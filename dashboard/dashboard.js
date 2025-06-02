@@ -610,7 +610,8 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
       SET claimed_by = ?, 
           updated_by = ?, 
           last_updated = ?,
-          assigned_staff = ?
+          assigned_staff = ?,
+          status = COALESCE(status, 'pending')
       WHERE id = ?
     `);
     const result = stmt.run(username, username, timestamp, username, orderId);
