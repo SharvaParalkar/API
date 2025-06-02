@@ -1083,7 +1083,14 @@
             body: JSON.stringify({ orderId, staffName }),
             credentials: 'include'
           });
-          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          
+          if (!res.ok) {
+            const error = new Error(`HTTP error! status: ${res.status}`);
+            error.status = res.status;
+            error.response = res;
+            throw error;
+          }
+          
           return await res.json();
         } catch (err) {
           await handleError(err, 'assignStaff');
@@ -1904,20 +1911,32 @@
           
           // Handle click events
           tag.addEventListener("click", async () => {
-            const isSelected = tag.classList.toggle("selected");
-            
-            // Get all selected staff
-            const selectedStaff = Array.from(staffTagsGrid.children)
-              .filter(tag => tag.classList.contains("selected"))
-              .map(tag => {
-                const staffMember = state.staffMembers.find(s => s.displayName === tag.textContent);
-                return staffMember ? staffMember.username : null;
-              })
-              .filter(Boolean);
-            
             try {
-              const response = await api.assignStaff(order.id, selectedStaff.join(','));
-              order.assigned_staff = selectedStaff.join(',');
+              const isSelected = tag.classList.toggle("selected");
+              
+              // Get all selected staff
+              const selectedStaff = Array.from(staffTagsGrid.children)
+                .filter(tag => tag.classList.contains("selected"))
+                .map(tag => {
+                  const staffMember = state.staffMembers.find(s => s.displayName === tag.textContent);
+                  return staffMember ? staffMember.username : null;
+                })
+                .filter(Boolean);
+              
+              try {
+                const response = await api.assignStaff(order.id, selectedStaff.join(','));
+                order.assigned_staff = selectedStaff.join(',');
+              } catch (err) {
+                // Revert the selection on error
+                tag.classList.toggle("selected");
+                
+                if (err.status === 403) {
+                  const errorData = await err.response?.json?.() || {};
+                  ui.showError(`Cannot modify staff - order is claimed by ${errorData.claimedBy || 'another user'}. They must unclaim it first.`);
+                } else {
+                  ui.showError(`Failed to assign staff: ${err.message}`);
+                }
+              }
             } catch (err) {
               console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
               // Revert the selection on error
