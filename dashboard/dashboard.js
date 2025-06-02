@@ -558,36 +558,51 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
   }
 
   try {
-    // Check if claimed by someone else
+    // First check if the order exists and get its current state
     const current = db.prepare("SELECT claimed_by, status FROM orders WHERE id = ?").get(orderId);
     
+    if (!current) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
     // Don't allow unclaiming completed orders
-    if (current?.status?.toLowerCase() === 'completed') {
+    if (current.status?.toLowerCase() === 'completed') {
       return res.status(400).json({ error: "Cannot unclaim completed orders" });
     }
     
-    if (current && current.claimed_by && current.claimed_by !== username) {
+    // If claimed by someone else, don't allow unclaiming
+    if (current.claimed_by && current.claimed_by !== username) {
       return res.status(403).json({ 
         error: "Cannot unclaim - order claimed by someone else",
         claimedBy: current.claimed_by
       });
     }
 
+    // If not claimed at all, return success (idempotent operation)
+    if (!current.claimed_by) {
+      const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+      return res.json({ success: true, order });
+    }
+
+    // Perform the unclaim operation
     const stmt = db.prepare(`
       UPDATE orders 
       SET claimed_by = NULL, 
           assigned_staff = NULL,
           updated_by = ?, 
           last_updated = ? 
-      WHERE id = ? AND claimed_by = ?
+      WHERE id = ?
     `);
-    const result = stmt.run(username, timestamp, orderId, username);
+    const result = stmt.run(username, timestamp, orderId);
     
     if (result.changes === 0) {
-      return res.status(404).json({ error: "Order not found or not claimed by you" });
+      throw new Error("Failed to update order");
     }
 
+    // Fetch the updated order
     const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    
+    // Broadcast the update
     broadcastUpdate('orderUpdate', {
       type: 'unclaim',
       order: updatedOrder

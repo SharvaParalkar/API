@@ -2062,6 +2062,17 @@
 
           const response = await api.unclaimOrder(order.id);
           
+          // Update local order state with server response
+          if (response && response.order) {
+            Object.assign(order, response.order);
+            
+            // Update global state
+            const index = state.allOrders.findIndex(o => o.id === order.id);
+            if (index !== -1) {
+              state.allOrders[index] = { ...order };
+            }
+          }
+
           if (state.currentTab === "claimed") {
             const card = unclaimBtn.closest('.card');
             if (card) {
@@ -2071,7 +2082,7 @@
               setTimeout(() => card.remove(), 300);
             }
           } else {
-            // If not in claimed tab, show claim button
+            // Create and show claim button
             const claimBtn = document.createElement('button');
             claimBtn.textContent = 'Claim Order';
             claimBtn.style.cssText = `
@@ -2091,8 +2102,17 @@
                 claimBtn.style.cursor = 'not-allowed';
                 
                 const response = await api.claimOrder(order.id);
+                
+                // Update local order state with server response
                 if (response && response.order) {
                   Object.assign(order, response.order);
+                  
+                  // Update global state
+                  const index = state.allOrders.findIndex(o => o.id === order.id);
+                  if (index !== -1) {
+                    state.allOrders[index] = { ...order };
+                  }
+                  
                   claimBtn.replaceWith(createUnclaimButton(order));
                 }
               } catch (err) {
