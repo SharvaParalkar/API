@@ -1357,7 +1357,10 @@
       // Apply staff filter if selected
       if (staffFilter) {
         console.log('Applying staff filter:', staffFilter);
-        filtered = filtered.filter(order => order.assigned_staff === staffFilter);
+        filtered = filtered.filter(order => {
+          const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
+          return assignedStaffList.includes(staffFilter);
+        });
       }
 
       console.log(`✨ Found ${filtered.length} matching orders after all filters`);
