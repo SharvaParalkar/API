@@ -527,16 +527,6 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
       return res.status(400).json({ error: "Cannot assign staff to completed orders" });
     }
 
-    // Only allow staff assignment if:
-    // 1. The order is not claimed by anyone, or
-    // 2. The order is claimed by the current user
-    if (current.claimed_by && current.claimed_by !== username) {
-      return res.status(403).json({ 
-        error: "Cannot assign staff - order claimed by someone else",
-        claimedBy: current.claimed_by
-      });
-    }
-
     // Validate staff members
     const validStaffMembers = Object.keys(USERS);
     const assignedStaff = staffName ? staffName.split(',') : [];

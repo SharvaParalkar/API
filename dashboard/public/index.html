@@ -1837,49 +1837,7 @@
 
         // Create clickable tags for each staff member
         state.staffMembers.forEach(staff => {
-          const tag = document.createElement("div");
-          tag.className = "staff-tag";
-          if (currentStaff.includes(staff.username)) {
-            tag.classList.add("selected");
-          }
-          tag.textContent = staff.displayName;
-          
-          // Handle click events
-          tag.addEventListener("click", async () => {
-            try {
-              const isSelected = tag.classList.toggle("selected");
-              
-              // Get all selected staff
-              const selectedStaff = Array.from(staffTagsGrid.children)
-                .filter(tag => tag.classList.contains("selected"))
-                .map(tag => {
-                  const staffMember = state.staffMembers.find(s => s.displayName === tag.textContent);
-                  return staffMember ? staffMember.username : null;
-                })
-                .filter(Boolean);
-              
-              try {
-                const response = await api.assignStaff(order.id, selectedStaff.join(','));
-                order.assigned_staff = selectedStaff.join(',');
-              } catch (err) {
-                // Revert the selection on error
-                tag.classList.toggle("selected");
-                
-                if (err.status === 403) {
-                  const errorData = await err.response?.json?.() || {};
-                  ui.showError(`Cannot modify staff - order is claimed by ${errorData.claimedBy || 'another user'}. They must unclaim it first.`);
-                } else {
-                  ui.showError(`Failed to assign staff: ${err.message}`);
-                }
-              }
-            } catch (err) {
-              console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
-              // Revert the selection on error
-              tag.classList.toggle("selected");
-              ui.showError(`Failed to assign staff: ${err.message}`);
-            }
-          });
-          
+          const tag = createStaffTag(staff, order, staffTagsGrid);
           staffTagsGrid.appendChild(tag);
         });
 
@@ -1973,7 +1931,7 @@
                 claimBtn.style.cursor = isClaimed ? "not-allowed" : "pointer";
 
                 if (!isClaimed) {
-                  claimBtn.addEventListener("click", async () => {
+                  claimBtn.addEventListener('click', async () => {
                     try {
                       claimBtn.textContent = "Claiming...";
                       claimBtn.disabled = true;
@@ -2271,13 +2229,101 @@
 
     // Function to update staff tags based on assigned staff
     function updateStaffTagsForOrder(orderCard, assignedStaff) {
+      console.log('🔄 Updating staff tags:', { orderId: orderCard.dataset.orderId, assignedStaff });
+      
       const staffTags = orderCard.querySelectorAll('.staff-tag');
       staffTags.forEach(tag => {
         const staffMember = state.staffMembers.find(s => s.displayName === tag.textContent);
         if (staffMember) {
-          tag.classList.toggle('selected', assignedStaff.includes(staffMember.username));
+          const isSelected = assignedStaff.includes(staffMember.username);
+          tag.classList.toggle('selected', isSelected);
+          console.log(`Staff tag ${staffMember.username}: ${isSelected ? 'selected' : 'unselected'}`);
         }
       });
+    }
+
+    // Update the staff tag click handler
+    function createStaffTag(staff, order, staffTagsGrid) {
+      const tag = document.createElement("div");
+      tag.className = "staff-tag";
+      tag.textContent = staff.displayName;
+      
+      // Set initial selection state
+      const currentStaff = order.assigned_staff ? order.assigned_staff.split(',') : [];
+      if (currentStaff.includes(staff.username)) {
+        tag.classList.add("selected");
+      }
+      
+      // Handle click events
+      tag.addEventListener("click", async () => {
+        try {
+          // Toggle selection visually first for immediate feedback
+          const isSelected = tag.classList.toggle("selected");
+          
+          // Get all selected staff
+          const selectedStaff = Array.from(staffTagsGrid.children)
+            .filter(tag => tag.classList.contains("selected"))
+            .map(tag => {
+              const staffMember = state.staffMembers.find(s => s.displayName === tag.textContent);
+              return staffMember ? staffMember.username : null;
+            })
+            .filter(Boolean);
+          
+          console.log(`🔄 Updating staff for order ${order.id}:`, selectedStaff);
+          
+          const response = await api.assignStaff(order.id, selectedStaff.join(','));
+          if (response && response.order) {
+            // Update the order object
+            Object.assign(order, response.order);
+            console.log(`✅ Staff updated for order ${order.id}`);
+          }
+        } catch (err) {
+          // Revert the selection on error
+          tag.classList.toggle("selected");
+          console.error(`❌ Failed to update staff:`, err);
+          ui.showError(err.message || "Failed to update staff");
+        }
+      });
+      
+      return tag;
+    }
+
+    // Update the handleOrderUpdate function to better handle staff updates
+    function handleOrderUpdate(updatedOrder) {
+      console.log('🔄 Processing order update:', updatedOrder);
+
+      // Update order in state
+      const index = state.allOrders.findIndex(order => order.id === updatedOrder.id);
+      if (index !== -1) {
+        state.allOrders[index] = updatedOrder;
+      } else {
+        state.allOrders.unshift(updatedOrder);
+      }
+
+      // Get the existing card
+      const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
+      if (!orderCard) {
+        console.log(`Card not found for order ${updatedOrder.id}, refreshing view...`);
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+        return;
+      }
+
+      // Update staff tags
+      const assignedStaff = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
+      updateStaffTagsForOrder(orderCard, assignedStaff);
+
+      // Update status dropdown
+      const statusDropdown = orderCard.querySelector('.status-dropdown');
+      if (statusDropdown) {
+        const newStatus = updatedOrder.status || 'pending';
+        statusDropdown.value = newStatus;
+        statusDropdown.dataset.previousValue = newStatus;
+        applyStatusColor(statusDropdown, newStatus);
+      }
+
+      // Update other card elements
+      updateCardElements(orderCard, updatedOrder);
     }
   </script>
 
