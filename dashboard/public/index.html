@@ -192,11 +192,21 @@
     }
 
     .status-dropdown {
-      padding: 0.4rem 0.75rem;
-      border-radius: 0.5rem;
+      padding: 0.4rem;
+      border-radius: 0.3rem;
       border: 1px solid #ccc;
-      font-size: 0.9rem;
-      background-color: #f5f5f5;
+      margin-left: 0.5rem;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .status-dropdown option {
+      padding: 0.3rem;
+    }
+
+    .status-dropdown option:checked {
+      background-color: #1f6463;
+      color: white;
     }
 
     .status-pending {
@@ -612,82 +622,33 @@
       cursor: not-allowed;
     }
 
-    .staff-dropdown {
-      display: none;
-    }
-
-    /* Custom dropdown styles */
-    .custom-dropdown {
-      position: relative;
-      width: 100%;
+    /* Add styles for the staff list display */
+    .assigned-staff-list {
+      margin-top: 0.5rem;
       font-size: 0.9rem;
-    }
-
-    .dropdown-button {
-      width: 100%;
-      padding: 0.4rem;
-      border: 1px solid #ccc;
-      border-radius: 0.3rem;
-      background-color: white;
-      text-align: left;
-      cursor: pointer;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .dropdown-button:after {
-      content: '▼';
-      font-size: 0.8rem;
-      margin-left: 0.5rem;
-    }
-
-    .dropdown-content {
-      display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background-color: white;
-      border: 1px solid #ccc;
-      border-radius: 0.3rem;
-      margin-top: 0.2rem;
-      max-height: 200px;
-      overflow-y: auto;
-      z-index: 1000;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-
-    .dropdown-content.show {
-      display: block;
-    }
-
-    .dropdown-item {
-      padding: 0.4rem;
-      display: flex;
-      align-items: center;
+      flex-wrap: wrap;
       gap: 0.5rem;
+    }
+
+    .staff-tag {
+      background-color: #1f6463;
+      color: white;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.3rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .staff-tag button {
+      background: none;
+      border: none;
+      color: white;
       cursor: pointer;
-    }
-
-    .dropdown-item:hover {
-      background-color: #f5f5f5;
-    }
-
-    .dropdown-item input[type="checkbox"] {
-      margin: 0;
-    }
-
-    /* Dark mode support */
-    .dark-mode .dropdown-button,
-    .dark-mode .dropdown-content {
-      background-color: #2d2d2d;
-      color: #fff;
-      border-color: #4d4d4d;
-    }
-
-    .dark-mode .dropdown-item:hover {
-      background-color: #3d3d3d;
+      padding: 0;
+      font-size: 1.1rem;
+      line-height: 1;
     }
   </style>
 </head>
@@ -1365,18 +1326,22 @@
       // First, filter based on the current tab
       let filtered = [...state.allOrders];
 
-      // For claimed tab, show orders claimed by current user OR where user is in assigned_staff
+      // For claimed tab, ONLY show orders claimed by current user
       if (state.currentTab === "claimed") {
         const validStaffMembers = state.staffMembers.map(staff => staff.username);
         filtered = filtered.filter(order => {
-          const isAssigned = Array.isArray(order.assigned_staff) && 
-                            order.assigned_staff.includes(state.currentUser);
-          const isClaimed = order.claimed_by === state.currentUser;
-          const isValidStaff = Array.isArray(order.assigned_staff) && 
-                              order.assigned_staff.every(staff => validStaffMembers.includes(staff));
-          const isNotCompleted = order.status?.toLowerCase() !== "completed";
-          
-          return (isClaimed || isAssigned) && isValidStaff && isNotCompleted;
+          console.log('Checking order:', order.id, {
+            claimed_by: order.claimed_by,
+            assigned_staff: order.assigned_staff,
+            isValidStaff: validStaffMembers.includes(order.assigned_staff),
+            status: order.status
+          });
+          return (
+            order.claimed_by === state.currentUser &&
+            order.assigned_staff === state.currentUser &&
+            validStaffMembers.includes(order.assigned_staff) &&
+            order.status?.toLowerCase() !== "completed"
+          );
         });
         console.log('Filtered claimed orders:', filtered.length);
       }
@@ -1399,10 +1364,7 @@
       // Apply staff filter if selected
       if (staffFilter) {
         console.log('Applying staff filter:', staffFilter);
-        filtered = filtered.filter(order => 
-          Array.isArray(order.assigned_staff) && 
-          order.assigned_staff.includes(staffFilter)
-        );
+        filtered = filtered.filter(order => order.assigned_staff === staffFilter);
       }
 
       console.log(`✨ Found ${filtered.length} matching orders after all filters`);
@@ -1849,136 +1811,95 @@
           hour12: true,
         });
 
-        // Create custom staff dropdown
-        const createStaffDropdown = (order, table) => {
-          const dropdownContainer = document.createElement('div');
-          dropdownContainer.className = 'custom-dropdown';
+        // Create staff assignment dropdown
+        const staffSelect = document.createElement("select");
+        staffSelect.className = "staff-dropdown";
+        staffSelect.style.padding = "0.4rem";
+        staffSelect.style.borderRadius = "0.3rem";
+        staffSelect.style.border = "1px solid #ccc";
+        staffSelect.style.marginLeft = "0.5rem";
+        staffSelect.multiple = true; // Enable multiple selection
 
-          const button = document.createElement('button');
-          button.className = 'dropdown-button';
-          button.type = 'button';
-          
-          const updateButtonText = (selectedStaff) => {
-            button.textContent = selectedStaff.length > 0 
-              ? selectedStaff.map(username => {
-                  const staff = state.staffMembers.find(s => s.username === username);
-                  return staff ? staff.displayName : username;
-                }).join(', ')
-              : '-- Select Staff --';
-          };
+        // Add empty option
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "-- Select Staff --";
+        staffSelect.appendChild(emptyOption);
 
-          const dropdownContent = document.createElement('div');
-          dropdownContent.className = 'dropdown-content';
+        // Add staff options
+        state.staffMembers.forEach(staff => {
+          const option = document.createElement("option");
+          option.value = staff.username;
+          option.textContent = staff.displayName;
+          // Check if this staff member is in the assigned staff list
+          if (order.assigned_staff && order.assigned_staff.split(',').includes(staff.username)) {
+            option.selected = true;
+          }
+          staffSelect.appendChild(option);
+        });
 
-          // Initialize selected staff from order
-          const selectedStaff = Array.isArray(order.assigned_staff) ? [...order.assigned_staff] : 
-                               order.assigned_staff ? [order.assigned_staff] : [];
-          updateButtonText(selectedStaff);
+        // Create a container for the staff dropdown and tags
+        const staffContainer = document.createElement("div");
+        staffContainer.style.display = "flex";
+        staffContainer.style.flexDirection = "column";
+        staffContainer.style.gap = "0.5rem";
 
-          // Create checkbox items for each staff member
-          state.staffMembers.forEach(staff => {
-            const item = document.createElement('div');
-            item.className = 'dropdown-item';
+        const staffLabel = document.createElement("span");
+        staffLabel.textContent = "Assigned Staff:";
+        staffContainer.appendChild(staffLabel);
+        staffContainer.appendChild(staffSelect);
 
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = `staff-${staff.username}-${order.id}`;
-            checkbox.checked = selectedStaff.includes(staff.username);
+        // Create staff tags container
+        const staffTagsContainer = document.createElement("div");
+        staffTagsContainer.className = "assigned-staff-list";
 
-            const label = document.createElement('label');
-            label.htmlFor = checkbox.id;
-            label.textContent = staff.displayName;
+        // Function to update staff tags
+        const updateStaffTags = () => {
+          staffTagsContainer.innerHTML = '';
+          const selectedStaff = Array.from(staffSelect.selectedOptions)
+            .map(option => ({
+              username: option.value,
+              displayName: option.textContent
+            }))
+            .filter(staff => staff.username);
 
-            item.appendChild(checkbox);
-            item.appendChild(label);
-
-            // Handle checkbox changes
-            checkbox.addEventListener('change', async () => {
-              try {
-                if (checkbox.checked) {
-                  if (!selectedStaff.includes(staff.username)) {
-                    selectedStaff.push(staff.username);
-                  }
-                } else {
-                  const index = selectedStaff.indexOf(staff.username);
-                  if (index !== -1) {
-                    selectedStaff.splice(index, 1);
-                  }
-                }
-
-                updateButtonText(selectedStaff);
-
-                // Send update to server
-                const response = await api.assignStaff(order.id, staff.username);
-                if (response.order) {
-                  order.assigned_staff = response.order.assigned_staff;
-                  // Update the UI to reflect the changes
-                  const staffCell = [...table.querySelectorAll('td')].find(td => 
-                    td.textContent.trim().startsWith('Staff:')
-                  )?.nextElementSibling;
-                  if (staffCell) {
-                    staffCell.textContent = order.assigned_staff.length ? 
-                      order.assigned_staff.map(username => {
-                        const staff = state.staffMembers.find(s => s.username === username);
-                        return staff ? staff.displayName : username;
-                      }).join(", ") : "—";
-                  }
-                }
-              } catch (err) {
-                console.error(`❌ Failed to update staff for order ${order.id}:`, err);
-                checkbox.checked = !checkbox.checked; // Revert the checkbox
-                if (checkbox.checked) {
-                  selectedStaff.push(staff.username);
-                } else {
-                  const index = selectedStaff.indexOf(staff.username);
-                  if (index !== -1) {
-                    selectedStaff.splice(index, 1);
-                  }
-                }
-                updateButtonText(selectedStaff);
-                ui.showError(`Failed to update staff: ${err.message}`);
-              }
-            });
-
-            dropdownContent.appendChild(item);
+          selectedStaff.forEach(staff => {
+            const tag = document.createElement("span");
+            tag.className = "staff-tag";
+            tag.textContent = staff.displayName;
+            staffTagsContainer.appendChild(tag);
           });
-
-          // Toggle dropdown on button click
-          button.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dropdownContent.classList.toggle('show');
-          });
-
-          // Close dropdown when clicking outside
-          document.addEventListener('click', (e) => {
-            if (!dropdownContainer.contains(e.target)) {
-              dropdownContent.classList.remove('show');
-            }
-          });
-
-          dropdownContainer.appendChild(button);
-          dropdownContainer.appendChild(dropdownContent);
-          return dropdownContainer;
         };
 
-        [
-          ["Email", order.email],
-          ["Phone", order.phone],
-          ["Staff", Array.isArray(order.assigned_staff) ? order.assigned_staff.join(", ") : "—"],
-          ["Customer Notes", order.notes || "—"],
-          ["Staff Notes", order.order_notes || "—"],
-          ["Submitted At", formattedDate],
-          ["Last Updated By", order.updated_by || "—"]
-        ].forEach(([label, value]) => {
-          const row = document.createElement("tr");
-          if (label === "Staff") {
-            row.innerHTML = `<td>${label}:</td><td></td>`;
-            row.cells[1].appendChild(createStaffDropdown(order, table));
-          } else {
-            row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
+        // Update tags on initial load
+        updateStaffTags();
+
+        // Handle staff assignment
+        staffSelect.addEventListener("change", async () => {
+          try {
+            const selectedStaff = Array.from(staffSelect.selectedOptions).map(option => option.value).filter(Boolean);
+            const response = await api.assignStaff(order.id, selectedStaff.join(','));
+            order.assigned_staff = selectedStaff.join(',');
+            updateStaffTags(); // Update tags after successful change
+          } catch (err) {
+            console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
+            // Reset selections to match current state
+            const currentStaff = order.assigned_staff ? order.assigned_staff.split(',') : [];
+            Array.from(staffSelect.options).forEach(option => {
+              option.selected = currentStaff.includes(option.value);
+            });
+            updateStaffTags(); // Reset tags to match current state
+            ui.showError(`Failed to assign staff: ${err.message}`);
           }
-          table.appendChild(row);
         });
+
+        staffContainer.appendChild(staffTagsContainer);
+
+        // Add to the table
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>Staff:</td><td></td>`;
+        row.cells[1].appendChild(staffContainer);
+        table.appendChild(row);
 
         detailsSection.appendChild(table);
 
