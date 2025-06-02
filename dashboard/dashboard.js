@@ -280,13 +280,38 @@ app.get("/dashboard/download-all/:orderId", requireLogin, (req, res) => {
 // 💵 Update price
 app.post("/dashboard/update-price", requireLogin, (req, res) => {
   const { orderId, est_price } = req.body;
+  const username = req.session.user;
+  const timestamp = new Date().toISOString();
+
   try {
-    const stmt = db.prepare("UPDATE orders SET est_price = ? WHERE id = ?");
-    stmt.run(est_price, orderId);
-    res.status(200).send("Updated estimate.");
+    // Update the order with new price
+    const stmt = db.prepare(`
+      UPDATE orders 
+      SET est_price = ?,
+          updated_by = ?,
+          last_updated = ?
+      WHERE id = ?
+    `);
+    const result = stmt.run(est_price, username, timestamp, orderId);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Fetch the updated order
+    const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+
+    // Broadcast the update to all connected clients
+    broadcastUpdate('orderUpdate', {
+      type: 'price',
+      order: updatedOrder
+    });
+
+    console.log(`✅ Updated price for order ${orderId} to $${est_price}`);
+    res.json({ success: true, order: updatedOrder });
   } catch (err) {
     console.error("❌ Failed to update est_price:", err.message);
-    res.status(500).send("Failed to update.");
+    res.status(500).json({ error: "Database error" });
   }
 });
 

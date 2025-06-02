@@ -784,6 +784,17 @@
         state.allOrders[index] = updatedOrder;
       } else {
         state.allOrders.unshift(updatedOrder);
+        // Only auto-estimate for new orders if they don't have a price
+        if (!updatedOrder.est_price && 
+            !(updatedOrder.order_notes && updatedOrder.order_notes.includes("Print estimate failed"))) {
+          console.log(`🔄 Running auto-estimate for new order ${updatedOrder.id}`);
+          const card = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
+          if (card) {
+            autoEstimateOrder(updatedOrder, card);
+          }
+        } else {
+          console.log(`⏭️ Skipping auto-estimate for new order ${updatedOrder.id} - price exists: $${updatedOrder.est_price}`);
+        }
       }
 
       // Get the existing card if it exists
@@ -791,8 +802,8 @@
       
       // Handle claimed tab visibility
       if (state.currentTab === "claimed") {
-        const assignedStaffList = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
-        const shouldBeVisible = assignedStaffList.includes(state.currentUser) &&
+        const shouldBeVisible = updatedOrder.claimed_by === state.currentUser && 
+                              updatedOrder.assigned_staff === state.currentUser &&
                               updatedOrder.status?.toLowerCase() !== "completed";
         
         if (!shouldBeVisible && orderCard) {
@@ -801,11 +812,6 @@
           orderCard.style.opacity = "0";
           orderCard.style.transform = "scale(0.9)";
           setTimeout(() => orderCard.remove(), 300);
-          return;
-        } else if (shouldBeVisible && !orderCard) {
-          // If the order should be visible but isn't, reapply filters to add it
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
           return;
         }
       }
@@ -1359,24 +1365,20 @@
       // First, filter based on the current tab
       let filtered = [...state.allOrders];
 
-      // For claimed tab, show orders where user is either the claimer or assigned staff
+      // For claimed tab, ONLY show orders claimed by current user
       if (state.currentTab === "claimed") {
         const validStaffMembers = state.staffMembers.map(staff => staff.username);
         filtered = filtered.filter(order => {
-          const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
           console.log('Checking order:', order.id, {
             claimed_by: order.claimed_by,
-            assigned_staff: assignedStaffList,
-            isValidStaff: assignedStaffList.every(staff => validStaffMembers.includes(staff)),
-            status: order.status,
-            currentUser: state.currentUser
+            assigned_staff: order.assigned_staff,
+            isValidStaff: validStaffMembers.includes(order.assigned_staff),
+            status: order.status
           });
           return (
-            // Show if user is assigned as staff
-            assignedStaffList.includes(state.currentUser) &&
-            // Ensure all assigned staff are valid
-            assignedStaffList.every(staff => validStaffMembers.includes(staff)) &&
-            // Don't show completed orders
+            order.claimed_by === state.currentUser &&
+            order.assigned_staff === state.currentUser &&
+            validStaffMembers.includes(order.assigned_staff) &&
             order.status?.toLowerCase() !== "completed"
           );
         });
@@ -1401,10 +1403,7 @@
       // Apply staff filter if selected
       if (staffFilter) {
         console.log('Applying staff filter:', staffFilter);
-        filtered = filtered.filter(order => {
-          const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
-          return assignedStaffList.includes(staffFilter);
-        });
+        filtered = filtered.filter(order => order.assigned_staff === staffFilter);
       }
 
       console.log(`✨ Found ${filtered.length} matching orders after all filters`);
@@ -1699,39 +1698,66 @@
         }
 
         if (totalEstimate > 0) {
-          await fetch("/dashboard/update-price", {
+          // Update the price in the database
+          const response = await fetch("/dashboard/update-price", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              credentials: 'include'
+            },
             body: JSON.stringify({
               orderId: order.id,
               est_price: totalEstimate.toFixed(2),
             }),
           });
+
+          if (!response.ok) {
+            throw new Error(`Failed to update price: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          
+          // Update the order in state
+          const index = state.allOrders.findIndex(o => o.id === order.id);
+          if (index !== -1) {
+            state.allOrders[index] = result.order;
+          }
+
+          // Update UI
+          if (card) {
+            const priceLine = card.querySelector("p");
+            if (priceLine) {
+              priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(2)}`;
+            }
+          }
+
           console.log(
             `✅ Updated order ${order.id} with estimate $${totalEstimate.toFixed(2)}`
           );
         }
 
-        if (card) {
-          const priceLine = card.querySelector("p");
-          if (priceLine) {
-            priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(2)}`;
+        if (failedFiles.length > 0) {
+          const message = `⚠️ Print estimate failed for: ${failedFiles.join(", ")}`;
+
+          // Update notes in database
+          const notesResponse = await fetch("/dashboard/update-notes", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              credentials: 'include'
+            },
+            body: JSON.stringify({
+              orderId: order.id,
+              order_notes: message,
+            }),
+          });
+
+          if (!notesResponse.ok) {
+            throw new Error(`Failed to update notes: ${notesResponse.statusText}`);
           }
 
-          if (failedFiles.length > 0) {
-            const message = `⚠️ Print estimate failed for: ${failedFiles.join(", ")}`;
-
-            // Update in database
-            await fetch("/dashboard/update-notes", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                orderId: order.id,
-                order_notes: message,
-              }),
-            });
-
-            // Update UI immediately
+          // Update UI immediately
+          if (card) {
             const notesLine = [...card.querySelectorAll("li")].find((li) =>
               li.innerHTML.includes("Staff Notes:")
             );
@@ -1742,6 +1768,7 @@
         }
       } catch (err) {
         console.error(`❌ Failed to auto-estimate for order ${order.id}:`, err);
+        ui.showError(`Failed to estimate order: ${err.message}`);
       }
     }
 
@@ -2033,11 +2060,13 @@
 
         grid.appendChild(card);
 
-        if (
-          (order.est_price == null || order.est_price === 0) &&
-          !(order.order_notes && order.order_notes.includes("Print estimate failed"))
-        ) {
+        // Only auto-estimate if there's no price and no failed estimate note
+        if (!order.est_price && 
+            !(order.order_notes && order.order_notes.includes("Print estimate failed"))) {
+          console.log(`🔄 Running auto-estimate for order ${order.id} - no existing price found`);
           autoEstimateOrder(order, card);
+        } else {
+          console.log(`⏭️ Skipping auto-estimate for order ${order.id} - price already exists: $${order.est_price}`);
         }
       }
     }
