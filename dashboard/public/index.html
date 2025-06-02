@@ -2579,24 +2579,32 @@
     // Function to delete order
     async function deleteOrder(orderId) {
       try {
-        // Remove 'order_' prefix if it exists
-        const cleanOrderId = orderId.replace(/^order_/, '');
+        console.log('🗑️ Attempting to delete order:', orderId);
         
-        const response = await fetch(`/dashboard/order/${cleanOrderId}`, {
+        const response = await fetch(`/dashboard/order/${orderId}`, {
           method: 'DELETE',
           credentials: 'include'
         });
 
         if (!response.ok) {
           const data = await response.json();
-          throw new Error(data.error || 'Failed to delete order');
+          console.error('❌ Delete response:', {
+            status: response.status,
+            data: data
+          });
+          throw new Error(data.error || data.details || 'Failed to delete order');
         }
 
         // Hide the confirmation overlay
         hideDeleteConfirmation();
 
         // Remove the order from state
-        state.allOrders = state.allOrders.filter(order => order.id !== orderId);
+        state.allOrders = state.allOrders.filter(order => {
+          // Match either the exact ID or with/without order_ prefix
+          const cleanOrderId = order.id.replace(/^order_/, '');
+          const cleanInputId = orderId.replace(/^order_/, '');
+          return cleanOrderId !== cleanInputId;
+        });
 
         // Find and remove the card with animation
         const card = document.querySelector(`[data-order-id="${orderId}"]`);

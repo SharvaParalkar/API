@@ -766,18 +766,28 @@ app.delete("/dashboard/order/:orderId", requireLogin, (req, res) => {
   const username = req.session.user;
   
   try {
+    // Add order_ prefix if it's not already there
+    const fullOrderId = orderId.startsWith('order_') ? orderId : `order_${orderId}`;
+    console.log('🔍 Attempting to delete order:', { 
+      receivedId: orderId,
+      fullOrderId: fullOrderId 
+    });
+
     // First check if the order exists
-    const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    const order = db.prepare("SELECT * FROM orders WHERE id = ? OR id = ?").get(orderId, fullOrderId);
     if (!order) {
+      console.log('❌ Order not found in database:', { orderId, fullOrderId });
       return res.status(404).json({ error: "Order not found" });
     }
+
+    console.log('✅ Found order:', order);
 
     // Use a transaction to ensure all operations succeed or none do
     db.transaction(() => {
       // First delete any related records (adjust these queries based on your actual schema)
       // Example: If you have order_items table
       try {
-        db.prepare("DELETE FROM order_items WHERE order_id = ?").run(orderId);
+        db.prepare("DELETE FROM order_items WHERE order_id = ? OR order_id = ?").run(orderId, fullOrderId);
       } catch (err) {
         // If table doesn't exist or no records found, continue
         console.log('No order_items to delete');
@@ -785,7 +795,7 @@ app.delete("/dashboard/order/:orderId", requireLogin, (req, res) => {
 
       // Example: If you have order_notes table
       try {
-        db.prepare("DELETE FROM order_notes WHERE order_id = ?").run(orderId);
+        db.prepare("DELETE FROM order_notes WHERE order_id = ? OR order_id = ?").run(orderId, fullOrderId);
       } catch (err) {
         // If table doesn't exist or no records found, continue
         console.log('No order_notes to delete');
@@ -793,25 +803,27 @@ app.delete("/dashboard/order/:orderId", requireLogin, (req, res) => {
 
       // Example: If you have order_files table
       try {
-        db.prepare("DELETE FROM order_files WHERE order_id = ?").run(orderId);
+        db.prepare("DELETE FROM order_files WHERE order_id = ? OR order_id = ?").run(orderId, fullOrderId);
       } catch (err) {
         // If table doesn't exist or no records found, continue
         console.log('No order_files to delete');
       }
 
       // Finally delete the order itself
-      const stmt = db.prepare("DELETE FROM orders WHERE id = ?");
-      const result = stmt.run(orderId);
+      const stmt = db.prepare("DELETE FROM orders WHERE id = ? OR id = ?");
+      const result = stmt.run(orderId, fullOrderId);
       
       if (result.changes === 0) {
-        throw new Error("Order not found");
+        throw new Error("Order not found during deletion");
       }
+
+      console.log('✅ Successfully deleted order:', { orderId, fullOrderId });
     })();
 
     // Broadcast the deletion to all connected clients
     broadcastUpdate('orderUpdate', {
       type: 'delete',
-      orderId: orderId,
+      orderId: order.id, // Use the actual ID from the database
       deletedBy: username,
       timestamp: new Date().toISOString()
     });
