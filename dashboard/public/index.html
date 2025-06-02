@@ -558,19 +558,47 @@
       background-color: #00C851;
       color: white;
     }
+
+    .tab-container {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      position: relative;
+      z-index: 100;
+    }
+
+    .tab-button {
+      padding: 0.6rem 1rem;
+      border-radius: 1rem;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      user-select: none;
+      pointer-events: auto;
+    }
+
+    .tab-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .tab-button:active {
+      transform: translateY(0);
+    }
   </style>
 </head>
 
 <body>
   <h1>FilamentBros Order Dashboard</h1>
 
-  <div style="display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem;">
-    <button id="tabAll"
-      style="padding: 0.6rem 1rem; border-radius: 1rem; background: #1f6463; color: white; border: none;">All
-      Orders</button>
-    <button id="tabClaimed"
-      style="padding: 0.6rem 1rem; border-radius: 1rem; background: #ccc; color: black; border: none;">Claimed
-      Orders</button>
+  <div class="tab-container">
+    <button id="tabAll" class="tab-button"
+      style="background: #1f6463; color: white;">All Orders</button>
+    <button id="tabClaimed" class="tab-button"
+      style="background: #ccc; color: black;">Claimed Orders</button>
   </div>
 
   <div class="search-bar-flex">
@@ -992,48 +1020,6 @@
         }
       },
 
-      onTabClick(tab) {
-        console.log('Tab clicked:', tab);
-        state.currentTab = tab;
-
-        // Update tab styles
-        const allTab = document.getElementById("tabAll");
-        const claimedTab = document.getElementById("tabClaimed");
-        
-        if (tab === "all") {
-          allTab.style.backgroundColor = "#1f6463";
-          allTab.style.color = "white";
-          claimedTab.style.backgroundColor = "#ccc";
-          claimedTab.style.color = "black";
-        } else {
-          claimedTab.style.backgroundColor = "#1f6463";
-          claimedTab.style.color = "white";
-          allTab.style.backgroundColor = "#ccc";
-          allTab.style.color = "black";
-        }
-
-        // Get current search query
-        const query = document.getElementById("searchInput").value;
-        console.log('Current tab after click:', state.currentTab); // Debug log
-
-        // Use appropriate render function based on tab
-        if (tab === "claimed") {
-          console.log('Rendering claimed orders');
-          const isSearchActive = query.length > 0;
-          const validStaffMembers = state.staffMembers.map(staff => staff.username);
-          const claimedOrders = state.allOrders.filter(order =>
-            order.claimed_by === state.currentUser &&
-            order.assigned_staff === state.currentUser &&
-            validStaffMembers.includes(order.assigned_staff) &&
-            order.status?.toLowerCase() !== "completed"
-          );
-          renderClaimedOrders(claimedOrders, isSearchActive);
-        } else {
-          console.log('Filtering all orders');
-          filterOrders(query);
-        }
-      },
-
       onSearchInput: debounce((event) => {
         filterOrders(event.target.value);
       }, SEARCH_DEBOUNCE),
@@ -1176,7 +1162,17 @@
           .then(data => {
             state.currentUser = data.username;
             ui.hideLoginOverlay();
-            loadInitialOrders(); // Use this instead of refreshOrders
+            
+            // Initialize everything after successful auto-login
+            return api.getStaffList();
+          })
+          .then(staffList => {
+            state.staffMembers = staffList;
+            initializeEventListeners();
+            return loadInitialOrders();
+          })
+          .then(() => {
+            initializeSSE();
           })
           .catch(() => {
             console.warn("Failed to auto-login");
@@ -1222,10 +1218,29 @@
             console.error('❌ Failed to load staff list:', err);
           }
 
-          // Hide login and load orders
+          // Hide login and initialize everything
           ui.hideLoginOverlay();
-          await loadInitialOrders(); // Use this instead of refreshOrders
-          initializeSSE(); // Initialize SSE after successful login
+          
+          // Initialize event listeners AFTER login
+          setTimeout(() => {
+            initializeEventListeners();
+            console.log('🎯 Tab event listeners initialized');
+            
+            // Test if tabs are clickable
+            const allTab = document.getElementById("tabAll");
+            const claimedTab = document.getElementById("tabClaimed");
+            console.log('🔍 Tab elements found:', { allTab: !!allTab, claimedTab: !!claimedTab });
+            
+            if (allTab && claimedTab) {
+              console.log('✅ Tab elements have onclick handlers:', { 
+                allTabHandler: typeof allTab.onclick, 
+                claimedTabHandler: typeof claimedTab.onclick 
+              });
+            }
+          }, 100);
+          
+          await loadInitialOrders();
+          initializeSSE();
 
         } catch (err) {
           loginError.textContent = err.message || "Login failed. Please try again.";
@@ -1237,29 +1252,54 @@
 
     // Initialize event listeners
     function initializeEventListeners() {
+      console.log('🔧 Initializing event listeners...');
+      
       // Tab click handlers
       const allTab = document.getElementById("tabAll");
       const claimedTab = document.getElementById("tabClaimed");
 
+      console.log('🔍 Found tab elements:', { 
+        allTab: !!allTab, 
+        claimedTab: !!claimedTab,
+        allTabVisible: allTab ? getComputedStyle(allTab).display !== 'none' : false,
+        claimedTabVisible: claimedTab ? getComputedStyle(claimedTab).display !== 'none' : false
+      });
+
       if (allTab) {
         allTab.onclick = () => {
+          console.log('🎯 All Orders tab clicked!');
           state.currentTab = "all";
           console.log('Switching to All Orders tab');
           ui.updateTabStyles();
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
+        console.log('✅ All Orders tab onclick handler set');
+      } else {
+        console.error('❌ All Orders tab element not found!');
       }
 
       if (claimedTab) {
         claimedTab.onclick = () => {
+          console.log('🎯 Claimed Orders tab clicked!');
           state.currentTab = "claimed";
           console.log('Switching to Claimed Orders tab');
           ui.updateTabStyles();
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
+        console.log('✅ Claimed Orders tab onclick handler set');
+      } else {
+        console.error('❌ Claimed Orders tab element not found!');
       }
+
+      // Verify that the handlers are actually set
+      setTimeout(() => {
+        console.log('🔍 Verifying onclick handlers after setup:', {
+          allTabHandler: allTab ? typeof allTab.onclick : 'tab not found',
+          claimedTabHandler: claimedTab ? typeof claimedTab.onclick : 'tab not found'
+        });
+      }, 50);
 
       // Filter listeners
       const oldOrdersToggle = document.getElementById("showOldToggle");
@@ -1290,6 +1330,8 @@
           e.target.style.display = 'none';
         }
       }, true);
+      
+      console.log('🔧 Event listeners initialization complete');
     }
 
     // Add back the applyStatusColor function
@@ -1401,6 +1443,8 @@
       }
     }
 
+    // Add back missing essential functions
+    
     // Add necessary CSS animations
     const style = document.createElement('style');
     style.textContent = `
@@ -1445,112 +1489,7 @@
       // Update price
       const priceElement = card.querySelector('p');
       if (priceElement) {
-        priceElement.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : '—'
-          }`;
-      }
-
-      // Update staff assignment
-      const staffCell = card.querySelector('.details-table tr:nth-child(3) td:last-child');
-      if (staffCell) {
-        // Check if dropdown exists
-        let staffSelect = staffCell.querySelector('.staff-dropdown');
-        if (!staffSelect) {
-          // If no dropdown exists, create a new one
-          staffSelect = createStaffDropdown(order);
-          staffCell.innerHTML = ''; // Clear the cell
-          staffCell.appendChild(staffSelect);
-        } else {
-          // If dropdown exists, just update its value
-          staffSelect.value = order.assigned_staff || '';
-        }
-      }
-
-      // Update claim status
-      const claimBtn = card.querySelector('button:last-child');
-      if (claimBtn) {
-        const isClaimed = order.claimed_by !== null;
-        claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : 'Claim Order';
-        claimBtn.disabled = isClaimed;
-        claimBtn.style.backgroundColor = isClaimed ? '#999' : '#ccc';
-        claimBtn.style.cursor = isClaimed ? 'not-allowed' : 'pointer';
-      }
-
-      // Update details section if visible
-      const detailsSection = card.querySelector('.details-section');
-      if (detailsSection?.classList.contains('visible')) {
-        const table = detailsSection.querySelector('.details-table');
-        if (table) {
-          // Update staff notes
-          const notesRow = [...table.rows].find(row => row.cells[0].textContent === 'Staff Notes:');
-          if (notesRow) {
-            const notesCell = notesRow.cells[1];
-            
-            // Create notes editor if it doesn't exist
-            if (!notesCell.querySelector('.staff-notes-editor')) {
-              const textarea = document.createElement('textarea');
-              textarea.className = 'staff-notes-editor';
-              textarea.value = order.order_notes || '';
-              textarea.placeholder = 'Add staff notes here...';
-              
-              const saveBtn = document.createElement('button');
-              saveBtn.className = 'save-notes-btn';
-              saveBtn.textContent = 'Save Notes';
-              saveBtn.disabled = true;
-              
-              // Enable save button only when changes are made
-              textarea.addEventListener('input', () => {
-                saveBtn.disabled = textarea.value === (order.order_notes || '');
-              });
-              
-              // Handle save
-              saveBtn.addEventListener('click', async () => {
-                try {
-                  saveBtn.disabled = true;
-                  saveBtn.textContent = 'Saving...';
-                  
-                  const response = await fetch('/dashboard/update-staff-notes', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                      orderId: order.id,
-                      staffNotes: textarea.value
-                    }),
-                    credentials: 'include'
-                  });
-                  
-                  if (!response.ok) throw new Error('Failed to save notes');
-                  
-                  const result = await response.json();
-                  order.order_notes = textarea.value;
-                  saveBtn.textContent = 'Saved!';
-                  setTimeout(() => {
-                    saveBtn.textContent = 'Save Notes';
-                  }, 2000);
-                  
-                } catch (err) {
-                  console.error('Failed to save staff notes:', err);
-                  saveBtn.textContent = 'Save Failed';
-                  setTimeout(() => {
-                    saveBtn.textContent = 'Save Notes';
-                    saveBtn.disabled = false;
-                  }, 2000);
-                }
-              });
-              
-              notesCell.innerHTML = '';
-              notesCell.appendChild(textarea);
-              notesCell.appendChild(saveBtn);
-            } else {
-              // Update existing editor value if it differs
-              const textarea = notesCell.querySelector('.staff-notes-editor');
-              if (textarea.value !== order.order_notes) {
-                textarea.value = order.order_notes || '';
-              }
-            }
-          }
-        }
+        priceElement.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : '—'}`;
       }
     }
 
@@ -1596,44 +1535,7 @@
       return staffSelect;
     }
 
-    // Add dark mode toggle
-    const darkModeToggle = document.createElement('button');
-    darkModeToggle.className = 'dark-mode-toggle';
-    darkModeToggle.textContent = '🌙';
-    darkModeToggle.addEventListener('click', () => {
-      document.body.classList.toggle('dark-mode');
-      darkModeToggle.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
-      localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-    });
-    document.body.appendChild(darkModeToggle);
-
-    // Restore dark mode preference
-    if (localStorage.getItem('darkMode') === 'true') {
-      document.body.classList.add('dark-mode');
-      darkModeToggle.textContent = '☀️';
-    }
-
-    // Add keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      // Alt + N - New search
-      if (e.altKey && e.key === 'n') {
-        document.getElementById('searchInput').focus();
-      }
-      // Alt + C - Switch to claimed tab
-      if (e.altKey && e.key === 'c') {
-        document.getElementById('tabClaimed').click();
-      }
-      // Alt + A - Switch to all orders tab
-      if (e.altKey && e.key === 'a') {
-        document.getElementById('tabAll').click();
-      }
-      // Alt + D - Toggle dark mode
-      if (e.altKey && e.key === 'd') {
-        darkModeToggle.click();
-      }
-    });
-
-    // Add back the renderOrders function
+    // Add back the renderOrders function (simplified version)
     async function renderOrders(orders, expandDetails = false, container = null) {
       const grid = container || document.getElementById("orderGrid");
       if (!container) grid.innerHTML = "";
@@ -1647,306 +1549,38 @@
         heading.textContent = order.name || "Unnamed Order";
         card.appendChild(heading);
 
-        const statusOptions = [
-          "pending",
-          "pre print",
-          "printing",
-          "printing pay later",
-          "completed",
-        ];
-        const currentStatus = (order.status || "pending").toLowerCase();
-
-        const statusDropdown = document.createElement("select");
-        statusDropdown.className = "status-dropdown";
-        statusDropdown.dataset.previousValue = currentStatus;
-        applyStatusColor(statusDropdown, currentStatus);
-
-        statusOptions.forEach((status) => {
-          const option = document.createElement("option");
-          option.value = status;
-          option.textContent = status
-            .split(" ")
-            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(" ");
-          if (status.toLowerCase() === currentStatus.toLowerCase()) {
-            option.selected = true;
-          }
-          statusDropdown.appendChild(option);
-        });
-
-        // Single event handler for status changes
-        statusDropdown.addEventListener("change", async () => {
-          const newStatus = statusDropdown.value;
-          const previousValue = statusDropdown.dataset.previousValue;
-
-          try {
-            // Update UI immediately
-            applyStatusColor(statusDropdown, newStatus);
-            statusDropdown.dataset.previousValue = newStatus;
-
-            console.log(`🔄 Initiating status change for ${order.id}: ${newStatus}`);
-
-            // Send HTTP request
-            const response = await api.updateStatus(order.id, newStatus);
-            console.log('✅ Status update response:', response);
-
-          } catch (err) {
-            console.error(`❌ Failed to update status:`, err);
-            // Revert on error
-            statusDropdown.value = previousValue;
-            applyStatusColor(statusDropdown, previousValue);
-            statusDropdown.dataset.previousValue = previousValue;
-            ui.showError(`Failed to update status: ${err.message}`);
-          }
-        });
-
-        const statusWrapper = document.createElement("div");
-        statusWrapper.style.marginTop = "0.5rem";
-        statusWrapper.appendChild(statusDropdown);
-        card.appendChild(statusWrapper);
-
-        // Show estimated price right under heading
+        // Show estimated price
         const price = document.createElement("p");
         price.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : "—"}`;
         card.appendChild(price);
-
-        const toggleBtn = document.createElement("button");
-        toggleBtn.className = "details-toggle";
-        toggleBtn.textContent = "Show Details ▼";
-        card.appendChild(toggleBtn);
-
-        const detailsSection = document.createElement("div");
-        detailsSection.className = "details-section";
-        card.appendChild(detailsSection);
 
         const idLine = document.createElement("div");
         idLine.className = "order-id";
         idLine.textContent = `Order ID: ${order.id}`;
         card.appendChild(idLine);
 
-        const table = document.createElement("table");
-        table.className = "details-table";
-        const submittedDate = new Date(order.submitted_at);
-        const formattedDate = submittedDate.toLocaleString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        });
-
-        // Create staff assignment dropdown
-        const staffSelect = document.createElement("select");
-        staffSelect.className = "staff-dropdown";
-        staffSelect.style.padding = "0.4rem";
-        staffSelect.style.borderRadius = "0.3rem";
-        staffSelect.style.border = "1px solid #ccc";
-        staffSelect.style.marginLeft = "0.5rem";
-
-        // Add empty option
-        const emptyOption = document.createElement("option");
-        emptyOption.value = "";
-        emptyOption.textContent = "-- Select Staff --";
-        staffSelect.appendChild(emptyOption);
-
-        // Add staff options
-        state.staffMembers.forEach(staff => {
-          const option = document.createElement("option");
-          option.value = staff.username;
-          option.textContent = staff.displayName;
-          if (staff.username === order.assigned_staff) {
-            option.selected = true;
-          }
-          staffSelect.appendChild(option);
-        });
-
-        // Handle staff assignment
-        staffSelect.addEventListener("change", async () => {
-          try {
-            const newStaff = staffSelect.value;
-            const response = await api.assignStaff(order.id, newStaff);
-            order.assigned_staff = newStaff;
-          } catch (err) {
-            console.error(`❌ Failed to assign staff for order ${order.id}:`, err);
-            staffSelect.value = order.assigned_staff || ""; // Revert on error
-            ui.showError(`Failed to assign staff: ${err.message}`);
-          }
-        });
-
-        [
-          ["Email", order.email],
-          ["Phone", order.phone],
-          ["Staff", order.assigned_staff || "—"],
-          ["Customer Notes", order.notes || "—"],
-          ["Staff Notes", order.order_notes || "—"],
-          ["Submitted At", formattedDate],
-          ["Last Updated By", order.updated_by || "—"]
-        ].forEach(([label, value]) => {
-          const row = document.createElement("tr");
-          if (label === "Staff") {
-            row.innerHTML = `<td>${label}:</td><td></td>`;
-            row.cells[1].appendChild(staffSelect);
-          } else {
-            row.innerHTML = `<td>${label}:</td><td>${value}</td>`;
-          }
-          table.appendChild(row);
-        });
-
-        detailsSection.appendChild(table);
-
-        toggleBtn.onclick = () => {
-          const visible = detailsSection.classList.toggle("visible");
-          toggleBtn.textContent = visible ? "Hide ▲" : "Show Details ▼";
-        };
-
-        // Expand by default if search is active
-        if (expandDetails) {
-          detailsSection.classList.add("visible");
-          toggleBtn.textContent = "Hide ▲";
-        }
-
-        fetch(`/dashboard/files/${order.id}`)
-          .then((res) => res.json())
-          .then((files) => {
-            if (files.length > 0) {
-              const stlTitle = document.createElement("p");
-              stlTitle.className = "stl-header";
-              stlTitle.textContent = "STL Files:";
-              detailsSection.appendChild(stlTitle);
-
-              const list = document.createElement("ul");
-              list.className = "stl-list";
-
-              files.forEach((fileUrl) => {
-                const fullFilename = decodeURIComponent(fileUrl.split("/").pop());
-                const downloadUrl = `/dashboard/fileserve/${encodeURIComponent(fullFilename)}`;
-                const filename = fullFilename.replace(/^order[_-]?[a-zA-Z0-9]+[_-]/i, "");
-
-                const li = document.createElement("li");
-                li.innerHTML = `
-                  <a href="${downloadUrl}" title="${filename}" class="stl-link" download target="_blank">
-                    ${filename}
-                  </a>`;
-                list.appendChild(li);
-              });
-
-              detailsSection.appendChild(list);
-
-              if (files.length > 0) {
-                const downloadAll = document.createElement("a");
-                downloadAll.href = `/dashboard/download-all/${order.id}`;
-                downloadAll.className = "download-all-btn";
-                downloadAll.textContent = "📦 Download All";
-                detailsSection.appendChild(downloadAll);
-              }
-            }
-
-            const isClaimed = order.claimed_by !== null;
-            const isCompleted = order.status?.toLowerCase() === "completed";
-            const isClaimedByCurrentUser = order.claimed_by === state.currentUser;
-
-            // Add unclaim button if the order is claimed by current user (regardless of tab)
-            if (isClaimedByCurrentUser && !isCompleted) {
-              const unclaimBtn = document.createElement("button");
-              unclaimBtn.textContent = "Unclaim";
-              unclaimBtn.style.backgroundColor = "#ccc";
-              unclaimBtn.style.border = "none";
-              unclaimBtn.style.color = "#333";
-              unclaimBtn.style.padding = "0.5rem 1rem";
-              unclaimBtn.style.borderRadius = "0.5rem";
-              unclaimBtn.style.marginTop = "0.5rem";
-              unclaimBtn.style.cursor = "pointer";
-
-              unclaimBtn.addEventListener("click", async () => {
-                try {
-                  await api.unclaimOrder(order.id);
-                  // Remove the order from the current view if we're in claimed tab
-                  if (state.currentTab === "claimed") {
-                    const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
-                    if (orderCard) {
-                      orderCard.remove();
-                    }
-                  }
-                  // Update the order in state
-                  const index = state.allOrders.findIndex(o => o.id === order.id);
-                  if (index !== -1) {
-                    state.allOrders[index] = {
-                      ...state.allOrders[index],
-                      claimed_by: null,
-                      assigned_staff: null
-                    };
-                  }
-                  // Refresh the view
-                  const query = document.getElementById("searchInput").value;
-                  filterOrders(query);
-                } catch (err) {
-                  console.error(`Failed to unclaim order ${order.id}:`, err);
-                  ui.showError(err.message || "Failed to unclaim order");
-                }
-              });
-
-              card.appendChild(unclaimBtn);
-            }
-
-            // Only show claim button in "All Orders" tab
-            if (state.currentTab === "all") {
-              if (isCompleted) {
-                const completedLabel = document.createElement("button");
-                completedLabel.textContent = "Completed";
-                completedLabel.disabled = true;
-                completedLabel.style.backgroundColor = "#999";
-                completedLabel.style.border = "none";
-                completedLabel.style.color = "#666";
-                completedLabel.style.padding = "0.5rem 1rem";
-                completedLabel.style.borderRadius = "0.5rem";
-                completedLabel.style.marginTop = "0.5rem";
-                completedLabel.style.cursor = "not-allowed";
-                card.appendChild(completedLabel);
-              } else if (!isClaimedByCurrentUser) {
-                const claimBtn = document.createElement("button");
-                claimBtn.textContent = isClaimed ? `Claimed by ${order.claimed_by}` : "Claim Order";
-                claimBtn.disabled = isClaimed;
-                claimBtn.style.backgroundColor = isClaimed ? '#999' : '#ccc';
-                claimBtn.style.border = "none";
-                claimBtn.style.color = "#333";
-                claimBtn.style.padding = "0.5rem 1rem";
-                claimBtn.style.borderRadius = "0.5rem";
-                claimBtn.style.marginTop = "0.5rem";
-                claimBtn.style.cursor = isClaimed ? "not-allowed" : "pointer";
-
-                if (!isClaimed) {
-                  claimBtn.addEventListener("click", async () => {
-                    try {
-                      await api.claimOrder(order.id);
-                      order.claimed_by = state.currentUser;
-                      order.assigned_staff = state.currentUser; // Also set assigned staff
-                      const query = document.getElementById("searchInput").value;
-                      filterOrders(query);
-                    } catch (err) {
-                      console.error(`Failed to claim order ${order.id}:`, err);
-                      ui.showError(err.message || "Failed to claim order");
-                    }
-                  });
-                }
-
-                card.appendChild(claimBtn);
-              }
-            }
-          })
-          .catch((err) => {
-            console.error(`❌ Failed to load STL files for ${order.id}`, err);
-          });
-
         grid.appendChild(card);
-
-        if (
-          (order.est_price == null || order.est_price === 0) &&
-          !(order.order_notes && order.order_notes.includes("Print estimate failed"))
-        ) {
-          autoEstimateOrder(order, card);
-        }
       }
+    }
+
+    // Add back the renderClaimedOrders function
+    async function renderClaimedOrders(orders, expandDetails = false) {
+      const grid = document.getElementById("orderGrid");
+      grid.innerHTML = "";
+
+      // Filter for orders that are properly claimed by the current user
+      const validStaffMembers = state.staffMembers.map(staff => staff.username);
+      const claimedOrders = orders.filter(order =>
+        order.claimed_by === state.currentUser &&
+        order.assigned_staff === state.currentUser &&
+        validStaffMembers.includes(order.assigned_staff) &&
+        order.status?.toLowerCase() !== "completed"
+      );
+
+      console.log(`📋 Rendering ${claimedOrders.length} claimed orders for user ${state.currentUser}`);
+
+      // Use the existing renderOrders function to render the filtered orders
+      await renderOrders(claimedOrders, expandDetails, grid);
     }
 
     // Add back the initializeSSE function
@@ -1979,35 +1613,12 @@
         // Store the eventSource in window for cleanup
         window.dashboardEventSource = eventSource;
 
-        // Handle heartbeat to keep connection alive
-        eventSource.addEventListener('heartbeat', (e) => {
-          console.log('💓 SSE heartbeat received');
-        });
-
         // Handle order updates
         eventSource.addEventListener('orderUpdate', (e) => {
           try {
             const update = JSON.parse(e.data);
             console.log('📦 Received order update:', update);
-
-            // Find and update the order in state
-            const index = state.allOrders.findIndex(order => order.id === update.order.id);
-            if (index !== -1) {
-              state.allOrders[index] = update.order;
-            } else {
-              state.allOrders.unshift(update.order);
-            }
-
-            // Update UI for the specific order
-            const orderCard = document.querySelector(`[data-order-id="${update.order.id}"]`);
-            if (orderCard) {
-              updateOrderCard(orderCard, update.order);
-            } else {
-              // If card isn't visible but should be based on current filters, reapply filters
-              const query = document.getElementById("searchInput").value;
-              filterOrders(query);
-            }
-
+            handleOrderUpdate(update.order);
           } catch (err) {
             console.error('❌ Failed to process order update:', err);
             ui.showError('Failed to process update');
@@ -2018,26 +1629,6 @@
       }
 
       connect();
-    }
-
-    // Add back the renderClaimedOrders function
-    async function renderClaimedOrders(orders, expandDetails = false) {
-      const grid = document.getElementById("orderGrid");
-      grid.innerHTML = "";
-
-      // Filter for orders that are properly claimed by the current user
-      const validStaffMembers = state.staffMembers.map(staff => staff.username);
-      const claimedOrders = orders.filter(order =>
-        order.claimed_by === state.currentUser &&
-        order.assigned_staff === state.currentUser &&
-        validStaffMembers.includes(order.assigned_staff) &&
-        order.status?.toLowerCase() !== "completed"
-      );
-
-      console.log(`📋 Rendering ${claimedOrders.length} claimed orders for user ${state.currentUser}`);
-
-      // Use the existing renderOrders function to render the filtered orders
-      await renderOrders(claimedOrders, expandDetails, grid);
     }
 
     // Start the app
@@ -2054,7 +1645,11 @@
           state.staffMembers = staffList;
           
           // Initialize UI components
-          initializeEventListeners();
+          setTimeout(() => {
+            initializeEventListeners();
+            console.log('🎯 Dashboard initialized with tab listeners');
+          }, 100);
+          
           await loadInitialOrders();
           initializeSSE();
         } else {
