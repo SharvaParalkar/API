@@ -189,6 +189,11 @@
     .details-table td:first-child {
       font-weight: bold;
       width: 30%;
+      white-space: nowrap;
+    }
+
+    .details-table td:last-child {
+      width: 70%;
     }
 
     .status-dropdown {
@@ -486,14 +491,20 @@
       padding: 0.5rem;
       border: 1px solid #ccc;
       border-radius: 0.3rem;
-      margin-top: 0.3rem;
+      margin-bottom: 0.5rem;
       font-family: inherit;
       font-size: 0.9rem;
       resize: vertical;
+      background-color: #fff;
+    }
+
+    .staff-notes-editor:focus {
+      border-color: #1f6463;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
     }
 
     .save-notes-btn {
-      margin-top: 0.5rem;
       padding: 0.4rem 0.8rem;
       background-color: #1f6463;
       color: white;
@@ -501,15 +512,40 @@
       border-radius: 0.3rem;
       cursor: pointer;
       font-size: 0.9rem;
+      transition: background-color 0.2s ease;
     }
 
-    .save-notes-btn:hover {
+    .save-notes-btn:hover:not(:disabled) {
       background-color: #184f4e;
     }
 
     .save-notes-btn:disabled {
       background-color: #ccc;
       cursor: not-allowed;
+    }
+
+    /* Style for customer notes */
+    .details-table tr:first-child td:last-child {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-style: italic;
+      color: #666;
+    }
+
+    /* Dark mode support */
+    .dark-mode .staff-notes-editor {
+      background-color: #2d2d2d;
+      color: #fff;
+      border-color: #444;
+    }
+
+    .dark-mode .staff-notes-editor:focus {
+      border-color: #1f6463;
+      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.2);
+    }
+
+    .dark-mode .details-table tr:first-child td:last-child {
+      color: #aaa;
     }
 
     .dark-mode {
@@ -1783,9 +1819,11 @@
 
         if (failedFiles.length > 0) {
           const message = `⚠️ Print estimate failed for: ${failedFiles.join(", ")}`;
+          const existingNotes = order.order_notes ? order.order_notes + "\n\n" : "";
+          const updatedNotes = existingNotes + message;
 
           // Update notes in database
-          const notesResponse = await fetch("/dashboard/update-notes", {
+          const notesResponse = await fetch("/dashboard/update-staff-notes", {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
@@ -1793,7 +1831,7 @@
             },
             body: JSON.stringify({
               orderId: order.id,
-              order_notes: message,
+              staffNotes: updatedNotes,
             }),
           });
 
@@ -1803,17 +1841,59 @@
 
           // Update UI immediately
           if (card) {
-            const notesLine = [...card.querySelectorAll("li")].find((li) =>
-              li.innerHTML.includes("Staff Notes:")
-            );
-            if (notesLine) {
-              notesLine.innerHTML = `<strong>Staff Notes:</strong> ${message}`;
+            const staffNotesEditor = card.querySelector(".staff-notes-editor");
+            if (staffNotesEditor) {
+              staffNotesEditor.value = updatedNotes;
             }
           }
+
+          // Update order in state
+          const index = state.allOrders.findIndex(o => o.id === order.id);
+          if (index !== -1) {
+            state.allOrders[index].order_notes = updatedNotes;
+          }
+
+          console.log(`⚠️ Added error message to staff notes for order ${order.id}`);
         }
       } catch (err) {
         console.error(`❌ Failed to auto-estimate for order ${order.id}:`, err);
         ui.showError(`Failed to estimate order: ${err.message}`);
+
+        // Add error to staff notes
+        const errorMessage = `⚠️ Auto-estimate error: ${err.message}`;
+        const existingNotes = order.order_notes ? order.order_notes + "\n\n" : "";
+        const updatedNotes = existingNotes + errorMessage;
+
+        try {
+          // Update notes in database
+          await fetch("/dashboard/update-staff-notes", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              credentials: 'include'
+            },
+            body: JSON.stringify({
+              orderId: order.id,
+              staffNotes: updatedNotes,
+            }),
+          });
+
+          // Update UI immediately
+          if (card) {
+            const staffNotesEditor = card.querySelector(".staff-notes-editor");
+            if (staffNotesEditor) {
+              staffNotesEditor.value = updatedNotes;
+            }
+          }
+
+          // Update order in state
+          const index = state.allOrders.findIndex(o => o.id === order.id);
+          if (index !== -1) {
+            state.allOrders[index].order_notes = updatedNotes;
+          }
+        } catch (notesErr) {
+          console.error(`Failed to update staff notes with error: ${notesErr.message}`);
+        }
       }
     }
 
@@ -1911,26 +1991,85 @@
 
         const detailsSection = document.createElement("div");
         detailsSection.className = "details-section";
-        card.appendChild(detailsSection);
 
-        const idLine = document.createElement("div");
-        idLine.className = "order-id";
-        idLine.textContent = `Order ID: ${order.id}`;
-        card.appendChild(idLine);
-
+        // Create details table
         const table = document.createElement("table");
         table.className = "details-table";
-        const submittedDate = new Date(order.submitted_at);
-        const formattedDate = submittedDate.toLocaleString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
+
+        // Add customer notes
+        const customerNotesRow = document.createElement("tr");
+        customerNotesRow.innerHTML = `
+          <td>Customer Notes:</td>
+          <td>${order.notes || '—'}</td>
+        `;
+        table.appendChild(customerNotesRow);
+
+        // Add staff notes with edit functionality
+        const staffNotesRow = document.createElement("tr");
+        const staffNotesCell = document.createElement("td");
+        staffNotesCell.textContent = "Staff Notes:";
+        const staffNotesContentCell = document.createElement("td");
+        
+        // Create staff notes editor
+        const staffNotesEditor = document.createElement("textarea");
+        staffNotesEditor.className = "staff-notes-editor";
+        staffNotesEditor.value = order.order_notes || '';
+        staffNotesEditor.placeholder = "Add staff notes here...";
+        
+        // Create save button
+        const saveNotesBtn = document.createElement("button");
+        saveNotesBtn.className = "save-notes-btn";
+        saveNotesBtn.textContent = "Save Notes";
+        saveNotesBtn.disabled = true;
+
+        // Handle changes to staff notes
+        staffNotesEditor.addEventListener('input', () => {
+          saveNotesBtn.disabled = staffNotesEditor.value === (order.order_notes || '');
         });
 
-        // Create a container for the staff selection
+        // Handle save button click
+        saveNotesBtn.addEventListener('click', async () => {
+          try {
+            saveNotesBtn.disabled = true;
+            saveNotesBtn.textContent = 'Saving...';
+
+            const response = await fetch("/dashboard/update-staff-notes", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: 'include',
+              body: JSON.stringify({
+                orderId: order.id,
+                staffNotes: staffNotesEditor.value
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to save notes');
+            }
+
+            const data = await response.json();
+            order.order_notes = staffNotesEditor.value;
+            saveNotesBtn.textContent = 'Saved!';
+            setTimeout(() => {
+              saveNotesBtn.textContent = 'Save Notes';
+            }, 2000);
+
+            ui.showNotification('Staff notes updated successfully');
+          } catch (err) {
+            console.error('Failed to save staff notes:', err);
+            ui.showError('Failed to save staff notes');
+            saveNotesBtn.textContent = 'Save Notes';
+            saveNotesBtn.disabled = false;
+          }
+        });
+
+        staffNotesContentCell.appendChild(staffNotesEditor);
+        staffNotesContentCell.appendChild(saveNotesBtn);
+        staffNotesRow.appendChild(staffNotesCell);
+        staffNotesRow.appendChild(staffNotesContentCell);
+        table.appendChild(staffNotesRow);
+
+        // Add staff selection container
         const staffContainer = document.createElement("div");
         staffContainer.className = "staff-selection-container";
 
@@ -1954,12 +2093,18 @@
         staffContainer.appendChild(staffTagsGrid);
 
         // Add to the table
-        const row = document.createElement("tr");
-        row.innerHTML = `<td>Staff:</td><td></td>`;
-        row.cells[1].appendChild(staffContainer);
-        table.appendChild(row);
+        const staffRow = document.createElement("tr");
+        staffRow.innerHTML = `<td>Staff:</td><td></td>`;
+        staffRow.cells[1].appendChild(staffContainer);
+        table.appendChild(staffRow);
 
         detailsSection.appendChild(table);
+        card.appendChild(detailsSection);
+
+        const idLine = document.createElement("div");
+        idLine.className = "order-id";
+        idLine.textContent = `Order ID: ${order.id}`;
+        card.appendChild(idLine);
 
         toggleBtn.onclick = () => {
           const visible = detailsSection.classList.toggle("visible");
