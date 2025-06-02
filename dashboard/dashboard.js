@@ -183,6 +183,7 @@ app.get("/dashboard/data", requireLogin, (req, res) => {
     if (showClaimed === 'true') {
       conditions.push(`
         (
+          assigned_staff = ? OR
           assigned_staff LIKE ? OR 
           assigned_staff LIKE ? OR 
           assigned_staff LIKE ?
@@ -191,8 +192,8 @@ app.get("/dashboard/data", requireLogin, (req, res) => {
         AND assigned_staff != '' 
         AND (status IS NULL OR LOWER(status) != 'completed')
       `);
-      // Match start, middle, or end of comma-separated list
-      params.push(username + ',%', '%,' + username + ',%', '%,' + username);
+      // Match exact username, start, middle, or end of comma-separated list
+      params.push(username, username + ',%', '%,' + username + ',%', '%,' + username);
     }
 
     // Only fetch completed orders if explicitly requested
