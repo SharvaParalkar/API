@@ -996,8 +996,8 @@
       }
 
       // Update claim/unclaim button
-      const claimBtn = orderCard.querySelector('button:last-child');
-      if (claimBtn) {
+      const actionBtn = orderCard.querySelector('.action-button:not(.save-notes-btn)');
+      if (actionBtn) {
         if (updatedOrder.status?.toLowerCase() === 'completed') {
           // Replace with completed label
           const completedLabel = document.createElement("button");
@@ -1007,11 +1007,11 @@
           completedLabel.style.backgroundColor = "#999";
           completedLabel.style.color = "#666";
           completedLabel.style.cursor = "not-allowed";
-          card.appendChild(completedLabel);
+          actionBtn.replaceWith(completedLabel);
         } else if (updatedOrder.claimed_by === state.currentUser) {
           // Replace with unclaim button if not already an unclaim button
-          if (!claimBtn.textContent.includes('Unclaim')) {
-            claimBtn.replaceWith(createUnclaimButton(updatedOrder));
+          if (!actionBtn.textContent.includes('Unclaim')) {
+            actionBtn.replaceWith(createUnclaimButton(updatedOrder));
           }
         } else {
           // Update or replace with claim button
@@ -1048,7 +1048,7 @@
             });
           }
           
-          claimBtn.replaceWith(newClaimBtn);
+          actionBtn.replaceWith(newClaimBtn);
         }
       }
 
@@ -2062,7 +2062,7 @@
         staffNotesEditor.style.resize = "vertical";
         
         const saveNotesBtn = document.createElement("button");
-        saveNotesBtn.className = "save-notes-btn";
+        saveNotesBtn.className = "action-button save-notes-btn";
         saveNotesBtn.textContent = "Save Notes";
         saveNotesBtn.disabled = true;
 
@@ -2656,8 +2656,8 @@
       }
 
       // Update claim/unclaim button
-      const claimBtn = orderCard.querySelector('button:last-child');
-      if (claimBtn) {
+      const actionBtn = orderCard.querySelector('.action-button:not(.save-notes-btn)');
+      if (actionBtn) {
         if (updatedOrder.status?.toLowerCase() === 'completed') {
           // Replace with completed label
           const completedLabel = document.createElement("button");
@@ -2667,11 +2667,11 @@
           completedLabel.style.backgroundColor = "#999";
           completedLabel.style.color = "#666";
           completedLabel.style.cursor = "not-allowed";
-          card.appendChild(completedLabel);
+          actionBtn.replaceWith(completedLabel);
         } else if (updatedOrder.claimed_by === state.currentUser) {
           // Replace with unclaim button if not already an unclaim button
-          if (!claimBtn.textContent.includes('Unclaim')) {
-            claimBtn.replaceWith(createUnclaimButton(updatedOrder));
+          if (!actionBtn.textContent.includes('Unclaim')) {
+            actionBtn.replaceWith(createUnclaimButton(updatedOrder));
           }
         } else {
           // Update or replace with claim button
@@ -2708,7 +2708,7 @@
             });
           }
           
-          claimBtn.replaceWith(newClaimBtn);
+          actionBtn.replaceWith(newClaimBtn);
         }
       }
 
