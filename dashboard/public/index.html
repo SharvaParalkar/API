@@ -1237,7 +1237,7 @@
 
     // Initialize event listeners
     function initializeEventListeners() {
-      // Remove any existing click handlers
+      // Tab click handlers
       const allTab = document.getElementById("tabAll");
       const claimedTab = document.getElementById("tabClaimed");
 
@@ -1245,10 +1245,7 @@
         allTab.onclick = () => {
           state.currentTab = "all";
           console.log('Switching to All Orders tab');
-          allTab.style.backgroundColor = "#1f6463";
-          allTab.style.color = "white";
-          claimedTab.style.backgroundColor = "#ccc";
-          claimedTab.style.color = "black";
+          ui.updateTabStyles();
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
@@ -1258,10 +1255,7 @@
         claimedTab.onclick = () => {
           state.currentTab = "claimed";
           console.log('Switching to Claimed Orders tab');
-          claimedTab.style.backgroundColor = "#1f6463";
-          claimedTab.style.color = "white";
-          allTab.style.backgroundColor = "#ccc";
-          allTab.style.color = "black";
+          ui.updateTabStyles();
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
@@ -2044,6 +2038,32 @@
 
       // Use the existing renderOrders function to render the filtered orders
       await renderOrders(claimedOrders, expandDetails, grid);
+    }
+
+    // Start the app
+    async function initialize() {
+      try {
+        // Check session first
+        const sessionData = await api.checkSession();
+        if (sessionData.username) {
+          state.currentUser = sessionData.username;
+          ui.hideLoginOverlay();
+          
+          // Get staff list
+          const staffList = await api.getStaffList();
+          state.staffMembers = staffList;
+          
+          // Initialize UI components
+          initializeEventListeners();
+          await loadInitialOrders();
+          initializeSSE();
+        } else {
+          ui.showLoginOverlay();
+        }
+      } catch (err) {
+        console.error('Failed to initialize:', err);
+        ui.showLoginOverlay();
+      }
     }
 
     // Start the app
