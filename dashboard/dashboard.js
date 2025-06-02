@@ -516,7 +516,7 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
 
   try {
     // First check if the order exists and get its current state
-    const current = db.prepare("SELECT claimed_by, status FROM orders WHERE id = ?").get(orderId);
+    const current = db.prepare("SELECT claimed_by, status, assigned_staff FROM orders WHERE id = ?").get(orderId);
     
     if (!current) {
       return res.status(404).json({ error: "Order not found" });
@@ -540,6 +540,13 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
       });
     }
 
+    // If the order is claimed, ensure the claimer remains in the assigned staff
+    let finalStaffList = assignedStaff;
+    if (current.claimed_by && !finalStaffList.includes(current.claimed_by)) {
+      finalStaffList.push(current.claimed_by);
+    }
+    const finalStaffString = finalStaffList.join(',');
+
     const stmt = db.prepare(`
       UPDATE orders 
       SET assigned_staff = ?,
@@ -547,7 +554,7 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
           last_updated = ?
       WHERE id = ?
     `);
-    const result = stmt.run(staffName, username, timestamp, orderId);
+    const result = stmt.run(finalStaffString, username, timestamp, orderId);
     
     if (result.changes === 0) {
       throw new Error("Failed to update order");
@@ -559,7 +566,10 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
     // Broadcast the update
     broadcastUpdate('orderUpdate', {
       type: 'staff',
-      order: updatedOrder
+      order: updatedOrder,
+      timestamp: timestamp,
+      updatedBy: username,
+      assignedStaff: finalStaffString
     });
 
     res.json({ success: true, order: updatedOrder });

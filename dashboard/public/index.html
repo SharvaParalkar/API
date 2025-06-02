@@ -798,7 +798,6 @@
       // Handle claimed tab visibility
       if (state.currentTab === "claimed") {
         const shouldBeVisible = updatedOrder.claimed_by === state.currentUser && 
-                              updatedOrder.assigned_staff === state.currentUser &&
                               updatedOrder.status?.toLowerCase() !== "completed";
         
         if (!shouldBeVisible) {
@@ -2005,12 +2004,10 @@
       const grid = document.getElementById("orderGrid");
       grid.innerHTML = "";
 
-      // Filter for orders that are properly claimed by the current user
+      // Filter for orders that are claimed by current user, regardless of other assigned staff
       const validStaffMembers = state.staffMembers.map(staff => staff.username);
       const claimedOrders = orders.filter(order =>
         order.claimed_by === state.currentUser &&
-        order.assigned_staff === state.currentUser &&
-        validStaffMembers.includes(order.assigned_staff) &&
         order.status?.toLowerCase() !== "completed"
       );
 
@@ -2338,7 +2335,6 @@
       // Handle claimed tab visibility
       if (state.currentTab === "claimed") {
         const shouldBeVisible = updatedOrder.claimed_by === state.currentUser && 
-                              updatedOrder.assigned_staff === state.currentUser &&
                               updatedOrder.status?.toLowerCase() !== "completed";
         
         if (!shouldBeVisible) {
