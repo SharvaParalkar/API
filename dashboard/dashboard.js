@@ -612,34 +612,51 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
       return res.json({ success: true, order });
     }
 
-    // Perform the unclaim operation
-    const stmt = db.prepare(`
-      UPDATE orders 
-      SET claimed_by = NULL, 
-          assigned_staff = NULL,
-          updated_by = ?, 
-          last_updated = ? 
-      WHERE id = ?
-    `);
-    const result = stmt.run(username, timestamp, orderId);
-    
-    if (result.changes === 0) {
-      throw new Error("Failed to update order");
-    }
+    // Begin transaction
+    db.transaction(() => {
+      // Perform the unclaim operation - reset both claimed_by and assigned_staff
+      const stmt = db.prepare(`
+        UPDATE orders 
+        SET claimed_by = NULL, 
+            assigned_staff = NULL,
+            updated_by = ?, 
+            last_updated = ? 
+        WHERE id = ? AND (claimed_by IS NULL OR claimed_by = ?)
+      `);
+      
+      const result = stmt.run(username, timestamp, orderId, username);
+      
+      if (result.changes === 0) {
+        throw new Error("Failed to update order - may have been claimed by someone else");
+      }
 
-    // Fetch the updated order
-    const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+      // Fetch the updated order to confirm the changes
+      const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+      
+      if (!updatedOrder) {
+        throw new Error("Failed to fetch updated order");
+      }
+
+      if (updatedOrder.claimed_by !== null) {
+        throw new Error("Order is still claimed after unclaim operation");
+      }
+
+      return updatedOrder;
+    })();
+
+    // Fetch the final state of the order
+    const finalOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
     
     // Broadcast the update
     broadcastUpdate('orderUpdate', {
       type: 'unclaim',
-      order: updatedOrder
+      order: finalOrder
     });
 
-    res.json({ success: true, order: updatedOrder });
+    res.json({ success: true, order: finalOrder });
   } catch (err) {
     console.error("❌ Failed to unclaim order:", err.message);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ error: "Database error", details: err.message });
   }
 });
 
