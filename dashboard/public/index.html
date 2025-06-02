@@ -797,8 +797,11 @@
 
       // Handle claimed tab visibility
       if (state.currentTab === "claimed") {
-        const shouldBeVisible = updatedOrder.claimed_by === state.currentUser && 
-                              updatedOrder.status?.toLowerCase() !== "completed";
+        const assignedStaffList = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
+        const shouldBeVisible = (
+          (updatedOrder.claimed_by === state.currentUser || assignedStaffList.includes(state.currentUser)) &&
+          updatedOrder.status?.toLowerCase() !== "completed"
+        );
         
         if (!shouldBeVisible) {
           console.log(`Removing card ${updatedOrder.id} from claimed view`);
@@ -1997,12 +2000,14 @@
       const grid = document.getElementById("orderGrid");
       grid.innerHTML = "";
 
-      // Filter for orders that are claimed by current user, regardless of other assigned staff
-      const validStaffMembers = state.staffMembers.map(staff => staff.username);
-      const claimedOrders = orders.filter(order =>
-        order.claimed_by === state.currentUser &&
-        order.status?.toLowerCase() !== "completed"
-      );
+      // Filter for orders that are either claimed by current user OR where user is in assigned staff
+      const claimedOrders = orders.filter(order => {
+        const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
+        return (
+          (order.claimed_by === state.currentUser || assignedStaffList.includes(state.currentUser)) &&
+          order.status?.toLowerCase() !== "completed"
+        );
+      });
 
       console.log(`📋 Rendering ${claimedOrders.length} claimed orders for user ${state.currentUser}`);
 
@@ -2327,8 +2332,11 @@
 
       // Handle claimed tab visibility
       if (state.currentTab === "claimed") {
-        const shouldBeVisible = updatedOrder.claimed_by === state.currentUser && 
-                              updatedOrder.status?.toLowerCase() !== "completed";
+        const assignedStaffList = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
+        const shouldBeVisible = (
+          (updatedOrder.claimed_by === state.currentUser || assignedStaffList.includes(state.currentUser)) &&
+          updatedOrder.status?.toLowerCase() !== "completed"
+        );
         
         if (!shouldBeVisible) {
           console.log(`Removing card ${updatedOrder.id} from claimed view`);
