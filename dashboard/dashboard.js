@@ -760,6 +760,41 @@ app.get("/dashboard/staff", (req, res) => {
   res.json(staffList);
 });
 
+// Delete order endpoint
+app.delete("/dashboard/order/:orderId", requireLogin, (req, res) => {
+  const { orderId } = req.params;
+  const username = req.session.user;
+  
+  try {
+    // First check if the order exists
+    const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Delete the order
+    const stmt = db.prepare("DELETE FROM orders WHERE id = ?");
+    const result = stmt.run(orderId);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Broadcast the deletion to all connected clients
+    broadcastUpdate('orderUpdate', {
+      type: 'delete',
+      orderId: orderId,
+      deletedBy: username,
+      timestamp: new Date().toISOString()
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Failed to delete order:", err.message);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err);

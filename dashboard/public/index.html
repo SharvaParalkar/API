@@ -678,6 +678,93 @@
     .staff-dropdown {
       display: none;
     }
+
+    .delete-btn {
+      position: absolute;
+      top: 0.75rem;
+      left: 0.75rem;
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      transition: opacity 0.2s ease;
+    }
+
+    .delete-btn:hover {
+      opacity: 1;
+    }
+
+    .delete-confirmation-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .delete-confirmation-box {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .delete-confirmation-box h3 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    .delete-confirmation-box p {
+      margin: 1rem 0;
+      color: #666;
+    }
+
+    .delete-confirmation-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .delete-confirm-btn {
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .delete-cancel-btn {
+      background-color: #ccc;
+      color: #333;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .delete-confirm-btn:hover {
+      background-color: #ff2222;
+    }
+
+    .delete-cancel-btn:hover {
+      background-color: #bbb;
+    }
   </style>
 </head>
 
@@ -1739,6 +1826,13 @@
         card.className = "card";
         card.dataset.orderId = order.id;
 
+        // Add delete button
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "delete-btn";
+        deleteBtn.textContent = "×";
+        deleteBtn.onclick = () => showDeleteConfirmation(order.id);
+        card.appendChild(deleteBtn);
+
         const heading = document.createElement("h2");
         heading.textContent = order.name || "Unnamed Order";
         card.appendChild(heading);
@@ -2054,34 +2148,53 @@
             const update = JSON.parse(e.data);
             console.log('📦 Received order update:', update);
 
-            // Handle new orders
-            if (update.type === 'new') {
-              console.log('🆕 New order received:', update.order);
-              
-              // Add to state if not already present
-              const exists = state.allOrders.some(order => order.id === update.order.id);
-              if (!exists) {
-                state.allOrders.unshift(update.order);
-                
-                // Show notification
-                ui.showNotification('New order received!');
-                
-                // Refresh the view
-                const query = document.getElementById("searchInput").value;
-                filterOrders(query);
+            if (update.type === 'delete') {
+              // Remove from state
+              state.allOrders = state.allOrders.filter(order => order.id !== update.orderId);
+
+              // Find and remove the card with animation
+              const card = document.querySelector(`[data-order-id="${update.orderId}"]`);
+              if (card) {
+                card.style.transition = "all 0.3s ease";
+                card.style.opacity = "0";
+                card.style.transform = "scale(0.9)";
+                setTimeout(() => card.remove(), 300);
+              }
+
+              // Show notification if deleted by someone else
+              if (update.deletedBy !== state.currentUser) {
+                ui.showNotification(`Order ${update.orderId} was deleted by ${update.deletedBy}`);
               }
             } else {
-              // Handle updates to existing orders
-              console.log(`🔄 Processing ${update.type} update for order ${update.order.id}`);
-              
-              // Show notifications for claim/unclaim events
-              if (update.type === 'claim' && update.order.claimed_by !== state.currentUser) {
-                ui.showNotification(`Order ${update.order.id} was claimed by ${update.order.claimed_by}`);
-              } else if (update.type === 'unclaim' && update.order.claimed_by === null) {
-                ui.showNotification(`Order ${update.order.id} was unclaimed`);
+              // Handle new orders
+              if (update.type === 'new') {
+                console.log('🆕 New order received:', update.order);
+                
+                // Add to state if not already present
+                const exists = state.allOrders.some(order => order.id === update.order.id);
+                if (!exists) {
+                  state.allOrders.unshift(update.order);
+                  
+                  // Show notification
+                  ui.showNotification('New order received!');
+                  
+                  // Refresh the view
+                  const query = document.getElementById("searchInput").value;
+                  filterOrders(query);
+                }
+              } else {
+                // Handle updates to existing orders
+                console.log(`🔄 Processing ${update.type} update for order ${update.order.id}`);
+                
+                // Show notifications for claim/unclaim events
+                if (update.type === 'claim' && update.order.claimed_by !== state.currentUser) {
+                  ui.showNotification(`Order ${update.order.id} was claimed by ${update.order.claimed_by}`);
+                } else if (update.type === 'unclaim' && update.order.claimed_by === null) {
+                  ui.showNotification(`Order ${update.order.id} was unclaimed`);
+                }
+                
+                handleOrderUpdate(update.order);
               }
-              
-              handleOrderUpdate(update.order);
             }
           } catch (err) {
             console.error('❌ Failed to process order update:', err);
@@ -2432,6 +2545,78 @@
       // Update other card elements
       updateCardElements(orderCard, updatedOrder);
     }
+
+    // Add the delete confirmation overlay to the body
+    const deleteOverlay = document.createElement("div");
+    deleteOverlay.id = "deleteConfirmationOverlay";
+    deleteOverlay.className = "delete-confirmation-overlay";
+    deleteOverlay.style.display = "none";
+    document.body.appendChild(deleteOverlay);
+
+    // Function to show delete confirmation
+    function showDeleteConfirmation(orderId) {
+      const overlay = document.getElementById("deleteConfirmationOverlay");
+      overlay.innerHTML = `
+        <div class="delete-confirmation-box">
+          <h3>Delete Order</h3>
+          <p>Are you sure you want to delete this order? This action cannot be undone.</p>
+          <div class="delete-confirmation-buttons">
+            <button class="delete-cancel-btn" onclick="hideDeleteConfirmation()">Cancel</button>
+            <button class="delete-confirm-btn" onclick="deleteOrder('${orderId}')">Delete</button>
+          </div>
+        </div>
+      `;
+      overlay.style.display = "flex";
+    }
+
+    // Function to hide delete confirmation
+    function hideDeleteConfirmation() {
+      const overlay = document.getElementById("deleteConfirmationOverlay");
+      overlay.style.display = "none";
+    }
+
+    // Function to delete order
+    async function deleteOrder(orderId) {
+      try {
+        const response = await fetch(`/dashboard/order/${orderId}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to delete order');
+        }
+
+        // Hide the confirmation overlay
+        hideDeleteConfirmation();
+
+        // Remove the order from state
+        state.allOrders = state.allOrders.filter(order => order.id !== orderId);
+
+        // Find and remove the card with animation
+        const card = document.querySelector(`[data-order-id="${orderId}"]`);
+        if (card) {
+          card.style.transition = "all 0.3s ease";
+          card.style.opacity = "0";
+          card.style.transform = "scale(0.9)";
+          setTimeout(() => card.remove(), 300);
+        }
+
+        // Show success notification
+        ui.showNotification('Order deleted successfully');
+
+      } catch (err) {
+        console.error('Failed to delete order:', err);
+        ui.showError(err.message || 'Failed to delete order');
+        hideDeleteConfirmation();
+      }
+    }
+
+    // Make functions available globally
+    window.showDeleteConfirmation = showDeleteConfirmation;
+    window.hideDeleteConfirmation = hideDeleteConfirmation;
+    window.deleteOrder = deleteOrder;
   </script>
 
   <div id="loginOverlay" class="login-overlay">
