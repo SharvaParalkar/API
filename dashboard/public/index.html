@@ -2036,14 +2036,35 @@
         // Handle changes to staff notes
         staffNotesEditor.addEventListener('input', () => {
           const currentValue = staffNotesEditor.value;
-          const previousValue = staffNotesEditor.dataset.previousValue;
+          const previousValue = staffNotesEditor.dataset.previousValue || '';
           const hasChanges = currentValue !== previousValue;
+          
           saveNotesBtn.disabled = !hasChanges;
           
-          // Update button text if it's showing "Saved!" but user made changes
-          if (hasChanges && saveNotesBtn.textContent === 'Saved!') {
-            saveNotesBtn.textContent = 'Save Notes';
+          // Update button text and style based on state
+          if (hasChanges) {
+            saveNotesBtn.textContent = "Save Notes";
+            saveNotesBtn.style.backgroundColor = "#1f6463";
+            saveNotesBtn.style.cursor = "pointer";
+          } else {
+            saveNotesBtn.textContent = "No Changes";
+            saveNotesBtn.style.backgroundColor = "#ccc";
+            saveNotesBtn.style.cursor = "not-allowed";
           }
+        });
+
+        // Also handle paste events and other text changes
+        staffNotesEditor.addEventListener('paste', () => {
+          setTimeout(() => {
+            staffNotesEditor.dispatchEvent(new Event('input'));
+          }, 0);
+        });
+
+        // Handle cut events
+        staffNotesEditor.addEventListener('cut', () => {
+          setTimeout(() => {
+            staffNotesEditor.dispatchEvent(new Event('input'));
+          }, 0);
         });
 
         // Handle save button click
@@ -2703,20 +2724,16 @@
       const staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
       if (staffNotesEditor && updatedOrder.order_notes !== undefined) {
         // Only update if the editor is not currently focused (being edited)
-        // and the value is actually different
-        const isEditorFocused = document.activeElement === staffNotesEditor;
-        const currentEditorValue = staffNotesEditor.value;
-        const newNotesValue = updatedOrder.order_notes || '';
+        // and the notes actually changed
+        const currentNotes = staffNotesEditor.dataset.previousValue || '';
+        const newNotes = updatedOrder.order_notes || '';
         
-        if (!isEditorFocused && currentEditorValue !== newNotesValue) {
-          staffNotesEditor.value = newNotesValue;
-          staffNotesEditor.dataset.previousValue = newNotesValue;
+        if (!staffNotesEditor.matches(':focus') && currentNotes !== newNotes) {
+          staffNotesEditor.value = newNotes;
+          staffNotesEditor.dataset.previousValue = newNotes;
           
-          // Update save button state
-          const saveBtn = staffNotesEditor.parentNode.querySelector('.save-notes-btn');
-          if (saveBtn) {
-            saveBtn.disabled = true; // Disable since no changes made yet
-          }
+          // Trigger input event to update save button state
+          staffNotesEditor.dispatchEvent(new Event('input'));
         }
       }
     }
@@ -2832,9 +2849,8 @@
           state.allOrders[orderIndex].order_notes = notes;
         }
 
-        // Update the editor's stored value
+        // Update the editor's stored value FIRST
         editor.dataset.previousValue = notes;
-        editor.value = notes;
         
         // Show success state briefly
         saveBtn.textContent = 'Saved!';
@@ -2843,14 +2859,14 @@
         // Reset button state after a short delay
         setTimeout(() => {
           saveBtn.textContent = 'Save Notes';
-          // The input event handler will determine if button should be enabled
-          // Check if current value differs from saved value
-          const currentValue = editor.value;
-          const savedValue = editor.dataset.previousValue;
-          saveBtn.disabled = currentValue === savedValue;
+          // Don't automatically enable the button - let the input handler manage it
+          saveBtn.disabled = true; // Start disabled until user makes changes
+          
+          // Trigger input event to ensure button state is correctly managed
+          editor.dispatchEvent(new Event('input'));
         }, 1500);
 
-        // Ensure editor remains enabled and focusable
+        // Keep editor enabled and focused
         editor.disabled = false;
         editor.readOnly = false;
         editor.focus();
@@ -2865,14 +2881,11 @@
         
         // Reset button state on error
         saveBtn.textContent = 'Save Notes';
-        const currentValue = editor.value;
-        const savedValue = editor.dataset.previousValue;
-        saveBtn.disabled = currentValue === savedValue;
+        saveBtn.disabled = false;
         
-        // Ensure editor remains enabled
+        // Keep editor enabled
         editor.disabled = false;
         editor.readOnly = false;
-        editor.focus();
       }
     }
   </script>
