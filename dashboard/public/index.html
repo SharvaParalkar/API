@@ -784,186 +784,96 @@
         state.allOrders[index] = updatedOrder;
       } else {
         state.allOrders.unshift(updatedOrder);
-        // Only auto-estimate for new orders if they don't have a price
-        if (!updatedOrder.est_price && 
-            !(updatedOrder.order_notes && updatedOrder.order_notes.includes("Print estimate failed"))) {
-          console.log(`🔄 Running auto-estimate for new order ${updatedOrder.id}`);
-          const card = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
-          if (card) {
-            autoEstimateOrder(updatedOrder, card);
-          }
-        } else {
-          console.log(`⏭️ Skipping auto-estimate for new order ${updatedOrder.id} - price exists: $${updatedOrder.est_price}`);
-        }
       }
 
-      // Get the existing card if it exists
+      // Get the existing card
       const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
-      
+      if (!orderCard) {
+        console.log(`Card not found for order ${updatedOrder.id}, refreshing view...`);
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+        return;
+      }
+
       // Handle claimed tab visibility
       if (state.currentTab === "claimed") {
         const shouldBeVisible = updatedOrder.claimed_by === state.currentUser && 
                               updatedOrder.assigned_staff === state.currentUser &&
                               updatedOrder.status?.toLowerCase() !== "completed";
         
-        if (!shouldBeVisible && orderCard) {
-          // Smoothly remove the card if it shouldn't be visible
+        if (!shouldBeVisible) {
+          console.log(`Removing card ${updatedOrder.id} from claimed view`);
           orderCard.style.transition = "all 0.3s ease";
           orderCard.style.opacity = "0";
           orderCard.style.transform = "scale(0.9)";
-          setTimeout(() => orderCard.remove(), 300);
+          setTimeout(() => {
+            if (orderCard.isConnected) {
+              orderCard.remove();
+            }
+          }, 300);
           return;
         }
       }
 
-      if (orderCard) {
-        // Update existing card
-        const claimBtn = orderCard.querySelector('button:last-child');
-        const unclaimBtn = orderCard.querySelector('button[textContent="Unclaim"]');
-        
-        // Update status dropdown
-        const statusDropdown = orderCard.querySelector('.status-dropdown');
-        if (statusDropdown) {
-          const newStatus = updatedOrder.status || 'pending';
-          console.log(`🔄 Updating status for order ${updatedOrder.id} to:`, newStatus);
-          
-          // First update the dropdown value
-          statusDropdown.value = newStatus;
-          statusDropdown.dataset.previousValue = newStatus;
-          
-          // Then update the visual style
-          applyStatusColor(statusDropdown, newStatus);
-          
-          // Verify the update
-          console.log(`✅ Status updated - Current value: ${statusDropdown.value}, Previous value: ${statusDropdown.dataset.previousValue}`);
-        } else {
-          console.warn(`⚠️ No status dropdown found for order ${updatedOrder.id}`);
-        }
-
-        // Update staff tags
-        const assignedStaff = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
-        updateStaffTagsForOrder(orderCard, assignedStaff);
-
-        // Update details section if open
-        const detailsSection = orderCard.querySelector('.details-section');
-        if (detailsSection?.classList.contains('visible')) {
-          // Update staff notes
-          const notesCell = [...detailsSection.querySelectorAll('td')].find(td => 
-            td.textContent.trim().startsWith('Staff Notes:')
-          )?.nextElementSibling;
-          if (notesCell) {
-            notesCell.textContent = updatedOrder.order_notes || '—';
-          }
-
-          // Update last updated by
-          const updatedByCell = [...detailsSection.querySelectorAll('td')].find(td => 
-            td.textContent.trim().startsWith('Last Updated By:')
-          )?.nextElementSibling;
-          if (updatedByCell) {
-            updatedByCell.textContent = updatedOrder.updated_by || '—';
-          }
-        }
-
-        // Handle claim/unclaim button updates
-        if (updatedOrder.claimed_by === state.currentUser) {
-          // If claimed by current user, show unclaim button
-          if (claimBtn && !unclaimBtn) {
-            const newUnclaimBtn = document.createElement('button');
-            newUnclaimBtn.textContent = 'Unclaim';
-            newUnclaimBtn.className = 'action-button';
-
-            // Add unclaim functionality
-            newUnclaimBtn.addEventListener('click', async () => {
-              try {
-                newUnclaimBtn.textContent = 'Unclaiming...';
-                newUnclaimBtn.disabled = true;
-                newUnclaimBtn.classList.add('unclaiming');
-
-                const response = await api.unclaimOrder(updatedOrder.id);
-                
-                if (state.currentTab === "claimed") {
-                  orderCard.style.transition = "all 0.3s ease";
-                  orderCard.style.opacity = "0";
-                  orderCard.style.transform = "scale(0.9)";
-                  setTimeout(() => orderCard.remove(), 300);
-                }
-              } catch (err) {
-                console.error(`Failed to unclaim order ${updatedOrder.id}:`, err);
-                ui.showError(err.message || "Failed to unclaim order");
-                newUnclaimBtn.textContent = 'Unclaim';
-                newUnclaimBtn.disabled = false;
-                newUnclaimBtn.classList.remove('unclaiming');
-              }
-            });
-
-            claimBtn.replaceWith(newUnclaimBtn);
-          }
-        } else {
-          // If not claimed by current user, show appropriate claim button
-          if (claimBtn || unclaimBtn) {
-            const newClaimBtn = document.createElement('button');
-            newClaimBtn.className = 'action-button';
-            
-            if (updatedOrder.claimed_by) {
-              newClaimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
-              newClaimBtn.disabled = true;
-            } else {
-              newClaimBtn.textContent = 'Claim Order';
-              
-              // Add claim functionality
-              newClaimBtn.addEventListener('click', async () => {
-                try {
-                  newClaimBtn.textContent = 'Claiming...';
-                  newClaimBtn.disabled = true;
-                  newClaimBtn.classList.add('claiming');
-
-                  const response = await api.claimOrder(updatedOrder.id);
-                  
-                  if (response && response.order) {
-                    // Update the entire order object with the response
-                    Object.assign(updatedOrder, response.order);
-                    
-                    // Update the status dropdown if it exists
-                    const statusDropdown = orderCard.querySelector('.status-dropdown');
-                    if (statusDropdown) {
-                      const newStatus = response.order.status || 'pending';
-                      console.log(`🔄 Setting initial status for claimed order ${updatedOrder.id} to:`, newStatus);
-                      statusDropdown.value = newStatus;
-                      statusDropdown.dataset.previousValue = newStatus;
-                      applyStatusColor(statusDropdown, newStatus);
-                    }
-                    
-                    // Update staff tags
-                    updateStaffTagsForOrder(orderCard, [state.currentUser]);
-                    
-                    // Replace claim button with unclaim button
-                    newClaimBtn.replaceWith(createUnclaimButton(updatedOrder));
-                  }
-                } catch (err) {
-                  console.error(`Failed to claim order ${updatedOrder.id}:`, err);
-                  ui.showError(err.message || "Failed to claim order");
-                  newClaimBtn.textContent = 'Claim Order';
-                  newClaimBtn.disabled = false;
-                  newClaimBtn.classList.remove('claiming');
-                }
-              });
-            }
-
-            if (claimBtn) {
-              claimBtn.replaceWith(newClaimBtn);
-            } else if (unclaimBtn) {
-              unclaimBtn.replaceWith(newClaimBtn);
-            }
-          }
-        }
-
-        // Update other card elements
-        updateCardElements(orderCard, updatedOrder);
-      } else {
-        // If the card doesn't exist but should be visible, reapply filters
-        const query = document.getElementById("searchInput").value;
-        filterOrders(query);
+      // Update status dropdown
+      const statusDropdown = orderCard.querySelector('.status-dropdown');
+      if (statusDropdown) {
+        const newStatus = updatedOrder.status || 'pending';
+        console.log(`Updating status for order ${updatedOrder.id} to:`, newStatus);
+        statusDropdown.value = newStatus;
+        statusDropdown.dataset.previousValue = newStatus;
+        applyStatusColor(statusDropdown, newStatus);
       }
+
+      // Update claim/unclaim button
+      const claimBtn = orderCard.querySelector('button:last-child');
+      const unclaimBtn = orderCard.querySelector('button[textContent="Unclaim"]');
+
+      if (updatedOrder.claimed_by === state.currentUser) {
+        if (claimBtn && !unclaimBtn) {
+          claimBtn.replaceWith(createUnclaimButton(updatedOrder));
+        }
+      } else {
+        const newClaimBtn = document.createElement('button');
+        newClaimBtn.className = 'action-button';
+        
+        if (updatedOrder.claimed_by) {
+          newClaimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
+          newClaimBtn.disabled = true;
+        } else {
+          newClaimBtn.textContent = 'Claim Order';
+          newClaimBtn.addEventListener('click', async () => {
+            try {
+              newClaimBtn.textContent = 'Claiming...';
+              newClaimBtn.disabled = true;
+              newClaimBtn.classList.add('claiming');
+
+              const response = await api.claimOrder(updatedOrder.id);
+              
+              if (response && response.order) {
+                Object.assign(updatedOrder, response.order);
+                updateStaffTagsForOrder(orderCard, [state.currentUser]);
+                newClaimBtn.replaceWith(createUnclaimButton(updatedOrder));
+              }
+            } catch (err) {
+              console.error(`Failed to claim order ${updatedOrder.id}:`, err);
+              ui.showError(err.message || "Failed to claim order");
+              newClaimBtn.textContent = 'Claim Order';
+              newClaimBtn.disabled = false;
+              newClaimBtn.classList.remove('claiming');
+            }
+          });
+        }
+
+        if (claimBtn) {
+          claimBtn.replaceWith(newClaimBtn);
+        } else if (unclaimBtn) {
+          unclaimBtn.replaceWith(newClaimBtn);
+        }
+      }
+
+      // Update other card elements
+      updateCardElements(orderCard, updatedOrder);
     }
 
     // Helper function to check if an order should be shown based on current filters
@@ -2268,80 +2178,82 @@
           unclaimBtn.disabled = true;
           unclaimBtn.classList.add('unclaiming');
 
-          const response = await api.unclaimOrder(order.id);
-          
-          // Get the card element
+          // Get the card element BEFORE making the API call
           const card = unclaimBtn.closest('.card');
           if (!card) {
             throw new Error('Could not find order card');
           }
 
-          // Update state.allOrders
-          const index = state.allOrders.findIndex(o => o.id === order.id);
-          if (index !== -1) {
-            state.allOrders[index] = response.order;
+          const response = await api.unclaimOrder(order.id);
+          
+          // Update the order object with the response
+          if (response && response.order) {
+            Object.assign(order, response.order);
           }
 
+          // Handle card visibility based on current tab
           if (state.currentTab === "claimed") {
-            // In claimed tab, just remove the card smoothly
+            // In claimed tab, smoothly remove the card
             card.style.transition = "all 0.3s ease";
             card.style.opacity = "0";
             card.style.transform = "scale(0.9)";
             setTimeout(() => card.remove(), 300);
           } else {
-            // In all tab, update staff tags to remove only the unclaiming user
-            const assignedStaff = response.order.assigned_staff ? response.order.assigned_staff.split(',') : [];
+            // In all tab, update the card
+            const statusDropdown = card.querySelector('.status-dropdown');
+            if (statusDropdown) {
+              const newStatus = order.status || 'pending';
+              statusDropdown.value = newStatus;
+              statusDropdown.dataset.previousValue = newStatus;
+              applyStatusColor(statusDropdown, newStatus);
+            }
+
+            // Update staff tags
+            const assignedStaff = order.assigned_staff ? order.assigned_staff.split(',') : [];
             updateStaffTagsForOrder(card, assignedStaff);
-            
+
             // Replace unclaim button with claim button
-            const claimBtn = document.createElement('button');
-            claimBtn.textContent = 'Claim Order';
-            claimBtn.className = 'action-button';
+            const newClaimBtn = document.createElement('button');
+            newClaimBtn.textContent = 'Claim Order';
+            newClaimBtn.className = 'action-button';
             
-            let isClaiming = false;
-            
-            claimBtn.addEventListener('click', async () => {
-              if (isClaiming) return;
-              
+            // Add claim functionality
+            newClaimBtn.addEventListener('click', async () => {
               try {
-                isClaiming = true;
-                claimBtn.textContent = 'Claiming...';
-                claimBtn.disabled = true;
-                claimBtn.classList.add('claiming');
-                
+                newClaimBtn.textContent = 'Claiming...';
+                newClaimBtn.disabled = true;
+                newClaimBtn.classList.add('claiming');
+
                 const response = await api.claimOrder(order.id);
                 
-                if (!response || !response.order) {
-                  throw new Error('Failed to claim order');
+                if (response && response.order) {
+                  Object.assign(order, response.order);
+                  
+                  // Update the status dropdown
+                  const statusDropdown = card.querySelector('.status-dropdown');
+                  if (statusDropdown) {
+                    const newStatus = response.order.status || 'pending';
+                    statusDropdown.value = newStatus;
+                    statusDropdown.dataset.previousValue = newStatus;
+                    applyStatusColor(statusDropdown, newStatus);
+                  }
+                  
+                  // Update staff tags
+                  updateStaffTagsForOrder(card, [state.currentUser]);
+                  
+                  // Replace with unclaim button
+                  newClaimBtn.replaceWith(createUnclaimButton(order));
                 }
-
-                Object.assign(order, response.order);
-                
-                // Get current assigned staff and add the claiming user
-                const currentAssignedStaff = order.assigned_staff ? order.assigned_staff.split(',') : [];
-                if (!currentAssignedStaff.includes(state.currentUser)) {
-                  currentAssignedStaff.push(state.currentUser);
-                }
-                updateStaffTagsForOrder(card, currentAssignedStaff);
-                
-                const index = state.allOrders.findIndex(o => o.id === order.id);
-                if (index !== -1) {
-                  state.allOrders[index] = { ...order };
-                }
-                
-                claimBtn.replaceWith(createUnclaimButton(order, Date.now()));
               } catch (err) {
                 console.error(`Failed to claim order ${order.id}:`, err);
                 ui.showError(err.message || "Failed to claim order");
-                claimBtn.textContent = 'Claim Order';
-                claimBtn.disabled = false;
-                claimBtn.classList.remove('claiming');
-              } finally {
-                isClaiming = false;
+                newClaimBtn.textContent = 'Claim Order';
+                newClaimBtn.disabled = false;
+                newClaimBtn.classList.remove('claiming');
               }
             });
-            
-            unclaimBtn.replaceWith(claimBtn);
+
+            unclaimBtn.replaceWith(newClaimBtn);
           }
         } catch (err) {
           console.error(`Failed to unclaim order ${order.id}:`, err);
