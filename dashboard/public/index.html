@@ -2727,6 +2727,7 @@
         // Only update if the editor is not currently focused (being edited)
         const isEditorFocused = staffNotesEditor === document.activeElement;
         const currentValue = staffNotesEditor.value;
+        const cursorPosition = staffNotesEditor.selectionStart;
         
         if (!isEditorFocused) {
           staffNotesEditor.value = updatedOrder.order_notes || '';
@@ -2755,8 +2756,10 @@
 
         // Reattach event listeners
         const reattachListeners = (editor, saveBtn) => {
-          // Clear existing listeners
+          // Remove existing listeners
           const newEditor = editor.cloneNode(true);
+          newEditor.value = editor.value;
+          newEditor.dataset.previousValue = editor.dataset.previousValue;
           editor.parentNode.replaceChild(newEditor, editor);
 
           // Add input event listener
@@ -2788,7 +2791,7 @@
 
           // Add Ctrl+Enter / Cmd+Enter save shortcut
           newEditor.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveBtn.disabled) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && saveBtn && !saveBtn.disabled) {
               e.preventDefault();
               saveBtn.click();
             }
@@ -2804,13 +2807,23 @@
                 saveStaffNotes(updatedOrder.id, newEditor.value, newEditor, newSaveBtn);
               }
             });
+
+            // Ensure the button is properly styled
+            newSaveBtn.className = "action-button save-notes-btn";
+            return [newEditor, newSaveBtn];
           }
 
-          return newEditor;
+          return [newEditor, saveBtn];
         };
 
-        // Reattach all listeners
-        reattachListeners(staffNotesEditor, saveNotesBtn);
+        // Reattach all listeners and get the new elements
+        const [newEditor, newSaveBtn] = reattachListeners(staffNotesEditor, saveNotesBtn);
+
+        // Restore focus and cursor position if needed
+        if (isEditorFocused) {
+          newEditor.focus();
+          newEditor.setSelectionRange(cursorPosition, cursorPosition);
+        }
       }
     }
 
