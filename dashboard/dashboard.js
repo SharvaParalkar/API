@@ -620,8 +620,15 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Fetch the updated order
-    const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+    // Fetch the updated order with all fields
+    const updatedOrder = db.prepare(`
+      SELECT *,
+             COALESCE(status, 'pending') as status,
+             updated_by,
+             last_updated
+      FROM orders 
+      WHERE id = ?
+    `).get(orderId);
     
     // Broadcast the update
     broadcastUpdate('orderUpdate', {

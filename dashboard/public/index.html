@@ -824,9 +824,20 @@
         // Update status dropdown
         const statusDropdown = orderCard.querySelector('.status-dropdown');
         if (statusDropdown) {
-          statusDropdown.value = updatedOrder.status || 'pending';
-          statusDropdown.dataset.previousValue = updatedOrder.status || 'pending';
-          applyStatusColor(statusDropdown, updatedOrder.status || 'pending');
+          const newStatus = updatedOrder.status || 'pending';
+          console.log(`🔄 Updating status for order ${updatedOrder.id} to:`, newStatus);
+          
+          // First update the dropdown value
+          statusDropdown.value = newStatus;
+          statusDropdown.dataset.previousValue = newStatus;
+          
+          // Then update the visual style
+          applyStatusColor(statusDropdown, newStatus);
+          
+          // Verify the update
+          console.log(`✅ Status updated - Current value: ${statusDropdown.value}, Previous value: ${statusDropdown.dataset.previousValue}`);
+        } else {
+          console.warn(`⚠️ No status dropdown found for order ${updatedOrder.id}`);
         }
 
         // Update staff tags
@@ -909,9 +920,23 @@
                   const response = await api.claimOrder(updatedOrder.id);
                   
                   if (response && response.order) {
+                    // Update the entire order object with the response
                     Object.assign(updatedOrder, response.order);
-                    // Update staff tags when claiming
+                    
+                    // Update the status dropdown if it exists
+                    const statusDropdown = orderCard.querySelector('.status-dropdown');
+                    if (statusDropdown) {
+                      const newStatus = response.order.status || 'pending';
+                      console.log(`🔄 Setting initial status for claimed order ${updatedOrder.id} to:`, newStatus);
+                      statusDropdown.value = newStatus;
+                      statusDropdown.dataset.previousValue = newStatus;
+                      applyStatusColor(statusDropdown, newStatus);
+                    }
+                    
+                    // Update staff tags
                     updateStaffTagsForOrder(orderCard, [state.currentUser]);
+                    
+                    // Replace claim button with unclaim button
                     newClaimBtn.replaceWith(createUnclaimButton(updatedOrder));
                   }
                 } catch (err) {
