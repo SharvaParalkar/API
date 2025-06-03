@@ -2505,6 +2505,25 @@
         const table = document.createElement("table");
         table.className = "details-table";
 
+        // Show contact info if order is claimed or completed
+        if (state.currentTab === "claimed" || order.status?.toLowerCase() === "completed") {
+          // Add email row
+          const emailRow = document.createElement("tr");
+          emailRow.innerHTML = `
+            <td>Email:</td>
+            <td>${order.email || '—'}</td>
+          `;
+          table.appendChild(emailRow);
+
+          // Add phone row
+          const phoneRow = document.createElement("tr");
+          phoneRow.innerHTML = `
+            <td>Phone:</td>
+            <td>${order.phone || '—'}</td>
+          `;
+          table.appendChild(phoneRow);
+        }
+
         // Add customer notes
         const customerNotesRow = document.createElement("tr");
         customerNotesRow.innerHTML = `
