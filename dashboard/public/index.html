@@ -1060,7 +1060,7 @@
     }
     .coupon-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: 1fr;
       gap: 1rem;
     }
     .coupon-card {
@@ -3120,6 +3120,14 @@
 
         // Handle order updates
         eventSource.addEventListener('orderUpdate', (e) => {
+          if (!this.connected || this.isRefreshing) return;
+          
+          // Don't process order updates if we're not on an order-related tab
+          if (state.currentTab === 'coupon') {
+            console.log('🎫 Ignoring order update while on coupon tab');
+            return;
+          }
+          
           try {
             const update = JSON.parse(e.data);
             console.log('📦 Received order update:', update.type, update.order?.id);
@@ -3164,6 +3172,24 @@
           try {
             const update = JSON.parse(e.data);
             console.log('🎫 Received coupon update:', update.type, update.coupon?.code || update.code);
+            
+            // Prevent duplicate processing by checking sequence
+            const updateKey = `${update.type}-${update.coupon?.code || update.code}-${update.timestamp}`;
+            if (this.processedUpdates && this.processedUpdates.has(updateKey)) {
+              console.log('🔄 Skipping duplicate coupon update:', updateKey);
+              return;
+            }
+            
+            // Track processed updates (keep only last 100)
+            if (!this.processedUpdates) {
+              this.processedUpdates = new Set();
+            }
+            this.processedUpdates.add(updateKey);
+            if (this.processedUpdates.size > 100) {
+              const firstKey = this.processedUpdates.values().next().value;
+              this.processedUpdates.delete(firstKey);
+            }
+            
             handleCouponUpdate(update);
           } catch (err) {
             console.error('Error processing coupon update:', err);
@@ -4064,6 +4090,12 @@
         this.eventSource.addEventListener('orderUpdate', (e) => {
           if (!this.connected || this.isRefreshing) return;
           
+          // Don't process order updates if we're not on an order-related tab
+          if (state.currentTab === 'coupon') {
+            console.log('🎫 Ignoring order update while on coupon tab');
+            return;
+          }
+          
           try {
             const update = JSON.parse(e.data);
             console.log('📦 Received order update:', update.type, update.order?.id);
@@ -4108,6 +4140,24 @@
           try {
             const update = JSON.parse(e.data);
             console.log('🎫 Received coupon update:', update.type, update.coupon?.code || update.code);
+            
+            // Prevent duplicate processing by checking sequence
+            const updateKey = `${update.type}-${update.coupon?.code || update.code}-${update.timestamp}`;
+            if (this.processedUpdates && this.processedUpdates.has(updateKey)) {
+              console.log('🔄 Skipping duplicate coupon update:', updateKey);
+              return;
+            }
+            
+            // Track processed updates (keep only last 100)
+            if (!this.processedUpdates) {
+              this.processedUpdates = new Set();
+            }
+            this.processedUpdates.add(updateKey);
+            if (this.processedUpdates.size > 100) {
+              const firstKey = this.processedUpdates.values().next().value;
+              this.processedUpdates.delete(firstKey);
+            }
+            
             handleCouponUpdate(update);
           } catch (err) {
             console.error('Error processing coupon update:', err);
@@ -4715,7 +4765,7 @@
       }
       .coupon-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        grid-template-columns: 1fr;
         gap: 1rem;
       }
       .coupon-card {
@@ -5041,17 +5091,19 @@
 
     // Handle coupon updates from SSE
     function handleCouponUpdate(update) {
-      console.log('🎫 Received coupon update:', update);
+      console.log('🎫 Processing coupon update:', update);
       
       // Only update if we're currently on the coupon tab
       if (state.currentTab !== 'coupon') {
+        console.log('🎫 Ignoring coupon update - not on coupon tab');
         return;
       }
 
       switch (update.type) {
         case 'create':
-          // Add new coupon if not already in state
+          // Add new coupon if not already in state (prevent duplicates)
           if (!state.coupons.find(c => c.code === update.coupon.code)) {
+            console.log('✅ Adding new coupon to state:', update.coupon.code);
             state.coupons.unshift(update.coupon);
             renderCoupons(state.coupons);
             
@@ -5059,6 +5111,8 @@
             if (update.createdBy !== state.currentUser) {
               ui.showNotification(`New coupon "${update.coupon.code}" created by ${update.createdBy}`);
             }
+          } else {
+            console.log('🔄 Coupon already exists in state:', update.coupon.code);
           }
           break;
 
