@@ -1217,8 +1217,9 @@
     .coupon-header-row {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       margin-bottom: 1rem;
+      gap: 1rem;
     }
     
     .coupon-code {
@@ -1227,67 +1228,83 @@
       color: #1f6463;
       font-family: 'Monaco', 'Consolas', monospace;
       background: #e8f4f4;
-      padding: 0.25rem 0.75rem;
+      padding: 0.5rem 0.75rem;
       border-radius: 0.5rem;
+      border: 2px solid #d1eeec;
+      flex-shrink: 0;
     }
     
     .coupon-status {
-      padding: 0.25rem 0.75rem;
+      padding: 0.4rem 0.8rem;
       border-radius: 1rem;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     
     .coupon-status.active {
       background: #d4edda;
       color: #155724;
+      border: 2px solid #c3e6cb;
     }
     
     .coupon-status.exhausted {
       background: #f8d7da;
       color: #721c24;
+      border: 2px solid #f5c6cb;
     }
     
     .coupon-discount {
-      margin-bottom: 1rem;
+      margin-bottom: 1.2rem;
+      padding: 0.5rem 0;
     }
     
     .discount-value {
-      font-size: 1.8rem;
+      font-size: 2rem;
       font-weight: bold;
       color: #2a7a78;
       margin-right: 0.5rem;
+      display: inline-block;
     }
     
     .discount-type {
       color: #666;
-      font-size: 0.9rem;
+      font-size: 1rem;
       text-transform: capitalize;
+      font-weight: 500;
     }
     
     .coupon-usage-info {
       margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: #f0f9f9;
+      border-radius: 0.5rem;
+      border: 1px solid #d1eeec;
     }
     
     .usage-text {
-      color: #666;
+      color: #2a7a78;
       font-size: 0.9rem;
       margin-bottom: 0.5rem;
+      font-weight: 500;
     }
     
     .usage-bar {
-      height: 6px;
+      height: 8px;
       background: #e0e0e0;
-      border-radius: 3px;
+      border-radius: 4px;
       overflow: hidden;
+      position: relative;
     }
     
     .usage-progress {
       height: 100%;
       background: linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 80%, #dc3545 100%);
       transition: width 0.3s ease;
+      border-radius: 4px;
     }
     
     .coupon-actions {
@@ -1308,12 +1325,13 @@
       align-items: center;
       justify-content: center;
       gap: 0.5rem;
+      border: 2px solid transparent;
     }
     
     .edit-btn {
       background: #f8f9fa;
       color: #6c757d;
-      border: 2px solid #e9ecef;
+      border-color: #e9ecef;
     }
     
     .edit-btn:disabled {
@@ -1321,16 +1339,23 @@
       cursor: not-allowed;
     }
     
-    .delete-btn {
-      background: #fff5f5;
-      color: #e53e3e;
-      border: 2px solid #fed7d7;
+    .edit-btn:hover:not(:disabled) {
+      background: #e9ecef;
+      border-color: #dee2e6;
     }
     
-    .delete-btn:hover:not(:disabled) {
+    .coupon-btn.delete-btn {
+      background: #fff5f5;
+      color: #e53e3e;
+      border-color: #fed7d7;
+    }
+    
+    .coupon-btn.delete-btn:hover:not(:disabled) {
       background: #e53e3e;
       color: white;
       border-color: #e53e3e;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(229, 62, 62, 0.3);
     }
     
     .empty-state {
@@ -1492,24 +1517,4867 @@
       transition: all 0.2s ease;
     }
     
-    .cancel-btn {
+    .modal-btn.cancel-btn {
       background: #f8f9fa;
       color: #6c757d;
       border: 2px solid #e9ecef;
     }
     
-    .cancel-btn:hover {
+    .modal-btn.cancel-btn:hover {
       background: #e9ecef;
       border-color: #dee2e6;
     }
     
-    .delete-btn {
+    .modal-btn.delete-btn {
       background: #e53e3e;
       color: white;
       border: 2px solid #e53e3e;
     }
     
+    .modal-btn.delete-btn:hover {
+      background: #c53030;
+      border-color: #c53030;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 1200px) {
+      .coupon-layout {
+        grid-template-columns: 350px 1fr;
+        gap: 2rem;
+      }
+    }
+    
+    @media (max-width: 1024px) {
+      .coupon-layout {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      
+      .coupon-sidebar {
+        order: 2;
+      }
+      
+      .coupon-main {
+        order: 1;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .coupon-container {
+        padding: 1rem;
+      }
+      
+      .coupon-header h2 {
+        font-size: 2rem;
+      }
+      
+      .coupon-form,
+      .coupon-log-section,
+      .coupons-list {
+        padding: 1.5rem;
+      }
+      
+      .modal-content {
+        margin: 1rem;
+      }
+      
+      .modal-header,
+      .modal-body,
+      .modal-footer {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>FilamentBros Order Dashboard</h1>
+
+  <div class="tab-container">
+    <button id="tabAll" class="tab-button"
+      style="background: #1f6463; color: white;">All Orders</button>
+    <button id="tabClaimed" class="tab-button"
+      style="background: #ccc; color: black;">Claimed Orders</button>
+    <button id="tabCoupon" class="tab-button coupon"
+      style="background: #ccc; color: black;">Coupons</button>
+    <button id="tabAnalytics" class="tab-button analytics"
+      style="background: #ccc; color: black;">Analytics</button>
+  </div>
+
+  <div class="search-bar-flex">
+    <div class="left-toggles">
+      <div class="toggle-group">
+        <span class="toggle-label">Old Orders</span>
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="showOldToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <span class="toggle-label">Completed</span>
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="showCompletedToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <select id="staffFilter" style="padding: 0.4rem; border-radius: 1rem; border: 1px solid #ccc;">
+          <option value="">All Staff</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="center-search">
+      <input type="text" id="searchInput" placeholder="Search by name, email, phone, or order ID..." />
+    </div>
+  </div>
+
+  <div class="grid" id="orderGrid"></div>
+
+  <script>
+    // Constants
+    const REFRESH_INTERVAL = 10000; // 10 seconds
+    const SEARCH_DEBOUNCE = 200; // 200ms
+    const MAX_RETRY_ATTEMPTS = 3;
+    const VALID_STATUSES = [
+      "pending",
+      "pre print",
+      "printing",
+      "printing pay later",
+      "completed",
+    ];
+
+    // State management
+    const state = {
+      allOrders: [],
+      currentUser: null,
+      currentTab: "all",
+      retryCount: 0,
+      filters: {
+        showOld: false,
+        showCompleted: false,
+        staffFilter: ""
+      },
+      intervals: [],
+      staffMembers: [],
+      lastOrderHash: null,
+      lastRefreshTime: 0,
+      minRefreshInterval: 5000,
+      coupons: []
+    };
+
+    // First full load
+    async function loadInitialOrders() {
+      try {
+        const data = await api.fetchOrders();
+        state.allOrders = Array.isArray(data) ? data : [];
+        console.log('📦 Initial orders loaded:', state.allOrders.length);
+
+        // Initialize search immediately after orders load
+        initializeSearch();
+
+        // Apply any existing search query
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+      } catch (err) {
+        state.allOrders = [];
+        document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
+        console.error("❌ Failed to load initial orders:", err);
+      }
+    }
+
+    // Handle incoming order updates
+    function handleOrderUpdate(updatedOrder) {
+      console.log('🔄 Processing order update:', updatedOrder);
+
+      // Update order in state
+      const index = state.allOrders.findIndex(order => order.id === updatedOrder.id);
+      if (index !== -1) {
+        state.allOrders[index] = updatedOrder;
+      } else {
+        state.allOrders.unshift(updatedOrder);
+      }
+
+      // Get the existing card
+      const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
+      if (!orderCard) {
+        console.log(`Card not found for order ${updatedOrder.id}, refreshing view...`);
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+        return;
+      }
+
+      // Handle claimed tab visibility
+      if (state.currentTab === "claimed") {
+        const assignedStaffList = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
+        const shouldBeVisible = (
+          (updatedOrder.claimed_by === state.currentUser || assignedStaffList.includes(state.currentUser)) &&
+          updatedOrder.status?.toLowerCase() !== "completed"
+        );
+        
+        if (!shouldBeVisible) {
+          console.log(`Removing card ${updatedOrder.id} from claimed view`);
+          orderCard.style.transition = "all 0.3s ease";
+          orderCard.style.opacity = "0";
+          orderCard.style.transform = "scale(0.9)";
+          setTimeout(() => {
+            if (orderCard.isConnected) {
+              orderCard.remove();
+            }
+          }, 300);
+          return;
+        }
+      }
+
+      // Update status dropdown
+      const statusDropdown = orderCard.querySelector('.status-dropdown');
+      if (statusDropdown) {
+        const newStatus = updatedOrder.status || 'pending';
+        console.log(`Updating status for order ${updatedOrder.id} to:`, newStatus);
+        statusDropdown.value = newStatus;
+        statusDropdown.dataset.previousValue = newStatus;
+        applyStatusColor(statusDropdown, newStatus);
+      }
+
+      // Update claim/unclaim button
+      const actionBtn = orderCard.querySelector('.action-button:not(.save-notes-btn)');
+      if (actionBtn) {
+        if (updatedOrder.status?.toLowerCase() === 'completed') {
+          // Replace with completed label
+          const completedLabel = document.createElement("button");
+          completedLabel.textContent = "Completed";
+          completedLabel.disabled = true;
+          completedLabel.className = "action-button";
+          completedLabel.style.backgroundColor = "#999";
+          completedLabel.style.color = "#666";
+          completedLabel.style.cursor = "not-allowed";
+          actionBtn.replaceWith(completedLabel);
+        } else if (updatedOrder.claimed_by === state.currentUser) {
+          // Replace with unclaim button if not already an unclaim button
+          if (!actionBtn.textContent.includes('Unclaim')) {
+            actionBtn.replaceWith(createUnclaimButton(updatedOrder));
+          }
+        } else {
+          // Update or replace with claim button
+          const newClaimBtn = document.createElement('button');
+          newClaimBtn.className = 'action-button';
+          
+          if (updatedOrder.claimed_by) {
+            newClaimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
+            newClaimBtn.disabled = true;
+            newClaimBtn.style.backgroundColor = '#999';
+            newClaimBtn.style.cursor = 'not-allowed';
+          } else {
+            newClaimBtn.textContent = 'Claim Order';
+            newClaimBtn.addEventListener('click', async () => {
+              try {
+                newClaimBtn.textContent = 'Claiming...';
+                newClaimBtn.disabled = true;
+                newClaimBtn.classList.add('claiming');
+
+                const response = await api.claimOrder(updatedOrder.id);
+                
+                if (response && response.order) {
+                  Object.assign(updatedOrder, response.order);
+                  updateStaffTagsForOrder(orderCard, [state.currentUser]);
+                  newClaimBtn.replaceWith(createUnclaimButton(updatedOrder));
+                }
+              } catch (err) {
+                console.error(`Failed to claim order ${updatedOrder.id}:`, err);
+                ui.showError(err.message || "Failed to claim order");
+                newClaimBtn.textContent = 'Claim Order';
+                newClaimBtn.disabled = false;
+                newClaimBtn.classList.remove('claiming');
+              }
+            });
+          }
+          
+          actionBtn.replaceWith(newClaimBtn);
+        }
+      }
+
+      // Update staff tags
+      const assignedStaff = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
+      updateStaffTagsForOrder(orderCard, assignedStaff);
+
+      // Update other card elements
+      updateCardElements(orderCard, updatedOrder);
+
+      // Update staff notes if they exist
+      let staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
+      let saveNotesBtn = orderCard.querySelector(".save-notes-btn");
+      
+      if (staffNotesEditor && updatedOrder.order_notes !== undefined) {
+        // Only update if the editor is not currently focused (being edited)
+        const isEditorFocused = staffNotesEditor === document.activeElement;
+        const currentValue = staffNotesEditor.value;
+        
+        if (!isEditorFocused) {
+          staffNotesEditor.value = updatedOrder.order_notes || '';
+          staffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+        }
+
+        // Ensure the editor remains editable
+        staffNotesEditor.disabled = false;
+        staffNotesEditor.readOnly = false;
+
+        // Reset save button state
+        if (saveNotesBtn) {
+          const hasChanges = currentValue !== (updatedOrder.order_notes || '');
+          saveNotesBtn.disabled = !hasChanges;
+          
+          if (hasChanges) {
+            saveNotesBtn.textContent = "Save Notes";
+            saveNotesBtn.style.backgroundColor = "#1f6463";
+            saveNotesBtn.style.cursor = "pointer";
+          } else {
+            saveNotesBtn.textContent = "No Changes";
+            saveNotesBtn.style.backgroundColor = "#ccc";
+            saveNotesBtn.style.cursor = "not-allowed";
+          }
+        }
+
+        // Reattach event listeners
+        const reattachListeners = (editor, saveBtn) => {
+          // Clear existing listeners
+          const newEditor = editor.cloneNode(true);
+          editor.parentNode.replaceChild(newEditor, editor);
+
+          // Add input event listener
+          newEditor.addEventListener('input', () => {
+            const currentValue = newEditor.value;
+            const previousValue = newEditor.dataset.previousValue || '';
+            const hasChanges = currentValue !== previousValue;
+            
+            if (saveBtn) {
+              saveBtn.disabled = !hasChanges;
+              if (hasChanges) {
+                saveBtn.textContent = "Save Notes";
+                saveBtn.style.backgroundColor = "#1f6463";
+                saveBtn.style.cursor = "pointer";
+              } else {
+                saveBtn.textContent = "No Changes";
+                saveBtn.style.backgroundColor = "#ccc";
+                saveBtn.style.cursor = "not-allowed";
+              }
+            }
+          });
+
+          // Handle paste and cut events
+          ['paste', 'cut'].forEach(eventName => {
+            newEditor.addEventListener(eventName, () => {
+              setTimeout(() => newEditor.dispatchEvent(new Event('input')), 0);
+            });
+          });
+
+          // Add Ctrl+Enter / Cmd+Enter save shortcut
+          newEditor.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveNotesBtn.disabled) {
+              e.preventDefault();
+              saveNotesBtn.click();
+            }
+          });
+
+          // Update save button click handler
+          if (saveBtn) {
+            const newSaveBtn = saveBtn.cloneNode(true);
+            saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+            
+            newSaveBtn.addEventListener('click', () => {
+              if (newEditor.value !== newEditor.dataset.previousValue) {
+                saveStaffNotes(updatedOrder.id, newEditor.value, newEditor, newSaveBtn);
+              }
+            });
+          }
+
+          return newEditor;
+        };
+
+        // Reattach all listeners
+        staffNotesEditor = reattachListeners(staffNotesEditor, saveNotesBtn);
+      }
+
+      // Store the current state of the staff notes and details section
+      const detailsSection = orderCard.querySelector('.details-section');
+      const isExpanded = detailsSection?.classList.contains('visible');
+      const currentNotesValue = staffNotesEditor ? staffNotesEditor.value : '';
+      const isEditorFocused = staffNotesEditor === document.activeElement;
+      const cursorPosition = staffNotesEditor ? staffNotesEditor.selectionStart : 0;
+
+      // If the card was expanded, we need to re-expand it and restore the staff notes
+      if (isExpanded) {
+        const newDetailsSection = orderCard.querySelector('.details-section');
+        const newToggleBtn = orderCard.querySelector('.details-toggle');
+        const newStaffNotesEditor = orderCard.querySelector('.staff-notes-editor');
+        const newSaveNotesBtn = orderCard.querySelector('.save-notes-btn');
+
+        if (newDetailsSection) {
+          newDetailsSection.classList.add('visible');
+        }
+        
+        if (newToggleBtn) {
+          newToggleBtn.textContent = "Hide ▲";
+        }
+
+        // Always reinitialize the staff notes editor with fresh data
+        if (newStaffNotesEditor) {
+          // If the editor was being edited, preserve the current state
+          if (isEditorFocused) {
+            newStaffNotesEditor.value = currentNotesValue;
+            newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+            setTimeout(() => {
+              newStaffNotesEditor.focus();
+              newStaffNotesEditor.setSelectionRange(cursorPosition, cursorPosition);
+            }, 0);
+          } else {
+            // Otherwise use the latest data from the server
+            newStaffNotesEditor.value = updatedOrder.order_notes || '';
+            newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+          }
+
+          // Ensure the editor is enabled
+          newStaffNotesEditor.disabled = false;
+          newStaffNotesEditor.readOnly = false;
+
+          // Update save button state
+          if (newSaveNotesBtn) {
+            const hasChanges = newStaffNotesEditor.value !== newStaffNotesEditor.dataset.previousValue;
+            newSaveNotesBtn.disabled = !hasChanges;
+            newSaveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+            newSaveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+            newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+          }
+
+          // Reattach all event listeners
+          const reattachEditorListeners = () => {
+            // Clear existing listeners
+            const freshEditor = newStaffNotesEditor.cloneNode(true);
+            newStaffNotesEditor.parentNode.replaceChild(freshEditor, newStaffNotesEditor);
+
+            // Add input event listener
+            freshEditor.addEventListener('input', () => {
+              const hasChanges = freshEditor.value !== freshEditor.dataset.previousValue;
+              if (newSaveNotesBtn) {
+                newSaveNotesBtn.disabled = !hasChanges;
+                newSaveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+                newSaveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+                newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+              }
+            });
+
+            // Handle paste and cut events
+            ['paste', 'cut'].forEach(eventName => {
+              freshEditor.addEventListener(eventName, () => {
+                setTimeout(() => freshEditor.dispatchEvent(new Event('input')), 0);
+              });
+            });
+
+            // Add Ctrl+Enter / Cmd+Enter save shortcut
+            freshEditor.addEventListener('keydown', (e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !newSaveNotesBtn?.disabled) {
+                e.preventDefault();
+                newSaveNotesBtn.click();
+              }
+            });
+
+            return freshEditor;
+          };
+
+          // Reattach save button listeners
+          const reattachSaveButtonListeners = () => {
+            if (!newSaveNotesBtn) return;
+
+            const freshSaveBtn = newSaveNotesBtn.cloneNode(true);
+            newSaveNotesBtn.parentNode.replaceChild(freshSaveBtn, newSaveNotesBtn);
+
+            freshSaveBtn.addEventListener('click', () => {
+              const editor = orderCard.querySelector('.staff-notes-editor');
+              if (editor && editor.value !== editor.dataset.previousValue) {
+                saveStaffNotes(updatedOrder.id, editor.value, editor, freshSaveBtn);
+              }
+            });
+
+            return freshSaveBtn;
+          };
+
+          // Apply the reattached listeners
+          const freshEditor = reattachEditorListeners();
+          const freshSaveBtn = reattachSaveButtonListeners();
+
+          // If we were editing, restore focus
+          if (isEditorFocused) {
+            setTimeout(() => {
+              freshEditor.focus();
+              freshEditor.setSelectionRange(cursorPosition, cursorPosition);
+            }, 0);
+          }
+        }
+      }
+    }
+
+    // Helper function to check if an order should be shown based on current filters
+    function shouldShowOrder(order) {
+      const showOld = document.getElementById("showOldToggle").checked;
+      const showCompleted = document.getElementById("showCompletedToggle").checked;
+
+      // Check completed status
+      if (!showCompleted && order.status?.toLowerCase() === 'completed') {
+        return false;
+      }
+
+      // Check age
+      if (!showOld) {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const orderDate = new Date(order.submitted_at);
+        if (orderDate < oneWeekAgo) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    // Helper function to update card elements
+    function updateCardElements(card, order) {
+      // Update price
+      const priceElement = card.querySelector('p');
+      if (priceElement) {
+        priceElement.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : '—'}`;
+      }
+
+      // Update notes if visible
+      const detailsSection = card.querySelector('.details-section');
+      if (detailsSection?.classList.contains('visible')) {
+        const notesCell = [...detailsSection.querySelectorAll('td')].find(td => 
+          td.textContent.trim().startsWith('Staff Notes:')
+        )?.nextElementSibling;
+        if (notesCell) {
+          notesCell.textContent = order.order_notes || '—';
+        }
+
+        // Update last updated by
+        const updatedByCell = [...detailsSection.querySelectorAll('td')].find(td => 
+          td.textContent.trim().startsWith('Last Updated By:')
+        )?.nextElementSibling;
+        if (updatedByCell) {
+          updatedByCell.textContent = order.updated_by || '—';
+        }
+      }
+    }
+
+    // Utility functions
+    const debounce = (func, wait) => {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    };
+
+    const handleError = async (err, operation) => {
+      console.error(`❌ Error during ${operation}:`, err);
+
+      if (err.status === 401) {
+        clearAllIntervals();
+        showLoginOverlay();
+        return;
+      }
+
+      if (state.retryCount < MAX_RETRY_ATTEMPTS) {
+        state.retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 1000 * state.retryCount));
+        return true; // Retry
+      }
+
+      state.retryCount = 0;
+      return false; // Don't retry
+    };
+
+    const clearAllIntervals = () => {
+      state.intervals.forEach(clearInterval);
+      state.intervals = [];
+    };
+
+    // API functions
+    const api = {
+      async fetchOrders() {
+        try {
+          // Get current filter states
+          const showOld = document.getElementById("showOldToggle").checked;
+          const showCompleted = document.getElementById("showCompletedToggle").checked;
+
+          // Build query string
+          const params = new URLSearchParams({
+            showOld: showOld.toString(),
+            showCompleted: showCompleted.toString(),
+            showClaimed: (state.currentTab === "claimed").toString()
+          });
+
+          const url = `/dashboard/data?${params.toString()}`;
+          console.log('🔍 Fetching orders with filters:', { showOld, showCompleted, showClaimed: state.currentTab === "claimed" });
+
+          const res = await fetch(url, { credentials: 'include' });
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+          const data = await res.json();
+          console.log(`📦 Received ${data.length} orders`);
+          return data;
+        } catch (err) {
+          console.error('❌ Failed to fetch orders:', err);
+          return [];
+        }
+      },
+
+      async updateStatus(orderId, status) {
+        try {
+          const res = await fetch("/dashboard/update-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId, status }),
+            credentials: 'include'
+          });
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'updateStatus');
+          throw err;
+        }
+      },
+
+      async assignStaff(orderId, staffName) {
+        try {
+          const res = await fetch("/dashboard/assign-staff", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId, staffName }),
+            credentials: 'include'
+          });
+          
+          if (!res.ok) {
+            const error = new Error(`HTTP error! status: ${res.status}`);
+            error.status = res.status;
+            error.response = res;
+            throw error;
+          }
+          
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'assignStaff');
+          throw err;
+        }
+      },
+
+      async claimOrder(orderId) {
+        try {
+          const res = await fetch("/dashboard/claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId }),
+            credentials: 'include'
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || `HTTP error! status: ${res.status}`);
+          }
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'claimOrder');
+          throw err;
+        }
+      },
+
+      async unclaimOrder(orderId) {
+        try {
+          const res = await fetch("/dashboard/unclaim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId }),
+            credentials: 'include'
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || `HTTP error! status: ${res.status}`);
+          }
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'unclaimOrder');
+          throw err;
+        }
+      },
+
+      async login(username, password, remember) {
+        try {
+          const formData = new URLSearchParams();
+          formData.append("username", username);
+          formData.append("password", password);
+          if (remember) formData.append("remember", "on");
+
+          const res = await fetch("/dashboard/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: formData.toString(),
+            credentials: 'include'
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({ error: "Login failed" }));
+            throw new Error(data.error || "Login failed");
+          }
+
+          return true;
+        } catch (err) {
+          console.error("Login error:", err);
+          throw err;
+        }
+      },
+
+      async checkSession() {
+        try {
+          const res = await fetch("/dashboard/whoami", { credentials: "include" });
+          if (!res.ok) throw new Error("Session check failed");
+          return await res.json();
+        } catch (err) {
+          console.error("Session check error:", err);
+          throw err;
+        }
+      },
+
+      async getStaffList() {
+        try {
+          const res = await fetch("/dashboard/staff", {
+            credentials: 'include'
+          });
+          if (!res.ok) throw new Error("Failed to fetch staff list");
+          return await res.json();
+        } catch (err) {
+          console.error("Failed to fetch staff list:", err);
+          return [];
+        }
+      }
+    };
+
+    // UI update functions
+    const ui = {
+      updateTabStyles() {
+        const allTab = document.getElementById("tabAll");
+        const claimedTab = document.getElementById("tabClaimed");
+        const couponTab = document.getElementById("tabCoupon");
+        const analyticsTab = document.getElementById("tabAnalytics");
+
+        if (allTab) allTab.style.background = state.currentTab === "all" ? "#1f6463" : "#ccc";
+        if (allTab) allTab.style.color = state.currentTab === "all" ? "white" : "black";
+        
+        if (claimedTab) claimedTab.style.background = state.currentTab === "claimed" ? "#1f6463" : "#ccc";
+        if (claimedTab) claimedTab.style.color = state.currentTab === "claimed" ? "white" : "black";
+
+        if (couponTab) couponTab.style.background = state.currentTab === "coupon" ? "#1f6463" : "#ccc";
+        if (couponTab) couponTab.style.color = state.currentTab === "coupon" ? "white" : "black";
+
+        if (analyticsTab) analyticsTab.style.background = state.currentTab === "analytics" ? "#1f6463" : "#ccc";
+        if (analyticsTab) analyticsTab.style.color = state.currentTab === "analytics" ? "white" : "black";
+      },
+
+      showLoginOverlay() {
+        const overlay = document.getElementById("loginOverlay");
+        if (overlay) overlay.style.display = "flex";
+      },
+
+      hideLoginOverlay() {
+        const overlay = document.getElementById("loginOverlay");
+        if (overlay) overlay.style.display = "none";
+      },
+
+      showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background-color: #ff6b6b;
+          color: white;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          z-index: 1000;
+          animation: slideIn 0.3s ease-out;
+        `;
+        errorDiv.textContent = message;
+        document.body.appendChild(errorDiv);
+        setTimeout(() => {
+          errorDiv.style.animation = 'slideOut 0.3s ease-in';
+          setTimeout(() => errorDiv.remove(), 300);
+        }, 3000);
+      },
+
+      showNotification(message) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background-color: #1f6463;
+          color: white;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          z-index: 1000;
+          animation: slideIn 0.3s ease-out;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          notification.style.animation = 'slideOut 0.3s ease-in';
+          setTimeout(() => notification.remove(), 300);
+        }, 3000);
+      }
+    };
+
+    // Event handlers
+    const handlers = {
+      async onStatusChange(event, orderId) {
+        const newStatus = event.target.value;
+        const previousValue = event.target.dataset.previousValue;
+
+        try {
+          // Update UI immediately
+          applyStatusColor(event.target, newStatus);
+          event.target.dataset.previousValue = newStatus;
+
+          console.log(`🔄 Initiating status change for ${orderId}: ${newStatus}`);
+
+          // Send HTTP request
+          const response = await api.updateStatus(orderId, newStatus);
+          console.log('✅ Status update response:', response);
+
+          // After successful status update, refresh the entire card
+          if (response && response.order) {
+            try {
+              // Get current filter states
+              const showOld = document.getElementById("showOldToggle").checked;
+              const showCompleted = document.getElementById("showCompletedToggle").checked;
+
+              // Build query string
+              const params = new URLSearchParams({
+                showOld: showOld.toString(),
+                showCompleted: showCompleted.toString(),
+                showClaimed: (state.currentTab === "claimed").toString()
+              });
+
+              const ordersResponse = await fetch(`/dashboard/data?${params.toString()}`, {
+                credentials: 'include'
+              });
+              
+              if (!ordersResponse.ok) {
+                throw new Error('Failed to fetch updated orders');
+              }
+              
+              const orders = await ordersResponse.json();
+              
+              // Find the updated order
+              const updatedOrder = orders.find(o => o.id === order.id);
+              if (!updatedOrder) {
+                console.warn('Updated order not found in response');
+                return;
+              }
+
+              // Update order in state
+              const orderIndex = state.allOrders.findIndex(o => o.id === order.id);
+              if (orderIndex !== -1) {
+                state.allOrders[orderIndex] = updatedOrder;
+              }
+              
+              // Find the card in the DOM
+              const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
+              if (!orderCard) {
+                console.warn('Order card not found in DOM');
+                return;
+              }
+
+              // Store the current state of the details section
+              const detailsSection = orderCard.querySelector('.details-section');
+              const isExpanded = detailsSection?.classList.contains('visible');
+              
+              // Store staff notes state if expanded
+              let staffNotesState = null;
+              if (isExpanded) {
+                const staffNotesEditor = orderCard.querySelector('.staff-notes-editor');
+                if (staffNotesEditor) {
+                  staffNotesState = {
+                    value: staffNotesEditor.value,
+                    isEditing: staffNotesEditor === document.activeElement,
+                    cursorPosition: staffNotesEditor.selectionStart,
+                    previousValue: staffNotesEditor.dataset.previousValue
+                  };
+                }
+              }
+              
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FilamentBros Order Dashboard</title>
+  <style>
+    body {
+      font-family: "Roboto", sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background-color: #f5f5f5;
+    }
+
+    h1 {
+      text-align: center;
+      color: #1f6463;
+      margin-bottom: 1rem;
+    }
+
+    .search-container {
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+      margin-bottom: 2rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 0 1rem;
+    }
+
+    .search-container input {
+      width: 100%;
+      max-width: 700px;
+      flex: 1;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      color: #333;
+      position: relative;
+      height: auto;
+      gap: 0.75rem;
+    }
+
+    .card h2 {
+      font-size: 1.2rem;
+      color: #1f6463;
+      margin: 0 0 -0.25rem 0;
+      padding-right: 2rem;
+    }
+
+    .status-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0;
+    }
+
+    .status-dropdown {
+      padding: 0.5rem;
+      border-radius: 1rem;
+      border: 1px solid #ccc;
+      font-size: 0.9rem;
+      min-width: 150px;
+      cursor: pointer;
+    }
+
+    .details-toggle {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #1f6463;
+      background: none;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 0.25rem 0;
+    }
+
+    .details-section {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.6s ease, opacity 0.6s ease;
+      opacity: 0;
+      margin: 0;
+      border-top: 1px solid #eee;
+      padding-top: 0.75rem;
+    }
+
+    .details-section.visible {
+      max-height: 1000px;
+      opacity: 1;
+      margin-top: 0.5rem;
+    }
+
+    .details-table {
+      width: 100%;
+      font-size: 0.9rem;
+      border-spacing: 0 0.75rem;
+      table-layout: fixed;
+    }
+
+    .details-table td:first-child {
+      width: 120px;
+      color: #666;
+      vertical-align: top;
+      padding-right: 1rem;
+    }
+
+    .assigned-price-input {
+      width: 120px;
+      padding: 0.4rem 0.4rem 0.4rem 1.5rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .assigned-price-input:focus {
+      border-color: #1f6463;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
+    }
+
+    .price-input-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .dollar-sign {
+      position: absolute;
+      left: 0.5rem;
+      top: 0.4rem;
+      color: #666;
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+
+    .save-price-btn {
+      padding: 0.3rem 0.6rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background-color 0.2s ease;
+      width: 120px;
+    }
+
+    .save-price-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .details-divider {
+      border-top: 1px solid #eee;
+      margin: 1rem 0;
+      width: 100%;
+    }
+
+    .staff-selection-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 0;
+    }
+
+    .staff-tags-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      background-color: #f5f5f5;
+      margin-top: 0.25rem;
+    }
+
+    .staff-tag {
+      background-color: #e0e0e0;
+      color: #333;
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+      font-size: 0.9rem;
+    }
+
+    .staff-notes-editor {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      margin: 0.5rem 0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+      background-color: #fff;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-sizing: border-box;
+      line-height: 1.4;
+    }
+
+    .save-notes-btn {
+      padding: 0.4rem 0.8rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background-color 0.2s ease;
+      margin-bottom: 0.5rem;
+    }
+
+    .save-notes-btn:disabled {
+      background-color: #ccc;
+      color: white;
+      cursor: not-allowed;
+    }
+
+    .order-id {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid #ddd;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #666;
+      font-weight: bold;
+    }
+
+    .action-button {
+      border: none;
+      color: #333;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      margin-top: 0.25rem;
+      transition: all 0.2s ease;
+      background-color: #ccc;
+      cursor: pointer;
+      width: 100%;
+      font-size: 0.9rem;
+    }
+
+    .card ul {
+      padding-left: 1rem;
+      margin: 0;
+      font-size: 0.95rem;
+      list-style: disc;
+    }
+
+    .card:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+      transform: translateY(-3px);
+      transition: 0.2s ease;
+    }
+
+    .card ul li {
+      margin-bottom: 0.5rem;
+    }
+
+    .stl-header {
+      font-weight: bold;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stl-list {
+      padding-left: 1.2rem;
+      list-style-type: disc;
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+    }
+
+    .stl-list li {
+      font-size: 0.9rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .stl-link {
+      display: block;
+      max-width: 100%;
+      color: #1f6463;
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: normal;
+      word-break: break-word;
+      /* Ensures long words break cleanly */
+    }
+
+    .download-all-btn {
+      margin-top: 0.25rem;
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      background-color: #1f6463;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .status-submitted {
+      background-color: #1f6463;
+    }
+
+    .status-complete {
+      background-color: #5cb85c;
+    }
+
+    .status-failed {
+      background-color: #d9534f;
+    }
+
+    .status-pending {
+      background-color: #ff6e5f;
+      color: #000;
+    }
+
+    .status-pre-print {
+      background-color: #ffaea5;
+      color: #000;
+    }
+
+    .status-printing {
+      background-color: #f4d03f;
+      color: #000;
+    }
+
+    .status-printing-pay-later {
+      background-color: #f4d03f;
+      color: #000;
+    }
+
+    .status-completed {
+      background-color: #2ecc71;
+      color: #000;
+    }
+
+    .toggle-wrapper {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .toggle-wrapper input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.3s;
+      border-radius: 24px;
+    }
+
+    .slider::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    .toggle-wrapper input:checked+.slider {
+      background-color: #1f6463;
+    }
+
+    .toggle-wrapper input:checked+.slider::before {
+      transform: translateX(20px);
+    }
+
+    .toggle-label {
+      font-size: 0.9rem;
+      margin-left: 0.5rem;
+      line-height: 24px;
+      color: #333;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-direction: column;
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .login-box {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .login-box input[type="text"],
+    .login-box input[type="password"] {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+      box-sizing: border-box;
+      /* ✅ prevents padding from adding to width */
+    }
+
+    .login-box button {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+
+    .login-box .remember-line {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      justify-content: left;
+    }
+
+    .toggles-wrapper {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .search-input-wrapper {
+      flex-grow: 1;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .search-bar-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 2rem;
+      height: 3.5rem;
+    }
+
+    .toggles-wrapper {
+      position: absolute;
+      left: 0;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      padding-left: 1rem;
+    }
+
+    .centered-search {
+      max-width: 700px;
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5rem;
+    }
+
+    .search-bar-flex {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+      width: 100%;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 0 1rem;
+    }
+
+    .left-toggles {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .center-search {
+      flex-grow: 1;
+      max-width: 700px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .center-search input {
+      width: 100%;
+      max-width: 700px;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5rem;
+      outline: none;
+    }
+
+    .center-search input:focus {
+      border-color: #1f6463;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+
+    .status-history {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .status-history-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .status-history-item:last-child {
+      border-bottom: none;
+    }
+
+    .staff-notes-editor:focus {
+      border-color: #1f6463;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
+    }
+
+    .save-notes-btn:hover:not(:disabled) {
+      background-color: #184f4e;
+    }
+
+    .save-notes-btn:disabled {
+      background-color: #ccc;
+      color: white;
+      cursor: not-allowed;
+    }
+
+    /* Style for customer notes */
+    .details-table tr:first-child td:last-child {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-style: italic;
+      color: #666;
+      background-color: #f9f9f9;
+      border-radius: 0.3rem;
+      padding: 0.75rem;
+      min-height: 2.5rem;
+      line-height: 1.4;
+      border: 1px solid #eee;
+    }
+
+    /* Style for staff notes */
+    .staff-notes-editor {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      margin: 0.5rem 0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+      background-color: #fff;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-sizing: border-box;
+      line-height: 1.4;
+    }
+
+    /* Dark mode support */
+    .dark-mode .details-table tr:first-child td:last-child {
+      background-color: #2d2d2d;
+      border-color: #444;
+      color: #aaa;
+    }
+
+    .dark-mode .staff-notes-editor {
+      background-color: #2d2d2d;
+      color: #fff;
+      border-color: #444;
+    }
+
+    .dark-mode .status-dropdown {
+      background-color: #3d3d3d;
+      color: #fff;
+      border-color: #4d4d4d;
+    }
+
+    .dark-mode .staff-notes-editor {
+      background-color: #3d3d3d;
+      color: #fff;
+      border-color: #4d4d4d;
+    }
+
+    .dark-mode-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .priority-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.3rem;
+      font-size: 0.8rem;
+      margin-left: 0.5rem;
+    }
+
+    .priority-high {
+      background-color: #ff4444;
+      color: white;
+    }
+
+    .priority-medium {
+      background-color: #ffbb33;
+      color: black;
+    }
+
+    .priority-low {
+      background-color: #00C851;
+      color: white;
+    }
+
+    .tab-container {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      position: relative;
+      z-index: 100;
+    }
+
+    .tab-button {
+      padding: 0.6rem 1rem;
+      border-radius: 1rem;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      user-select: none;
+      pointer-events: auto;
+    }
+
+    .tab-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .tab-button:active {
+      transform: translateY(0);
+    }
+
+    .tab-button.active {
+      background-color: #1f6463;
+      color: white;
+    }
+
+    .tab-button.inactive {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .tab-button.coupon {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .tab-button.coupon.active {
+      background-color: #1f6463;
+      color: white;
+    }
+
+    .tab-button.analytics {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .tab-button.analytics.active {
+      background-color: #1f6463;
+      color: white;
+    }
+
+    /* Add consistent button styles */
+    .action-button {
+      border: none;
+      color: #333;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      margin-top: 0.25rem;
+      transition: all 0.2s ease;
+      background-color: #ccc;
+      cursor: pointer;
+    }
+
+    .action-button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    .action-button.claiming,
+    .action-button.unclaiming {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    /* Add styles for the staff list display */
+    .assigned-staff-list {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .staff-tag {
+      background-color: #e0e0e0;
+      color: #333;
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .staff-tag.selected {
+      background-color: #1f6463;
+      color: white;
+      transform: scale(1.02);
+    }
+
+    .staff-tag:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .staff-tag:active {
+      transform: scale(0.98);
+    }
+
+    .staff-selection-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .staff-tags-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      background-color: #f5f5f5;
+    }
+
+    /* Replace the old staff dropdown styles */
+    .staff-dropdown {
+      padding: 0.5rem;
+      border-radius: 1rem;
+      border: 1px solid #ccc;
+      font-size: 0.9rem;
+      min-width: 150px;
+      cursor: pointer;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      transition: opacity 0.2s ease;
+      z-index: 1;
+    }
+
     .delete-btn:hover {
+      opacity: 1;
+    }
+
+    .delete-confirmation-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .delete-confirmation-box {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .delete-confirmation-box h3 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    .delete-confirmation-box p {
+      margin: 1rem 0;
+      color: #666;
+    }
+
+    .delete-confirmation-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .delete-confirm-btn {
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .delete-cancel-btn {
+      background-color: #ccc;
+      color: #333;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .delete-confirm-btn:hover {
+      background-color: #ff2222;
+    }
+
+    .delete-cancel-btn:hover {
+      background-color: #bbb;
+    }
+
+    .order-card {
+      transition: background-color 0.3s ease;
+    }
+    .updated {
+      background-color: rgba(255, 255, 0, 0.1) !important;
+    }
+    .submission-time {
+      color: #666;
+      font-size: 0.9em;
+      margin-top: 4px;
+    }
+    .assigned-staff {
+      font-weight: bold;
+      color: #2196F3;
+    }
+    .error-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #ff5252;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      z-index: 9999;
+    }
+    .error-banner button {
+      margin-left: 1rem;
+      padding: 0.5rem 1rem;
+      background: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .coupon-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .coupon-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    
+    .coupon-header h2 {
+      color: #1f6463;
+      margin: 0 0 0.5rem 0;
+      font-size: 2.5rem;
+      font-weight: 300;
+    }
+    
+    .coupon-subtitle {
+      color: #666;
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    
+    .coupon-layout {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 3rem;
+      align-items: start;
+    }
+    
+    .coupon-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+    
+    .coupon-form {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      padding: 2rem;
+      border: 1px solid #e8f4f4;
+    }
+    
+    .coupon-form h3 {
+      margin: 0 0 1.5rem 0;
+      color: #1f6463;
+      font-size: 1.3rem;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      font-weight: 600;
+      color: #333;
+      font-size: 0.9rem;
+    }
+    
+    .optional {
+      color: #999;
+      font-weight: normal;
+    }
+    
+    .form-group input,
+    .form-group select {
+      padding: 0.875rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: #1f6463;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(31, 100, 99, 0.1);
+    }
+    
+    .form-help {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 0.25rem;
+    }
+    
+    .create-coupon-btn {
+      background: linear-gradient(135deg, #1f6463 0%, #2a7a78 100%);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    
+    .create-coupon-btn:hover {
+      background: linear-gradient(135deg, #184f4e 0%, #1e5f5d 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(31, 100, 99, 0.3);
+    }
+    
+    .create-coupon-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .btn-icon {
+      font-size: 1.1em;
+    }
+    
+    .coupon-log-section {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      padding: 2rem;
+      border: 1px solid #e8f4f4;
+    }
+    
+    .coupon-log-section h3 {
+      margin: 0 0 1rem 0;
+      color: #1f6463;
+      font-size: 1.2rem;
+    }
+    
+    .coming-soon {
+      font-size: 0.8rem;
+      color: #999;
+      font-weight: normal;
+    }
+    
+    .usage-log-placeholder {
+      text-align: center;
+      padding: 2rem;
+      color: #999;
+      border: 2px dashed #e0e0e0;
+      border-radius: 0.5rem;
+    }
+    
+    .usage-log-placeholder p {
+      margin: 0 0 0.5rem 0;
+      font-weight: 500;
+    }
+    
+    .usage-log-placeholder small {
+      font-size: 0.85rem;
+    }
+    
+    .coupon-main {
+      min-height: 600px;
+    }
+    
+    .coupons-list {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      padding: 2rem;
+      border: 1px solid #e8f4f4;
+      min-height: 100%;
+    }
+    
+    .coupons-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .coupons-header h3 {
+      margin: 0;
+      color: #1f6463;
+      font-size: 1.3rem;
+    }
+    
+    .coupons-stats {
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    .coupon-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+    
+    .coupon-card {
+      background: #f8fffe;
+      border: 2px solid #e8f4f4;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    .coupon-card:hover {
+      border-color: #1f6463;
+      box-shadow: 0 8px 25px rgba(31, 100, 99, 0.15);
+      transform: translateY(-2px);
+    }
+    
+    .coupon-card.deleting {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    .coupon-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+      gap: 1rem;
+    }
+    
+    .coupon-code {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #1f6463;
+      font-family: 'Monaco', 'Consolas', monospace;
+      background: #e8f4f4;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 2px solid #d1eeec;
+      flex-shrink: 0;
+    }
+    
+    .coupon-status {
+      padding: 0.4rem 0.8rem;
+      border-radius: 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    
+    .coupon-status.active {
+      background: #d4edda;
+      color: #155724;
+      border: 2px solid #c3e6cb;
+    }
+    
+    .coupon-status.exhausted {
+      background: #f8d7da;
+      color: #721c24;
+      border: 2px solid #f5c6cb;
+    }
+    
+    .coupon-discount {
+      margin-bottom: 1.2rem;
+      padding: 0.5rem 0;
+    }
+    
+    .discount-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #2a7a78;
+      margin-right: 0.5rem;
+      display: inline-block;
+    }
+    
+    .discount-type {
+      color: #666;
+      font-size: 1rem;
+      text-transform: capitalize;
+      font-weight: 500;
+    }
+    
+    .coupon-usage-info {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: #f0f9f9;
+      border-radius: 0.5rem;
+      border: 1px solid #d1eeec;
+    }
+    
+    .usage-text {
+      color: #2a7a78;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    
+    .usage-bar {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .usage-progress {
+      height: 100%;
+      background: linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 80%, #dc3545 100%);
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+    
+    .coupon-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+    
+    .coupon-btn {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border: 2px solid transparent;
+    }
+    
+    .edit-btn {
+      background: #f8f9fa;
+      color: #6c757d;
+      border-color: #e9ecef;
+    }
+    
+    .edit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .edit-btn:hover:not(:disabled) {
+      background: #e9ecef;
+      border-color: #dee2e6;
+    }
+    
+    .coupon-btn.delete-btn {
+      background: #fff5f5;
+      color: #e53e3e;
+      border-color: #fed7d7;
+    }
+    
+    .coupon-btn.delete-btn:hover:not(:disabled) {
+      background: #e53e3e;
+      color: white;
+      border-color: #e53e3e;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(229, 62, 62, 0.3);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #666;
+    }
+    
+    .empty-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+    
+    .empty-state h4 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.3rem;
+      color: #333;
+    }
+    
+    .empty-state p {
+      margin: 0;
+      font-size: 1rem;
+    }
+    
+    .loading-placeholder {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #666;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #1f6463;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.2s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      max-width: 500px;
+      width: 90%;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from { 
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+      }
+      to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 2rem 1rem 2rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .modal-header h3 {
+      margin: 0;
+      color: #1f6463;
+      font-size: 1.3rem;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #999;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-close:hover {
+      background: #f0f0f0;
+      color: #666;
+    }
+    
+    .modal-body {
+      padding: 2rem;
+      text-align: center;
+    }
+    
+    .warning-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    
+    .modal-body p {
+      margin: 0 0 1rem 0;
+      color: #333;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    
+    .warning-text {
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    .modal-footer {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 2rem 2rem 2rem;
+    }
+    
+    .modal-btn {
+      flex: 1;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-btn.cancel-btn {
+      background: #f8f9fa;
+      color: #6c757d;
+      border: 2px solid #e9ecef;
+    }
+    
+    .modal-btn.cancel-btn:hover {
+      background: #e9ecef;
+      border-color: #dee2e6;
+    }
+    
+    .modal-btn.delete-btn {
+      background: #e53e3e;
+      color: white;
+      border: 2px solid #e53e3e;
+    }
+    
+    .modal-btn.delete-btn:hover {
+      background: #c53030;
+      border-color: #c53030;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 1200px) {
+      .coupon-layout {
+        grid-template-columns: 350px 1fr;
+        gap: 2rem;
+      }
+    }
+    
+    @media (max-width: 1024px) {
+      .coupon-layout {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      
+      .coupon-sidebar {
+        order: 2;
+      }
+      
+      .coupon-main {
+        order: 1;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .coupon-container {
+        padding: 1rem;
+      }
+      
+      .coupon-header h2 {
+        font-size: 2rem;
+      }
+      
+      .coupon-form,
+      .coupon-log-section,
+      .coupons-list {
+        padding: 1.5rem;
+      }
+      
+      .modal-content {
+        margin: 1rem;
+      }
+      
+      .modal-header,
+      .modal-body,
+      .modal-footer {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>FilamentBros Order Dashboard</h1>
+
+  <div class="tab-container">
+    <button id="tabAll" class="tab-button"
+      style="background: #1f6463; color: white;">All Orders</button>
+    <button id="tabClaimed" class="tab-button"
+      style="background: #ccc; color: black;">Claimed Orders</button>
+    <button id="tabCoupon" class="tab-button coupon"
+      style="background: #ccc; color: black;">Coupons</button>
+    <button id="tabAnalytics" class="tab-button analytics"
+      style="background: #ccc; color: black;">Analytics</button>
+  </div>
+
+  <div class="search-bar-flex">
+    <div class="left-toggles">
+      <div class="toggle-group">
+        <span class="toggle-label">Old Orders</span>
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="showOldToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <span class="toggle-label">Completed</span>
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="showCompletedToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <select id="staffFilter" style="padding: 0.4rem; border-radius: 1rem; border: 1px solid #ccc;">
+          <option value="">All Staff</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="center-search">
+      <input type="text" id="searchInput" placeholder="Search by name, email, phone, or order ID..." />
+    </div>
+  </div>
+
+  <div class="grid" id="orderGrid"></div>
+
+  <script>
+    // Constants
+    const REFRESH_INTERVAL = 10000; // 10 seconds
+    const SEARCH_DEBOUNCE = 200; // 200ms
+    const MAX_RETRY_ATTEMPTS = 3;
+    const VALID_STATUSES = [
+      "pending",
+      "pre print",
+      "printing",
+      "printing pay later",
+      "completed",
+    ];
+
+    // State management
+    const state = {
+      allOrders: [],
+      currentUser: null,
+      currentTab: "all",
+      retryCount: 0,
+      filters: {
+        showOld: false,
+        showCompleted: false,
+        staffFilter: ""
+      },
+      intervals: [],
+      staffMembers: [],
+      lastOrderHash: null,
+      lastRefreshTime: 0,
+      minRefreshInterval: 5000,
+      coupons: []
+    };
+
+    // First full load
+    async function loadInitialOrders() {
+      try {
+        const data = await api.fetchOrders();
+        state.allOrders = Array.isArray(data) ? data : [];
+        console.log('📦 Initial orders loaded:', state.allOrders.length);
+
+        // Initialize search immediately after orders load
+        initializeSearch();
+
+        // Apply any existing search query
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+      } catch (err) {
+        state.allOrders = [];
+        document.getElementById("orderGrid").innerHTML = "<p>⚠️ Failed to load orders.</p>";
+        console.error("❌ Failed to load initial orders:", err);
+      }
+    }
+
+    // Handle incoming order updates
+    function handleOrderUpdate(updatedOrder) {
+      console.log('🔄 Processing order update:', updatedOrder);
+
+      // Update order in state
+      const index = state.allOrders.findIndex(order => order.id === updatedOrder.id);
+      if (index !== -1) {
+        state.allOrders[index] = updatedOrder;
+      } else {
+        state.allOrders.unshift(updatedOrder);
+      }
+
+      // Get the existing card
+      const orderCard = document.querySelector(`[data-order-id="${updatedOrder.id}"]`);
+      if (!orderCard) {
+        console.log(`Card not found for order ${updatedOrder.id}, refreshing view...`);
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+        return;
+      }
+
+      // Handle claimed tab visibility
+      if (state.currentTab === "claimed") {
+        const assignedStaffList = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
+        const shouldBeVisible = (
+          (updatedOrder.claimed_by === state.currentUser || assignedStaffList.includes(state.currentUser)) &&
+          updatedOrder.status?.toLowerCase() !== "completed"
+        );
+        
+        if (!shouldBeVisible) {
+          console.log(`Removing card ${updatedOrder.id} from claimed view`);
+          orderCard.style.transition = "all 0.3s ease";
+          orderCard.style.opacity = "0";
+          orderCard.style.transform = "scale(0.9)";
+          setTimeout(() => {
+            if (orderCard.isConnected) {
+              orderCard.remove();
+            }
+          }, 300);
+          return;
+        }
+      }
+
+      // Update status dropdown
+      const statusDropdown = orderCard.querySelector('.status-dropdown');
+      if (statusDropdown) {
+        const newStatus = updatedOrder.status || 'pending';
+        console.log(`Updating status for order ${updatedOrder.id} to:`, newStatus);
+        statusDropdown.value = newStatus;
+        statusDropdown.dataset.previousValue = newStatus;
+        applyStatusColor(statusDropdown, newStatus);
+      }
+
+      // Update claim/unclaim button
+      const actionBtn = orderCard.querySelector('.action-button:not(.save-notes-btn)');
+      if (actionBtn) {
+        if (updatedOrder.status?.toLowerCase() === 'completed') {
+          // Replace with completed label
+          const completedLabel = document.createElement("button");
+          completedLabel.textContent = "Completed";
+          completedLabel.disabled = true;
+          completedLabel.className = "action-button";
+          completedLabel.style.backgroundColor = "#999";
+          completedLabel.style.color = "#666";
+          completedLabel.style.cursor = "not-allowed";
+          actionBtn.replaceWith(completedLabel);
+        } else if (updatedOrder.claimed_by === state.currentUser) {
+          // Replace with unclaim button if not already an unclaim button
+          if (!actionBtn.textContent.includes('Unclaim')) {
+            actionBtn.replaceWith(createUnclaimButton(updatedOrder));
+          }
+        } else {
+          // Update or replace with claim button
+          const newClaimBtn = document.createElement('button');
+          newClaimBtn.className = 'action-button';
+          
+          if (updatedOrder.claimed_by) {
+            newClaimBtn.textContent = `Claimed by ${updatedOrder.claimed_by}`;
+            newClaimBtn.disabled = true;
+            newClaimBtn.style.backgroundColor = '#999';
+            newClaimBtn.style.cursor = 'not-allowed';
+          } else {
+            newClaimBtn.textContent = 'Claim Order';
+            newClaimBtn.addEventListener('click', async () => {
+              try {
+                newClaimBtn.textContent = 'Claiming...';
+                newClaimBtn.disabled = true;
+                newClaimBtn.classList.add('claiming');
+
+                const response = await api.claimOrder(updatedOrder.id);
+                
+                if (response && response.order) {
+                  Object.assign(updatedOrder, response.order);
+                  updateStaffTagsForOrder(orderCard, [state.currentUser]);
+                  newClaimBtn.replaceWith(createUnclaimButton(updatedOrder));
+                }
+              } catch (err) {
+                console.error(`Failed to claim order ${updatedOrder.id}:`, err);
+                ui.showError(err.message || "Failed to claim order");
+                newClaimBtn.textContent = 'Claim Order';
+                newClaimBtn.disabled = false;
+                newClaimBtn.classList.remove('claiming');
+              }
+            });
+          }
+          
+          actionBtn.replaceWith(newClaimBtn);
+        }
+      }
+
+      // Update staff tags
+      const assignedStaff = updatedOrder.assigned_staff ? updatedOrder.assigned_staff.split(',') : [];
+      updateStaffTagsForOrder(orderCard, assignedStaff);
+
+      // Update other card elements
+      updateCardElements(orderCard, updatedOrder);
+
+      // Update staff notes if they exist
+      let staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
+      let saveNotesBtn = orderCard.querySelector(".save-notes-btn");
+      
+      if (staffNotesEditor && updatedOrder.order_notes !== undefined) {
+        // Only update if the editor is not currently focused (being edited)
+        const isEditorFocused = staffNotesEditor === document.activeElement;
+        const currentValue = staffNotesEditor.value;
+        
+        if (!isEditorFocused) {
+          staffNotesEditor.value = updatedOrder.order_notes || '';
+          staffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+        }
+
+        // Ensure the editor remains editable
+        staffNotesEditor.disabled = false;
+        staffNotesEditor.readOnly = false;
+
+        // Reset save button state
+        if (saveNotesBtn) {
+          const hasChanges = currentValue !== (updatedOrder.order_notes || '');
+          saveNotesBtn.disabled = !hasChanges;
+          
+          if (hasChanges) {
+            saveNotesBtn.textContent = "Save Notes";
+            saveNotesBtn.style.backgroundColor = "#1f6463";
+            saveNotesBtn.style.cursor = "pointer";
+          } else {
+            saveNotesBtn.textContent = "No Changes";
+            saveNotesBtn.style.backgroundColor = "#ccc";
+            saveNotesBtn.style.cursor = "not-allowed";
+          }
+        }
+
+        // Reattach event listeners
+        const reattachListeners = (editor, saveBtn) => {
+          // Clear existing listeners
+          const newEditor = editor.cloneNode(true);
+          editor.parentNode.replaceChild(newEditor, editor);
+
+          // Add input event listener
+          newEditor.addEventListener('input', () => {
+            const currentValue = newEditor.value;
+            const previousValue = newEditor.dataset.previousValue || '';
+            const hasChanges = currentValue !== previousValue;
+            
+            if (saveBtn) {
+              saveBtn.disabled = !hasChanges;
+              if (hasChanges) {
+                saveBtn.textContent = "Save Notes";
+                saveBtn.style.backgroundColor = "#1f6463";
+                saveBtn.style.cursor = "pointer";
+              } else {
+                saveBtn.textContent = "No Changes";
+                saveBtn.style.backgroundColor = "#ccc";
+                saveBtn.style.cursor = "not-allowed";
+              }
+            }
+          });
+
+          // Handle paste and cut events
+          ['paste', 'cut'].forEach(eventName => {
+            newEditor.addEventListener(eventName, () => {
+              setTimeout(() => newEditor.dispatchEvent(new Event('input')), 0);
+            });
+          });
+
+          // Add Ctrl+Enter / Cmd+Enter save shortcut
+          newEditor.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveNotesBtn.disabled) {
+              e.preventDefault();
+              saveNotesBtn.click();
+            }
+          });
+
+          // Update save button click handler
+          if (saveBtn) {
+            const newSaveBtn = saveBtn.cloneNode(true);
+            saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+            
+            newSaveBtn.addEventListener('click', () => {
+              if (newEditor.value !== newEditor.dataset.previousValue) {
+                saveStaffNotes(updatedOrder.id, newEditor.value, newEditor, newSaveBtn);
+              }
+            });
+          }
+
+          return newEditor;
+        };
+
+        // Reattach all listeners
+        staffNotesEditor = reattachListeners(staffNotesEditor, saveNotesBtn);
+      }
+
+      // Store the current state of the staff notes and details section
+      const detailsSection = orderCard.querySelector('.details-section');
+      const isExpanded = detailsSection?.classList.contains('visible');
+      const currentNotesValue = staffNotesEditor ? staffNotesEditor.value : '';
+      const isEditorFocused = staffNotesEditor === document.activeElement;
+      const cursorPosition = staffNotesEditor ? staffNotesEditor.selectionStart : 0;
+
+      // If the card was expanded, we need to re-expand it and restore the staff notes
+      if (isExpanded) {
+        const newDetailsSection = orderCard.querySelector('.details-section');
+        const newToggleBtn = orderCard.querySelector('.details-toggle');
+        const newStaffNotesEditor = orderCard.querySelector('.staff-notes-editor');
+        const newSaveNotesBtn = orderCard.querySelector('.save-notes-btn');
+
+        if (newDetailsSection) {
+          newDetailsSection.classList.add('visible');
+        }
+        
+        if (newToggleBtn) {
+          newToggleBtn.textContent = "Hide ▲";
+        }
+
+        // Always reinitialize the staff notes editor with fresh data
+        if (newStaffNotesEditor) {
+          // If the editor was being edited, preserve the current state
+          if (isEditorFocused) {
+            newStaffNotesEditor.value = currentNotesValue;
+            newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+            setTimeout(() => {
+              newStaffNotesEditor.focus();
+              newStaffNotesEditor.setSelectionRange(cursorPosition, cursorPosition);
+            }, 0);
+          } else {
+            // Otherwise use the latest data from the server
+            newStaffNotesEditor.value = updatedOrder.order_notes || '';
+            newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+          }
+
+          // Ensure the editor is enabled
+          newStaffNotesEditor.disabled = false;
+          newStaffNotesEditor.readOnly = false;
+
+          // Update save button state
+          if (newSaveNotesBtn) {
+            const hasChanges = newStaffNotesEditor.value !== newStaffNotesEditor.dataset.previousValue;
+            newSaveNotesBtn.disabled = !hasChanges;
+            newSaveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+            newSaveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+            newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+          }
+
+          // Reattach all event listeners
+          const reattachEditorListeners = () => {
+            // Clear existing listeners
+            const freshEditor = newStaffNotesEditor.cloneNode(true);
+            newStaffNotesEditor.parentNode.replaceChild(freshEditor, newStaffNotesEditor);
+
+            // Add input event listener
+            freshEditor.addEventListener('input', () => {
+              const hasChanges = freshEditor.value !== freshEditor.dataset.previousValue;
+              if (newSaveNotesBtn) {
+                newSaveNotesBtn.disabled = !hasChanges;
+                newSaveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+                newSaveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+                newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+              }
+            });
+
+            // Handle paste and cut events
+            ['paste', 'cut'].forEach(eventName => {
+              freshEditor.addEventListener(eventName, () => {
+                setTimeout(() => freshEditor.dispatchEvent(new Event('input')), 0);
+              });
+            });
+
+            // Add Ctrl+Enter / Cmd+Enter save shortcut
+            freshEditor.addEventListener('keydown', (e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !newSaveNotesBtn?.disabled) {
+                e.preventDefault();
+                newSaveNotesBtn.click();
+              }
+            });
+
+            return freshEditor;
+          };
+
+          // Reattach save button listeners
+          const reattachSaveButtonListeners = () => {
+            if (!newSaveNotesBtn) return;
+
+            const freshSaveBtn = newSaveNotesBtn.cloneNode(true);
+            newSaveNotesBtn.parentNode.replaceChild(freshSaveBtn, newSaveNotesBtn);
+
+            freshSaveBtn.addEventListener('click', () => {
+              const editor = orderCard.querySelector('.staff-notes-editor');
+              if (editor && editor.value !== editor.dataset.previousValue) {
+                saveStaffNotes(updatedOrder.id, editor.value, editor, freshSaveBtn);
+              }
+            });
+
+            return freshSaveBtn;
+          };
+
+          // Apply the reattached listeners
+          const freshEditor = reattachEditorListeners();
+          const freshSaveBtn = reattachSaveButtonListeners();
+
+          // If we were editing, restore focus
+          if (isEditorFocused) {
+            setTimeout(() => {
+              freshEditor.focus();
+              freshEditor.setSelectionRange(cursorPosition, cursorPosition);
+            }, 0);
+          }
+        }
+      }
+    }
+
+    // Helper function to check if an order should be shown based on current filters
+    function shouldShowOrder(order) {
+      const showOld = document.getElementById("showOldToggle").checked;
+      const showCompleted = document.getElementById("showCompletedToggle").checked;
+
+      // Check completed status
+      if (!showCompleted && order.status?.toLowerCase() === 'completed') {
+        return false;
+      }
+
+      // Check age
+      if (!showOld) {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const orderDate = new Date(order.submitted_at);
+        if (orderDate < oneWeekAgo) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    // Helper function to update card elements
+    function updateCardElements(card, order) {
+      // Update price
+      const priceElement = card.querySelector('p');
+      if (priceElement) {
+        priceElement.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : '—'}`;
+      }
+
+      // Update notes if visible
+      const detailsSection = card.querySelector('.details-section');
+      if (detailsSection?.classList.contains('visible')) {
+        const notesCell = [...detailsSection.querySelectorAll('td')].find(td => 
+          td.textContent.trim().startsWith('Staff Notes:')
+        )?.nextElementSibling;
+        if (notesCell) {
+          notesCell.textContent = order.order_notes || '—';
+        }
+
+        // Update last updated by
+        const updatedByCell = [...detailsSection.querySelectorAll('td')].find(td => 
+          td.textContent.trim().startsWith('Last Updated By:')
+        )?.nextElementSibling;
+        if (updatedByCell) {
+          updatedByCell.textContent = order.updated_by || '—';
+        }
+      }
+    }
+
+    // Utility functions
+    const debounce = (func, wait) => {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    };
+
+    const handleError = async (err, operation) => {
+      console.error(`❌ Error during ${operation}:`, err);
+
+      if (err.status === 401) {
+        clearAllIntervals();
+        showLoginOverlay();
+        return;
+      }
+
+      if (state.retryCount < MAX_RETRY_ATTEMPTS) {
+        state.retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 1000 * state.retryCount));
+        return true; // Retry
+      }
+
+      state.retryCount = 0;
+      return false; // Don't retry
+    };
+
+    const clearAllIntervals = () => {
+      state.intervals.forEach(clearInterval);
+      state.intervals = [];
+    };
+
+    // API functions
+    const api = {
+      async fetchOrders() {
+        try {
+          // Get current filter states
+          const showOld = document.getElementById("showOldToggle").checked;
+          const showCompleted = document.getElementById("showCompletedToggle").checked;
+
+          // Build query string
+          const params = new URLSearchParams({
+            showOld: showOld.toString(),
+            showCompleted: showCompleted.toString(),
+            showClaimed: (state.currentTab === "claimed").toString()
+          });
+
+          const url = `/dashboard/data?${params.toString()}`;
+          console.log('🔍 Fetching orders with filters:', { showOld, showCompleted, showClaimed: state.currentTab === "claimed" });
+
+          const res = await fetch(url, { credentials: 'include' });
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+          const data = await res.json();
+          console.log(`📦 Received ${data.length} orders`);
+          return data;
+        } catch (err) {
+          console.error('❌ Failed to fetch orders:', err);
+          return [];
+        }
+      },
+
+      async updateStatus(orderId, status) {
+        try {
+          const res = await fetch("/dashboard/update-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId, status }),
+            credentials: 'include'
+          });
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'updateStatus');
+          throw err;
+        }
+      },
+
+      async assignStaff(orderId, staffName) {
+        try {
+          const res = await fetch("/dashboard/assign-staff", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId, staffName }),
+            credentials: 'include'
+          });
+          
+          if (!res.ok) {
+            const error = new Error(`HTTP error! status: ${res.status}`);
+            error.status = res.status;
+            error.response = res;
+            throw error;
+          }
+          
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'assignStaff');
+          throw err;
+        }
+      },
+
+      async claimOrder(orderId) {
+        try {
+          const res = await fetch("/dashboard/claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId }),
+            credentials: 'include'
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || `HTTP error! status: ${res.status}`);
+          }
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'claimOrder');
+          throw err;
+        }
+      },
+
+      async unclaimOrder(orderId) {
+        try {
+          const res = await fetch("/dashboard/unclaim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId }),
+            credentials: 'include'
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || `HTTP error! status: ${res.status}`);
+          }
+          return await res.json();
+        } catch (err) {
+          await handleError(err, 'unclaimOrder');
+          throw err;
+        }
+      },
+
+      async login(username, password, remember) {
+        try {
+          const formData = new URLSearchParams();
+          formData.append("username", username);
+          formData.append("password", password);
+          if (remember) formData.append("remember", "on");
+
+          const res = await fetch("/dashboard/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: formData.toString(),
+            credentials: 'include'
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({ error: "Login failed" }));
+            throw new Error(data.error || "Login failed");
+          }
+
+          return true;
+        } catch (err) {
+          console.error("Login error:", err);
+          throw err;
+        }
+      },
+
+      async checkSession() {
+        try {
+          const res = await fetch("/dashboard/whoami", { credentials: "include" });
+          if (!res.ok) throw new Error("Session check failed");
+          return await res.json();
+        } catch (err) {
+          console.error("Session check error:", err);
+          throw err;
+        }
+      },
+
+      async getStaffList() {
+        try {
+          const res = await fetch("/dashboard/staff", {
+            credentials: 'include'
+          });
+          if (!res.ok) throw new Error("Failed to fetch staff list");
+          return await res.json();
+        } catch (err) {
+          console.error("Failed to fetch staff list:", err);
+          return [];
+        }
+      }
+    };
+
+    // UI update functions
+    const ui = {
+      updateTabStyles() {
+        const allTab = document.getElementById("tabAll");
+        const claimedTab = document.getElementById("tabClaimed");
+        const couponTab = document.getElementById("tabCoupon");
+        const analyticsTab = document.getElementById("tabAnalytics");
+
+        if (allTab) allTab.style.background = state.currentTab === "all" ? "#1f6463" : "#ccc";
+        if (allTab) allTab.style.color = state.currentTab === "all" ? "white" : "black";
+        
+        if (claimedTab) claimedTab.style.background = state.currentTab === "claimed" ? "#1f6463" : "#ccc";
+        if (claimedTab) claimedTab.style.color = state.currentTab === "claimed" ? "white" : "black";
+
+        if (couponTab) couponTab.style.background = state.currentTab === "coupon" ? "#1f6463" : "#ccc";
+        if (couponTab) couponTab.style.color = state.currentTab === "coupon" ? "white" : "black";
+
+        if (analyticsTab) analyticsTab.style.background = state.currentTab === "analytics" ? "#1f6463" : "#ccc";
+        if (analyticsTab) analyticsTab.style.color = state.currentTab === "analytics" ? "white" : "black";
+      },
+
+      showLoginOverlay() {
+        const overlay = document.getElementById("loginOverlay");
+        if (overlay) overlay.style.display = "flex";
+      },
+
+      hideLoginOverlay() {
+        const overlay = document.getElementById("loginOverlay");
+        if (overlay) overlay.style.display = "none";
+      },
+
+      showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background-color: #ff6b6b;
+          color: white;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          z-index: 1000;
+          animation: slideIn 0.3s ease-out;
+        `;
+        errorDiv.textContent = message;
+        document.body.appendChild(errorDiv);
+        setTimeout(() => {
+          errorDiv.style.animation = 'slideOut 0.3s ease-in';
+          setTimeout(() => errorDiv.remove(), 300);
+        }, 3000);
+      },
+
+      showNotification(message) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background-color: #1f6463;
+          color: white;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          z-index: 1000;
+          animation: slideIn 0.3s ease-out;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          notification.style.animation = 'slideOut 0.3s ease-in';
+          setTimeout(() => notification.remove(), 300);
+        }, 3000);
+      }
+    };
+
+    // Event handlers
+    const handlers = {
+      async onStatusChange(event, orderId) {
+        const newStatus = event.target.value;
+        const previousValue = event.target.dataset.previousValue;
+
+        try {
+          // Update UI immediately
+          applyStatusColor(event.target, newStatus);
+          event.target.dataset.previousValue = newStatus;
+
+          console.log(`🔄 Initiating status change for ${orderId}: ${newStatus}`);
+
+          // Send HTTP request
+          const response = await api.updateStatus(orderId, newStatus);
+          console.log('✅ Status update response:', response);
+
+          // After successful status update, refresh the entire card
+          if (response && response.order) {
+            try {
+              // Get current filter states
+              const showOld = document.getElementById("showOldToggle").checked;
+              const showCompleted = document.getElementById("showCompletedToggle").checked;
+
+              // Build query string
+              const params = new URLSearchParams({
+                showOld: showOld.toString(),
+                showCompleted: showCompleted.toString(),
+                showClaimed: (state.currentTab === "claimed").toString()
+              });
+
+              const ordersResponse = await fetch(`/dashboard/data?${params.toString()}`, {
+                credentials: 'include'
+              });
+              
+              if (!ordersResponse.ok) {
+                throw new Error('Failed to fetch updated orders');
+              }
+              
+              const orders = await ordersResponse.json();
+              
+              // Find the updated order
+              const updatedOrder = orders.find(o => o.id === order.id);
+              if (!updatedOrder) {
+                console.warn('Updated order not found in response');
+                return;
+              }
+
+              // Update order in state
+              const orderIndex = state.allOrders.findIndex(o => o.id === order.id);
+              if (orderIndex !== -1) {
+                state.allOrders[orderIndex] = updatedOrder;
+              }
+              
+              // Find the card in the DOM
+              const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
+              if (!orderCard) {
+                console.warn('Order card not found in DOM');
+                return;
+              }
+
+              // Store the current state of the details section
+              const detailsSection = orderCard.querySelector('.details-section');
+              const isExpanded = detailsSection?.classList.contains('visible');
+              
+              // Store staff notes state if expanded
+              let staffNotesState = null;
+              if (isExpanded) {
+                const staffNotesEditor = orderCard.querySelector('.staff-notes-editor');
+                if (staffNotesEditor) {
+                  staffNotesState = {
+                    value: staffNotesEditor.value,
+                    isEditing: staffNotesEditor === document.activeElement,
+                    cursorPosition: staffNotesEditor.selectionStart,
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FilamentBros Order Dashboard</title>
+  <style>
+    body {
+      font-family: "Roboto", sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background-color: #f5f5f5;
+    }
+
+    h1 {
+      text-align: center;
+      color: #1f6463;
+      margin-bottom: 1rem;
+    }
+
+    .search-container {
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+      margin-bottom: 2rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 0 1rem;
+    }
+
+    .search-container input {
+      width: 100%;
+      max-width: 700px;
+      flex: 1;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      color: #333;
+      position: relative;
+      height: auto;
+      gap: 0.75rem;
+    }
+
+    .card h2 {
+      font-size: 1.2rem;
+      color: #1f6463;
+      margin: 0 0 -0.25rem 0;
+      padding-right: 2rem;
+    }
+
+    .status-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0;
+    }
+
+    .status-dropdown {
+      padding: 0.5rem;
+      border-radius: 1rem;
+      border: 1px solid #ccc;
+      font-size: 0.9rem;
+      min-width: 150px;
+      cursor: pointer;
+    }
+
+    .details-toggle {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #1f6463;
+      background: none;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 0.25rem 0;
+    }
+
+    .details-section {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.6s ease, opacity 0.6s ease;
+      opacity: 0;
+      margin: 0;
+      border-top: 1px solid #eee;
+      padding-top: 0.75rem;
+    }
+
+    .details-section.visible {
+      max-height: 1000px;
+      opacity: 1;
+      margin-top: 0.5rem;
+    }
+
+    .details-table {
+      width: 100%;
+      font-size: 0.9rem;
+      border-spacing: 0 0.75rem;
+      table-layout: fixed;
+    }
+
+    .details-table td:first-child {
+      width: 120px;
+      color: #666;
+      vertical-align: top;
+      padding-right: 1rem;
+    }
+
+    .assigned-price-input {
+      width: 120px;
+      padding: 0.4rem 0.4rem 0.4rem 1.5rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .assigned-price-input:focus {
+      border-color: #1f6463;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
+    }
+
+    .price-input-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .dollar-sign {
+      position: absolute;
+      left: 0.5rem;
+      top: 0.4rem;
+      color: #666;
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+
+    .save-price-btn {
+      padding: 0.3rem 0.6rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background-color 0.2s ease;
+      width: 120px;
+    }
+
+    .save-price-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .details-divider {
+      border-top: 1px solid #eee;
+      margin: 1rem 0;
+      width: 100%;
+    }
+
+    .staff-selection-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 0;
+    }
+
+    .staff-tags-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      background-color: #f5f5f5;
+      margin-top: 0.25rem;
+    }
+
+    .staff-tag {
+      background-color: #e0e0e0;
+      color: #333;
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+      font-size: 0.9rem;
+    }
+
+    .staff-notes-editor {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      margin: 0.5rem 0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+      background-color: #fff;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-sizing: border-box;
+      line-height: 1.4;
+    }
+
+    .save-notes-btn {
+      padding: 0.4rem 0.8rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background-color 0.2s ease;
+      margin-bottom: 0.5rem;
+    }
+
+    .save-notes-btn:disabled {
+      background-color: #ccc;
+      color: white;
+      cursor: not-allowed;
+    }
+
+    .order-id {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid #ddd;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #666;
+      font-weight: bold;
+    }
+
+    .action-button {
+      border: none;
+      color: #333;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      margin-top: 0.25rem;
+      transition: all 0.2s ease;
+      background-color: #ccc;
+      cursor: pointer;
+      width: 100%;
+      font-size: 0.9rem;
+    }
+
+    .card ul {
+      padding-left: 1rem;
+      margin: 0;
+      font-size: 0.95rem;
+      list-style: disc;
+    }
+
+    .card:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+      transform: translateY(-3px);
+      transition: 0.2s ease;
+    }
+
+    .card ul li {
+      margin-bottom: 0.5rem;
+    }
+
+    .stl-header {
+      font-weight: bold;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stl-list {
+      padding-left: 1.2rem;
+      list-style-type: disc;
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+    }
+
+    .stl-list li {
+      font-size: 0.9rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .stl-link {
+      display: block;
+      max-width: 100%;
+      color: #1f6463;
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: normal;
+      word-break: break-word;
+      /* Ensures long words break cleanly */
+    }
+
+    .download-all-btn {
+      margin-top: 0.25rem;
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      background-color: #1f6463;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .status-submitted {
+      background-color: #1f6463;
+    }
+
+    .status-complete {
+      background-color: #5cb85c;
+    }
+
+    .status-failed {
+      background-color: #d9534f;
+    }
+
+    .status-pending {
+      background-color: #ff6e5f;
+      color: #000;
+    }
+
+    .status-pre-print {
+      background-color: #ffaea5;
+      color: #000;
+    }
+
+    .status-printing {
+      background-color: #f4d03f;
+      color: #000;
+    }
+
+    .status-printing-pay-later {
+      background-color: #f4d03f;
+      color: #000;
+    }
+
+    .status-completed {
+      background-color: #2ecc71;
+      color: #000;
+    }
+
+    .toggle-wrapper {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .toggle-wrapper input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.3s;
+      border-radius: 24px;
+    }
+
+    .slider::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    .toggle-wrapper input:checked+.slider {
+      background-color: #1f6463;
+    }
+
+    .toggle-wrapper input:checked+.slider::before {
+      transform: translateX(20px);
+    }
+
+    .toggle-label {
+      font-size: 0.9rem;
+      margin-left: 0.5rem;
+      line-height: 24px;
+      color: #333;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-direction: column;
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .login-box {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .login-box input[type="text"],
+    .login-box input[type="password"] {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+      box-sizing: border-box;
+      /* ✅ prevents padding from adding to width */
+    }
+
+    .login-box button {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+
+    .login-box .remember-line {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      justify-content: left;
+    }
+
+    .toggles-wrapper {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .search-input-wrapper {
+      flex-grow: 1;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .search-bar-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 2rem;
+      height: 3.5rem;
+    }
+
+    .toggles-wrapper {
+      position: absolute;
+      left: 0;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      padding-left: 1rem;
+    }
+
+    .centered-search {
+      max-width: 700px;
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5rem;
+    }
+
+    .search-bar-flex {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+      width: 100%;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 0 1rem;
+    }
+
+    .left-toggles {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .center-search {
+      flex-grow: 1;
+      max-width: 700px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .center-search input {
+      width: 100%;
+      max-width: 700px;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5rem;
+      outline: none;
+    }
+
+    .center-search input:focus {
+      border-color: #1f6463;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+
+    .status-history {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .status-history-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .status-history-item:last-child {
+      border-bottom: none;
+    }
+
+    .staff-notes-editor:focus {
+      border-color: #1f6463;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
+    }
+
+    .save-notes-btn:hover:not(:disabled) {
+      background-color: #184f4e;
+    }
+
+    .save-notes-btn:disabled {
+      background-color: #ccc;
+      color: white;
+      cursor: not-allowed;
+    }
+
+    /* Style for customer notes */
+    .details-table tr:first-child td:last-child {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-style: italic;
+      color: #666;
+      background-color: #f9f9f9;
+      border-radius: 0.3rem;
+      padding: 0.75rem;
+      min-height: 2.5rem;
+      line-height: 1.4;
+      border: 1px solid #eee;
+    }
+
+    /* Style for staff notes */
+    .staff-notes-editor {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      margin: 0.5rem 0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+      background-color: #fff;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-sizing: border-box;
+      line-height: 1.4;
+    }
+
+    /* Dark mode support */
+    .dark-mode .details-table tr:first-child td:last-child {
+      background-color: #2d2d2d;
+      border-color: #444;
+      color: #aaa;
+    }
+
+    .dark-mode .staff-notes-editor {
+      background-color: #2d2d2d;
+      color: #fff;
+      border-color: #444;
+    }
+
+    .dark-mode .status-dropdown {
+      background-color: #3d3d3d;
+      color: #fff;
+      border-color: #4d4d4d;
+    }
+
+    .dark-mode .staff-notes-editor {
+      background-color: #3d3d3d;
+      color: #fff;
+      border-color: #4d4d4d;
+    }
+
+    .dark-mode-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .priority-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.3rem;
+      font-size: 0.8rem;
+      margin-left: 0.5rem;
+    }
+
+    .priority-high {
+      background-color: #ff4444;
+      color: white;
+    }
+
+    .priority-medium {
+      background-color: #ffbb33;
+      color: black;
+    }
+
+    .priority-low {
+      background-color: #00C851;
+      color: white;
+    }
+
+    .tab-container {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      position: relative;
+      z-index: 100;
+    }
+
+    .tab-button {
+      padding: 0.6rem 1rem;
+      border-radius: 1rem;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      user-select: none;
+      pointer-events: auto;
+    }
+
+    .tab-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .tab-button:active {
+      transform: translateY(0);
+    }
+
+    .tab-button.active {
+      background-color: #1f6463;
+      color: white;
+    }
+
+    .tab-button.inactive {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .tab-button.coupon {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .tab-button.coupon.active {
+      background-color: #1f6463;
+      color: white;
+    }
+
+    .tab-button.analytics {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .tab-button.analytics.active {
+      background-color: #1f6463;
+      color: white;
+    }
+
+    /* Add consistent button styles */
+    .action-button {
+      border: none;
+      color: #333;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      margin-top: 0.25rem;
+      transition: all 0.2s ease;
+      background-color: #ccc;
+      cursor: pointer;
+    }
+
+    .action-button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    .action-button.claiming,
+    .action-button.unclaiming {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    /* Add styles for the staff list display */
+    .assigned-staff-list {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .staff-tag {
+      background-color: #e0e0e0;
+      color: #333;
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .staff-tag.selected {
+      background-color: #1f6463;
+      color: white;
+      transform: scale(1.02);
+    }
+
+    .staff-tag:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .staff-tag:active {
+      transform: scale(0.98);
+    }
+
+    .staff-selection-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .staff-tags-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      background-color: #f5f5f5;
+    }
+
+    /* Replace the old staff dropdown styles */
+    .staff-dropdown {
+      padding: 0.5rem;
+      border-radius: 1rem;
+      border: 1px solid #ccc;
+      font-size: 0.9rem;
+      min-width: 150px;
+      cursor: pointer;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      transition: opacity 0.2s ease;
+      z-index: 1;
+    }
+
+    .delete-btn:hover {
+      opacity: 1;
+    }
+
+    .delete-confirmation-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .delete-confirmation-box {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .delete-confirmation-box h3 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    .delete-confirmation-box p {
+      margin: 1rem 0;
+      color: #666;
+    }
+
+    .delete-confirmation-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .delete-confirm-btn {
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .delete-cancel-btn {
+      background-color: #ccc;
+      color: #333;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .delete-confirm-btn:hover {
+      background-color: #ff2222;
+    }
+
+    .delete-cancel-btn:hover {
+      background-color: #bbb;
+    }
+
+    .order-card {
+      transition: background-color 0.3s ease;
+    }
+    .updated {
+      background-color: rgba(255, 255, 0, 0.1) !important;
+    }
+    .submission-time {
+      color: #666;
+      font-size: 0.9em;
+      margin-top: 4px;
+    }
+    .assigned-staff {
+      font-weight: bold;
+      color: #2196F3;
+    }
+    .error-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #ff5252;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      z-index: 9999;
+    }
+    .error-banner button {
+      margin-left: 1rem;
+      padding: 0.5rem 1rem;
+      background: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .coupon-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .coupon-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    
+    .coupon-header h2 {
+      color: #1f6463;
+      margin: 0 0 0.5rem 0;
+      font-size: 2.5rem;
+      font-weight: 300;
+    }
+    
+    .coupon-subtitle {
+      color: #666;
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    
+    .coupon-layout {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 3rem;
+      align-items: start;
+    }
+    
+    .coupon-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+    
+    .coupon-form {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      padding: 2rem;
+      border: 1px solid #e8f4f4;
+    }
+    
+    .coupon-form h3 {
+      margin: 0 0 1.5rem 0;
+      color: #1f6463;
+      font-size: 1.3rem;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      font-weight: 600;
+      color: #333;
+      font-size: 0.9rem;
+    }
+    
+    .optional {
+      color: #999;
+      font-weight: normal;
+    }
+    
+    .form-group input,
+    .form-group select {
+      padding: 0.875rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: #1f6463;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(31, 100, 99, 0.1);
+    }
+    
+    .form-help {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 0.25rem;
+    }
+    
+    .create-coupon-btn {
+      background: linear-gradient(135deg, #1f6463 0%, #2a7a78 100%);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    
+    .create-coupon-btn:hover {
+      background: linear-gradient(135deg, #184f4e 0%, #1e5f5d 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(31, 100, 99, 0.3);
+    }
+    
+    .create-coupon-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .btn-icon {
+      font-size: 1.1em;
+    }
+    
+    .coupon-log-section {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      padding: 2rem;
+      border: 1px solid #e8f4f4;
+    }
+    
+    .coupon-log-section h3 {
+      margin: 0 0 1rem 0;
+      color: #1f6463;
+      font-size: 1.2rem;
+    }
+    
+    .coming-soon {
+      font-size: 0.8rem;
+      color: #999;
+      font-weight: normal;
+    }
+    
+    .usage-log-placeholder {
+      text-align: center;
+      padding: 2rem;
+      color: #999;
+      border: 2px dashed #e0e0e0;
+      border-radius: 0.5rem;
+    }
+    
+    .usage-log-placeholder p {
+      margin: 0 0 0.5rem 0;
+      font-weight: 500;
+    }
+    
+    .usage-log-placeholder small {
+      font-size: 0.85rem;
+    }
+    
+    .coupon-main {
+      min-height: 600px;
+    }
+    
+    .coupons-list {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      padding: 2rem;
+      border: 1px solid #e8f4f4;
+      min-height: 100%;
+    }
+    
+    .coupons-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .coupons-header h3 {
+      margin: 0;
+      color: #1f6463;
+      font-size: 1.3rem;
+    }
+    
+    .coupons-stats {
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    .coupon-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+    
+    .coupon-card {
+      background: #f8fffe;
+      border: 2px solid #e8f4f4;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    .coupon-card:hover {
+      border-color: #1f6463;
+      box-shadow: 0 8px 25px rgba(31, 100, 99, 0.15);
+      transform: translateY(-2px);
+    }
+    
+    .coupon-card.deleting {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    .coupon-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+      gap: 1rem;
+    }
+    
+    .coupon-code {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #1f6463;
+      font-family: 'Monaco', 'Consolas', monospace;
+      background: #e8f4f4;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 2px solid #d1eeec;
+      flex-shrink: 0;
+    }
+    
+    .coupon-status {
+      padding: 0.4rem 0.8rem;
+      border-radius: 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    
+    .coupon-status.active {
+      background: #d4edda;
+      color: #155724;
+      border: 2px solid #c3e6cb;
+    }
+    
+    .coupon-status.exhausted {
+      background: #f8d7da;
+      color: #721c24;
+      border: 2px solid #f5c6cb;
+    }
+    
+    .coupon-discount {
+      margin-bottom: 1.2rem;
+      padding: 0.5rem 0;
+    }
+    
+    .discount-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #2a7a78;
+      margin-right: 0.5rem;
+      display: inline-block;
+    }
+    
+    .discount-type {
+      color: #666;
+      font-size: 1rem;
+      text-transform: capitalize;
+      font-weight: 500;
+    }
+    
+    .coupon-usage-info {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: #f0f9f9;
+      border-radius: 0.5rem;
+      border: 1px solid #d1eeec;
+    }
+    
+    .usage-text {
+      color: #2a7a78;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    
+    .usage-bar {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .usage-progress {
+      height: 100%;
+      background: linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 80%, #dc3545 100%);
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+    
+    .coupon-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+    
+    .coupon-btn {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border: 2px solid transparent;
+    }
+    
+    .edit-btn {
+      background: #f8f9fa;
+      color: #6c757d;
+      border-color: #e9ecef;
+    }
+    
+    .edit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .edit-btn:hover:not(:disabled) {
+      background: #e9ecef;
+      border-color: #dee2e6;
+    }
+    
+    .coupon-btn.delete-btn {
+      background: #fff5f5;
+      color: #e53e3e;
+      border-color: #fed7d7;
+    }
+    
+    .coupon-btn.delete-btn:hover:not(:disabled) {
+      background: #e53e3e;
+      color: white;
+      border-color: #e53e3e;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(229, 62, 62, 0.3);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #666;
+    }
+    
+    .empty-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+    
+    .empty-state h4 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.3rem;
+      color: #333;
+    }
+    
+    .empty-state p {
+      margin: 0;
+      font-size: 1rem;
+    }
+    
+    .loading-placeholder {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #666;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #1f6463;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.2s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      max-width: 500px;
+      width: 90%;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from { 
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+      }
+      to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 2rem 1rem 2rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .modal-header h3 {
+      margin: 0;
+      color: #1f6463;
+      font-size: 1.3rem;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #999;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-close:hover {
+      background: #f0f0f0;
+      color: #666;
+    }
+    
+    .modal-body {
+      padding: 2rem;
+      text-align: center;
+    }
+    
+    .warning-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    
+    .modal-body p {
+      margin: 0 0 1rem 0;
+      color: #333;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    
+    .warning-text {
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    .modal-footer {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 2rem 2rem 2rem;
+    }
+    
+    .modal-btn {
+      flex: 1;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-btn.cancel-btn {
+      background: #f8f9fa;
+      color: #6c757d;
+      border: 2px solid #e9ecef;
+    }
+    
+    .modal-btn.cancel-btn:hover {
+      background: #e9ecef;
+      border-color: #dee2e6;
+    }
+    
+    .modal-btn.delete-btn {
+      background: #e53e3e;
+      color: white;
+      border: 2px solid #e53e3e;
+    }
+    
+    .modal-btn.delete-btn:hover {
       background: #c53030;
       border-color: #c53030;
     }
@@ -5236,7 +10104,7 @@
       .coupon-grid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 1rem;
+        gap: 1.5rem;
       }
       .coupon-card {
         background: #f9f9f9;
