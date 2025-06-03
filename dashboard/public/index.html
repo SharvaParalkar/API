@@ -3980,6 +3980,176 @@
         }
       }
     }
+
+    // SSE Connection Management
+    class EventSourceManager {
+      constructor() {
+        this.eventSource = null;
+        this.lastSequence = 0;
+        this.connectionAttempts = 0;
+        this.maxRetries = 5;
+        this.retryDelay = 1000;
+        this.connect();
+      }
+
+      connect() {
+        if (this.eventSource) {
+          this.eventSource.close();
+        }
+
+        this.eventSource = new EventSource('/dashboard/updates');
+        
+        this.eventSource.addEventListener('connect', (e) => {
+          console.log('Connected to SSE');
+          this.connectionAttempts = 0;
+          const data = JSON.parse(e.data);
+          this.connectionId = data.id;
+          // Force refresh data on new connection
+          fetchAndUpdateOrders();
+        });
+
+        this.eventSource.addEventListener('heartbeat', (e) => {
+          // Update last seen timestamp
+          this.lastHeartbeat = Date.now();
+        });
+
+        this.eventSource.addEventListener('orderUpdate', (e) => {
+          const update = JSON.parse(e.data);
+          
+          // Check sequence number to ensure we haven't missed any updates
+          if (update.sequence && update.sequence !== this.lastSequence + 1) {
+            console.warn('Detected missed updates, refreshing all data...');
+            fetchAndUpdateOrders();
+            return;
+          }
+          
+          this.lastSequence = update.sequence || this.lastSequence;
+          
+          // Handle the update based on type
+          switch (update.type) {
+            case 'new':
+            case 'status':
+            case 'claim':
+            case 'unclaim':
+            case 'staff':
+            case 'price':
+            case 'notes':
+              handleOrderUpdate(update);
+              break;
+            case 'delete':
+              handleOrderDeletion(update);
+              break;
+          }
+        });
+
+        this.eventSource.onerror = (error) => {
+          console.error('SSE Connection Error:', error);
+          this.eventSource.close();
+          
+          if (this.connectionAttempts < this.maxRetries) {
+            this.connectionAttempts++;
+            setTimeout(() => this.connect(), this.retryDelay * this.connectionAttempts);
+          } else {
+            console.error('Max reconnection attempts reached');
+            showReconnectionError();
+          }
+        };
+      }
+    }
+
+    // Initialize SSE manager
+    const eventManager = new EventSourceManager();
+
+    // Periodic health check
+    setInterval(() => {
+      if (eventManager.lastHeartbeat && Date.now() - eventManager.lastHeartbeat > 45000) {
+        console.warn('No heartbeat received, reconnecting...');
+        eventManager.connect();
+      }
+    }, 15000);
+
+    // Handle order updates
+    function handleOrderUpdate(update) {
+      const { order, type } = update;
+      
+      // Find existing order in the UI
+      const existingOrder = document.querySelector(`[data-order-id="${order.id}"]`);
+      
+      if (existingOrder) {
+        // Update existing order
+        updateOrderUI(existingOrder, order);
+      } else if (type === 'new') {
+        // Add new order to the list
+        addNewOrderToUI(order);
+      } else {
+        // If we can't find the order but should, refresh all data
+        console.warn('Order not found in UI, refreshing...');
+        fetchAndUpdateOrders();
+      }
+    }
+
+    // Handle order deletion
+    function handleOrderDeletion(update) {
+      const orderElement = document.querySelector(`[data-order-id="${update.orderId}"]`);
+      if (orderElement) {
+        orderElement.remove();
+      }
+    }
+
+    // Show reconnection error
+    function showReconnectionError() {
+      const errorBanner = document.createElement('div');
+      errorBanner.className = 'error-banner';
+      errorBanner.innerHTML = `
+        <p>Lost connection to server. Please refresh the page.</p>
+        <button onclick="window.location.reload()">Refresh Now</button>
+      `;
+      document.body.prepend(errorBanner);
+    }
+
+    // Fetch and update all orders
+    async function fetchAndUpdateOrders() {
+      try {
+        const response = await fetch('/dashboard/data' + window.location.search);
+        if (!response.ok) throw new Error('Failed to fetch orders');
+        const orders = await response.json();
+        updateAllOrders(orders);
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+      }
+    }
+
+    // Update all orders in the UI
+    function updateAllOrders(orders) {
+      const ordersList = document.querySelector('#orders-list');
+      ordersList.innerHTML = ''; // Clear existing
+      orders.forEach(order => addNewOrderToUI(order));
+    }
+
+    // Add styles for error banner
+    const styles = document.createElement('style');
+    styles.textContent = `
+      .error-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #ff5252;
+        color: white;
+        padding: 1rem;
+        text-align: center;
+        z-index: 9999;
+      }
+      .error-banner button {
+        margin-left: 1rem;
+        padding: 0.5rem 1rem;
+        background: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+    `;
+    document.head.appendChild(styles);
   </script>
 
   <div id="loginOverlay" class="login-overlay">

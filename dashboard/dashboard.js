@@ -407,25 +407,75 @@ app.get('/dashboard/updates', requireLogin, (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   
-  // Send initial heartbeat
-  res.write('event: heartbeat\ndata: connected\n\n');
+  // Send initial connection ID and timestamp
+  const connectionId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+  res.write(`event: connect\ndata: {"id":"${connectionId}","time":${Date.now()}}\n\n`);
   
-  // Add client to the set
-  clients.add(res);
+  // Send heartbeat every 30 seconds
+  const heartbeat = setInterval(() => {
+    res.write(`event: heartbeat\ndata: ${Date.now()}\n\n`);
+  }, 30000);
+  
+  // Add client to the set with metadata
+  const client = {
+    res,
+    id: connectionId,
+    lastSeen: Date.now()
+  };
+  clients.add(client);
   
   // Remove client when connection closes
   req.on('close', () => {
-    clients.delete(res);
+    clearInterval(heartbeat);
+    clients.delete(client);
+    console.log(`Client disconnected: ${connectionId}`);
   });
 });
 
-// Helper function to broadcast updates to all connected clients
+// Enhanced broadcast function with retry logic
 function broadcastUpdate(eventType, data) {
-  const eventData = JSON.stringify(data);
+  const eventData = JSON.stringify({
+    ...data,
+    timestamp: Date.now(),
+    sequence: global.updateSequence = (global.updateSequence || 0) + 1
+  });
+
+  const deadClients = new Set();
+  
   clients.forEach(client => {
-    client.write(`event: ${eventType}\ndata: ${eventData}\n\n`);
+    try {
+      client.res.write(`event: ${eventType}\ndata: ${eventData}\n\n`);
+      client.lastSeen = Date.now();
+    } catch (err) {
+      console.error(`Failed to send to client ${client.id}:`, err);
+      deadClients.add(client);
+    }
+  });
+  
+  // Clean up dead clients
+  deadClients.forEach(client => {
+    clients.delete(client);
+    console.log(`Removed dead client: ${client.id}`);
   });
 }
+
+// Periodic check for stale connections
+setInterval(() => {
+  const now = Date.now();
+  const staleTimeout = 70000; // Consider connections stale after 70 seconds
+  
+  const deadClients = new Set();
+  clients.forEach(client => {
+    if (now - client.lastSeen > staleTimeout) {
+      deadClients.add(client);
+    }
+  });
+  
+  deadClients.forEach(client => {
+    clients.delete(client);
+    console.log(`Removed stale client: ${client.id}`);
+  });
+}, 60000);
 
 // Watch for new orders
 let lastOrderId = null;
