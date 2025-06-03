@@ -1620,12 +1620,129 @@
           const response = await api.updateStatus(orderId, newStatus);
           console.log('✅ Status update response:', response);
 
+          // After successful status update, refresh the entire card
+          if (response && response.order) {
+            try {
+              // Get current filter states
+              const showOld = document.getElementById("showOldToggle").checked;
+              const showCompleted = document.getElementById("showCompletedToggle").checked;
+
+              // Build query string
+              const params = new URLSearchParams({
+                showOld: showOld.toString(),
+                showCompleted: showCompleted.toString(),
+                showClaimed: (state.currentTab === "claimed").toString()
+              });
+
+              const ordersResponse = await fetch(`/dashboard/data?${params.toString()}`, {
+                credentials: 'include'
+              });
+              
+              if (!ordersResponse.ok) {
+                throw new Error('Failed to fetch updated orders');
+              }
+              
+              const orders = await ordersResponse.json();
+              
+              // Find the updated order
+              const updatedOrder = orders.find(o => o.id === order.id);
+              if (!updatedOrder) {
+                console.warn('Updated order not found in response');
+                return;
+              }
+
+              // Update order in state
+              const orderIndex = state.allOrders.findIndex(o => o.id === order.id);
+              if (orderIndex !== -1) {
+                state.allOrders[orderIndex] = updatedOrder;
+              }
+              
+              // Find the card in the DOM
+              const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
+              if (!orderCard) {
+                console.warn('Order card not found in DOM');
+                return;
+              }
+
+              // Store the current state of the details section
+              const detailsSection = orderCard.querySelector('.details-section');
+              const isExpanded = detailsSection?.classList.contains('visible');
+              
+              // Store staff notes state if expanded
+              let staffNotesState = null;
+              if (isExpanded) {
+                const staffNotesEditor = orderCard.querySelector('.staff-notes-editor');
+                if (staffNotesEditor) {
+                  staffNotesState = {
+                    value: staffNotesEditor.value,
+                    isEditing: staffNotesEditor === document.activeElement,
+                    cursorPosition: staffNotesEditor.selectionStart,
+                    previousValue: staffNotesEditor.dataset.previousValue
+                  };
+                }
+              }
+              
+              // Create a temporary container
+              const tempContainer = document.createElement('div');
+              
+              // Render a single order into the temporary container
+              await renderOrders([updatedOrder], isExpanded, tempContainer);
+              
+              // Get the newly rendered card
+              const newCard = tempContainer.firstChild;
+              if (!newCard) {
+                console.warn('Failed to render new card');
+                return;
+              }
+              
+              // Replace the old card with the new one
+              if (orderCard.parentNode) {
+                orderCard.parentNode.replaceChild(newCard, orderCard);
+                
+                // If it was expanded and had staff notes being edited, restore that state
+                if (staffNotesState) {
+                  const newEditor = newCard.querySelector('.staff-notes-editor');
+                  if (newEditor) {
+                    newEditor.value = staffNotesState.value;
+                    newEditor.dataset.previousValue = staffNotesState.previousValue;
+                    
+                    if (staffNotesState.isEditing) {
+                      setTimeout(() => {
+                        newEditor.focus();
+                        newEditor.setSelectionRange(
+                          staffNotesState.cursorPosition, 
+                          staffNotesState.cursorPosition
+                        );
+                      }, 0);
+                    }
+
+                    // Update save button state
+                    const saveBtn = newCard.querySelector('.save-notes-btn');
+                    if (saveBtn) {
+                      const hasChanges = newEditor.value !== newEditor.dataset.previousValue;
+                      saveBtn.disabled = !hasChanges;
+                      saveBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+                      saveBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+                      saveBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+                    }
+                  }
+                }
+                
+                console.log('Successfully refreshed order card after status change');
+              }
+            } catch (refreshError) {
+              console.error('Failed to refresh card:', refreshError);
+              // Even if refresh fails, the status change was successful
+              // Just update the status color
+              applyStatusColor(statusDropdown, newStatus);
+            }
+          }
         } catch (err) {
           console.error(`❌ Failed to update status:`, err);
           // Revert on error
-          event.target.value = previousValue;
-          applyStatusColor(event.target, previousValue);
-          event.target.dataset.previousValue = previousValue;
+          statusDropdown.value = previousValue;
+          applyStatusColor(statusDropdown, previousValue);
+          statusDropdown.dataset.previousValue = previousValue;
           ui.showError(`Failed to update status: ${err.message}`);
         }
       },
@@ -2233,6 +2350,123 @@
             const response = await api.updateStatus(order.id, newStatus);
             console.log('✅ Status update response:', response);
 
+            // After successful status update, refresh the entire card
+            if (response && response.order) {
+              try {
+                // Get current filter states
+                const showOld = document.getElementById("showOldToggle").checked;
+                const showCompleted = document.getElementById("showCompletedToggle").checked;
+
+                // Build query string
+                const params = new URLSearchParams({
+                  showOld: showOld.toString(),
+                  showCompleted: showCompleted.toString(),
+                  showClaimed: (state.currentTab === "claimed").toString()
+                });
+
+                const ordersResponse = await fetch(`/dashboard/data?${params.toString()}`, {
+                  credentials: 'include'
+                });
+                
+                if (!ordersResponse.ok) {
+                  throw new Error('Failed to fetch updated orders');
+                }
+                
+                const orders = await ordersResponse.json();
+                
+                // Find the updated order
+                const updatedOrder = orders.find(o => o.id === order.id);
+                if (!updatedOrder) {
+                  console.warn('Updated order not found in response');
+                  return;
+                }
+
+                // Update order in state
+                const orderIndex = state.allOrders.findIndex(o => o.id === order.id);
+                if (orderIndex !== -1) {
+                  state.allOrders[orderIndex] = updatedOrder;
+                }
+                
+                // Find the card in the DOM
+                const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
+                if (!orderCard) {
+                  console.warn('Order card not found in DOM');
+                  return;
+                }
+
+                // Store the current state of the details section
+                const detailsSection = orderCard.querySelector('.details-section');
+                const isExpanded = detailsSection?.classList.contains('visible');
+                
+                // Store staff notes state if expanded
+                let staffNotesState = null;
+                if (isExpanded) {
+                  const staffNotesEditor = orderCard.querySelector('.staff-notes-editor');
+                  if (staffNotesEditor) {
+                    staffNotesState = {
+                      value: staffNotesEditor.value,
+                      isEditing: staffNotesEditor === document.activeElement,
+                      cursorPosition: staffNotesEditor.selectionStart,
+                      previousValue: staffNotesEditor.dataset.previousValue
+                    };
+                  }
+                }
+                
+                // Create a temporary container
+                const tempContainer = document.createElement('div');
+                
+                // Render a single order into the temporary container
+                await renderOrders([updatedOrder], isExpanded, tempContainer);
+                
+                // Get the newly rendered card
+                const newCard = tempContainer.firstChild;
+                if (!newCard) {
+                  console.warn('Failed to render new card');
+                  return;
+                }
+                
+                // Replace the old card with the new one
+                if (orderCard.parentNode) {
+                  orderCard.parentNode.replaceChild(newCard, orderCard);
+                  
+                  // If it was expanded and had staff notes being edited, restore that state
+                  if (staffNotesState) {
+                    const newEditor = newCard.querySelector('.staff-notes-editor');
+                    if (newEditor) {
+                      newEditor.value = staffNotesState.value;
+                      newEditor.dataset.previousValue = staffNotesState.previousValue;
+                      
+                      if (staffNotesState.isEditing) {
+                        setTimeout(() => {
+                          newEditor.focus();
+                          newEditor.setSelectionRange(
+                            staffNotesState.cursorPosition, 
+                            staffNotesState.cursorPosition
+                          );
+                        }, 0);
+                      }
+
+                      // Update save button state
+                      const saveBtn = newCard.querySelector('.save-notes-btn');
+                      if (saveBtn) {
+                        const hasChanges = newEditor.value !== newEditor.dataset.previousValue;
+                        saveBtn.disabled = !hasChanges;
+                        saveBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+                        saveBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+                        saveBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+                      }
+                    }
+                  }
+                  
+                  console.log('Successfully refreshed order card after status change');
+                }
+              } catch (refreshError) {
+                console.error('Failed to refresh card:', refreshError);
+                // Even if refresh fails, the status change was successful
+                // Just update the status color
+                applyStatusColor(statusDropdown, newStatus);
+              }
+            }
           } catch (err) {
             console.error(`❌ Failed to update status:`, err);
             // Revert on error
