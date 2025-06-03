@@ -952,6 +952,22 @@
     .delete-cancel-btn:hover {
       background-color: #bbb;
     }
+
+    .order-card {
+      transition: background-color 0.3s ease;
+    }
+    .updated {
+      background-color: rgba(255, 255, 0, 0.1) !important;
+    }
+    .submission-time {
+      color: #666;
+      font-size: 0.9em;
+      margin-top: 4px;
+    }
+    .assigned-staff {
+      font-weight: bold;
+      color: #2196F3;
+    }
   </style>
 </head>
 
@@ -4070,14 +4086,14 @@
 
     // Handle order updates
     function handleOrderUpdate(update) {
-      const { order, type } = update;
+      const { order, type, metadata } = update;
       
       // Find existing order in the UI
       const existingOrder = document.querySelector(`[data-order-id="${order.id}"]`);
       
       if (existingOrder) {
         // Update existing order
-        updateOrderUI(existingOrder, order);
+        updateOrderUI(existingOrder, order, metadata);
       } else if (type === 'new') {
         // Add new order to the list
         addNewOrderToUI(order);
@@ -4087,6 +4103,103 @@
         fetchAndUpdateOrders();
       }
     }
+
+    // Update order UI
+    function updateOrderUI(orderElement, order, metadata = {}) {
+      // Update assigned staff
+      const staffDisplay = orderElement.querySelector('.assigned-staff');
+      if (staffDisplay) {
+        const staffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
+        staffDisplay.textContent = staffList.join(', ') || 'Unassigned';
+        staffDisplay.title = `Last updated: ${formatDate(order.last_updated)}`;
+      }
+
+      // Update submission date/time
+      const submissionTime = orderElement.querySelector('.submission-time');
+      if (submissionTime) {
+        const submittedAt = order.submitted_at ? new Date(order.submitted_at) : null;
+        submissionTime.textContent = submittedAt ? formatDate(submittedAt) : 'Unknown';
+        submissionTime.title = `Submitted: ${submittedAt ? submittedAt.toLocaleString() : 'Unknown'}`;
+      }
+
+      // Update other order details
+      updateOrderStatus(orderElement, order);
+      updateOrderClaim(orderElement, order);
+      updateOrderPrice(orderElement, order);
+      updateOrderNotes(orderElement, order);
+
+      // Add visual feedback for updates
+      addUpdateFeedback(orderElement);
+    }
+
+    // Format date for display
+    function formatDate(dateString) {
+      if (!dateString) return 'Unknown';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+
+      const now = new Date();
+      const diff = now - date;
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      // For recent times, show relative time
+      if (seconds < 60) return 'just now';
+      if (minutes < 60) return `${minutes}m ago`;
+      if (hours < 24) return `${hours}h ago`;
+      if (days < 7) return `${days}d ago`;
+
+      // For older times, show actual date
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Add visual feedback for updates
+    function addUpdateFeedback(element) {
+      element.classList.add('updated');
+      setTimeout(() => element.classList.remove('updated'), 1000);
+    }
+
+    // Add styles for update animation
+    const updateStyles = document.createElement('style');
+    updateStyles.textContent = `
+      .order-card {
+        transition: background-color 0.3s ease;
+      }
+      .updated {
+        background-color: rgba(255, 255, 0, 0.1) !important;
+      }
+      .submission-time {
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 4px;
+      }
+      .assigned-staff {
+        font-weight: bold;
+        color: #2196F3;
+      }
+    `;
+    document.head.appendChild(updateStyles);
+
+    // Add or update submission time to order cards
+    function addSubmissionTimeToOrders() {
+      const orders = document.querySelectorAll('.order-card');
+      orders.forEach(order => {
+        let submissionTime = order.querySelector('.submission-time');
+        if (!submissionTime) {
+          submissionTime = document.createElement('div');
+          submissionTime.className = 'submission-time';
+          order.querySelector('.order-header').appendChild(submissionTime);
+        }
+        const submittedAt = order.dataset.submittedAt;
+        submissionTime.textContent = formatDate(submittedAt);
+        submissionTime.title = `Submitted: ${new Date(submittedAt).toLocaleString()}`;
+      });
+    }
+
+    // Call this when page loads and after any updates
+    document.addEventListener('DOMContentLoaded', addSubmissionTimeToOrders);
 
     // Handle order deletion
     function handleOrderDeletion(update) {

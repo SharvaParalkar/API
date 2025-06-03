@@ -636,7 +636,16 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
 
   try {
     // First check if the order exists and get its current state
-    const current = db.prepare("SELECT claimed_by, status, assigned_staff FROM orders WHERE id = ?").get(orderId);
+    const current = db.prepare(`
+      SELECT o.*, 
+             o.claimed_by, 
+             o.status, 
+             o.assigned_staff,
+             o.submitted_at,
+             o.last_updated
+      FROM orders o 
+      WHERE o.id = ?
+    `).get(orderId);
     
     if (!current) {
       return res.status(404).json({ error: "Order not found" });
@@ -649,7 +658,7 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
 
     // Validate staff members
     const validStaffMembers = Object.keys(USERS);
-    const assignedStaff = staffName ? staffName.split(',') : [];
+    const assignedStaff = staffName ? staffName.split(',').map(s => s.trim()).filter(Boolean) : [];
     
     // Check if all assigned staff members are valid
     const invalidStaff = assignedStaff.filter(staff => !validStaffMembers.includes(staff));
@@ -661,38 +670,78 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
     }
 
     // If the order is claimed, ensure the claimer remains in the assigned staff
-    let finalStaffList = assignedStaff;
+    let finalStaffList = [...new Set([...assignedStaff])]; // Remove duplicates
     if (current.claimed_by && !finalStaffList.includes(current.claimed_by)) {
       finalStaffList.push(current.claimed_by);
     }
     const finalStaffString = finalStaffList.join(',');
 
-    const stmt = db.prepare(`
-      UPDATE orders 
-      SET assigned_staff = ?,
-          updated_by = ?,
-          last_updated = ?
-      WHERE id = ?
-    `);
-    const result = stmt.run(finalStaffString, username, timestamp, orderId);
-    
-    if (result.changes === 0) {
-      throw new Error("Failed to update order");
-    }
+    // Begin transaction
+    db.transaction(() => {
+      const stmt = db.prepare(`
+        UPDATE orders 
+        SET assigned_staff = ?,
+            updated_by = ?,
+            last_updated = ?
+        WHERE id = ?
+      `);
+      
+      const result = stmt.run(finalStaffString, username, timestamp, orderId);
+      
+      if (result.changes === 0) {
+        throw new Error("Failed to update order");
+      }
 
-    // Fetch the updated order
-    const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
-    
-    // Broadcast the update
+      // Fetch the complete updated order
+      const updatedOrder = db.prepare(`
+        SELECT o.*, 
+               o.submitted_at,
+               o.last_updated,
+               o.updated_by
+        FROM orders o 
+        WHERE o.id = ?
+      `).get(orderId);
+
+      if (!updatedOrder) {
+        throw new Error("Failed to fetch updated order");
+      }
+
+      return updatedOrder;
+    })();
+
+    // Fetch final state after transaction
+    const finalOrder = db.prepare(`
+      SELECT o.*, 
+             o.submitted_at,
+             o.last_updated,
+             o.updated_by
+      FROM orders o 
+      WHERE o.id = ?
+    `).get(orderId);
+
+    // Broadcast the update with rich metadata
     broadcastUpdate('orderUpdate', {
       type: 'staff',
-      order: updatedOrder,
-      timestamp: timestamp,
-      updatedBy: username,
-      assignedStaff: finalStaffString
+      order: finalOrder,
+      metadata: {
+        previousStaff: current.assigned_staff,
+        newStaff: finalOrder.assigned_staff,
+        updatedBy: username,
+        timestamp: timestamp,
+        submittedAt: finalOrder.submitted_at,
+        lastUpdated: finalOrder.last_updated
+      }
     });
 
-    res.json({ success: true, order: updatedOrder });
+    res.json({ 
+      success: true, 
+      order: finalOrder,
+      metadata: {
+        previousStaff: current.assigned_staff,
+        newStaff: finalOrder.assigned_staff,
+        timestamp: timestamp
+      }
+    });
   } catch (err) {
     console.error("❌ Failed to assign staff:", err.message);
     res.status(500).json({ error: "Database error" });
