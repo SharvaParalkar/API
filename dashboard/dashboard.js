@@ -332,6 +332,72 @@ app.post("/dashboard/update-notes", requireLogin, (req, res) => {
   }
 });
 
+// Update assigned price endpoint
+app.post("/dashboard/update-assigned-price", requireLogin, (req, res) => {
+  const { orderId, assignedPrice } = req.body;
+  const username = req.session.user;
+  const timestamp = new Date().toISOString();
+
+  try {
+    // Update the order
+    const updateStmt = db.prepare(`
+      UPDATE orders 
+      SET assigned_price = ?,
+          updated_by = ?,
+          last_updated = COALESCE(?, last_updated)
+      WHERE id = ?
+    `);
+    const result = updateStmt.run(assignedPrice, username, timestamp, orderId);
+    
+    if (result.changes === 0) {
+      throw new Error("Order not found");
+    }
+
+    // Fetch the updated order
+    const updatedOrder = db.prepare(`
+      SELECT *,
+             updated_by,
+             COALESCE(last_updated, submitted_at) as last_updated
+      FROM orders 
+      WHERE id = ?
+    `).get(orderId);
+
+    if (!updatedOrder) {
+      throw new Error("Failed to fetch updated order");
+    }
+
+    // Broadcast the update to all connected clients
+    broadcastUpdate('orderUpdate', {
+      type: 'price',
+      order: updatedOrder
+    });
+
+    console.log('✅ Assigned price updated successfully:', {
+      orderId,
+      newPrice: assignedPrice,
+      updatedBy: username
+    });
+
+    res.json({ 
+      success: true,
+      order: updatedOrder,
+      timestamp: timestamp
+    });
+
+  } catch (err) {
+    console.error("❌ Failed to update assigned price:", err.message);
+    
+    if (err.message === "Order not found") {
+      res.status(404).json({ error: "Order not found" });
+    } else {
+      res.status(500).json({ 
+        error: "Database error",
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
+    }
+  }
+});
+
 // Add after the express app creation but before routes
 const clients = new Set();
 

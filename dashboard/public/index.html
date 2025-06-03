@@ -127,6 +127,43 @@
       padding-right: 1rem;
     }
 
+    .assigned-price-input {
+      width: 150px;
+      padding: 0.4rem;
+      border: 1px solid #ccc;
+      border-radius: 0.3rem;
+      font-size: 0.9rem;
+      margin-right: 0.5rem;
+    }
+
+    .assigned-price-input:focus {
+      border-color: #1f6463;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
+    }
+
+    .save-price-btn {
+      padding: 0.4rem 0.8rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background-color 0.2s ease;
+    }
+
+    .save-price-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .details-divider {
+      border-top: 1px solid #eee;
+      margin: 1rem 0;
+      width: 100%;
+    }
+
     .staff-selection-container {
       display: flex;
       flex-direction: column;
@@ -2504,6 +2541,115 @@
         // Create details table
         const table = document.createElement("table");
         table.className = "details-table";
+
+        // Add assigned price row
+        const assignedPriceRow = document.createElement("tr");
+        const assignedPriceCell = document.createElement("td");
+        assignedPriceCell.textContent = "Assigned Price:";
+        const assignedPriceContentCell = document.createElement("td");
+        
+        const priceWrapper = document.createElement("div");
+        priceWrapper.style.display = "flex";
+        priceWrapper.style.alignItems = "center";
+        priceWrapper.style.gap = "0.5rem";
+        
+        const assignedPriceInput = document.createElement("input");
+        assignedPriceInput.type = "number";
+        assignedPriceInput.step = "0.01";
+        assignedPriceInput.min = "0";
+        assignedPriceInput.className = "assigned-price-input";
+        assignedPriceInput.value = order.assigned_price || '';
+        assignedPriceInput.placeholder = "Enter final price...";
+        assignedPriceInput.dataset.previousValue = order.assigned_price || '';
+        
+        const savePriceBtn = document.createElement("button");
+        savePriceBtn.className = "save-price-btn";
+        savePriceBtn.textContent = "Save Price";
+        savePriceBtn.disabled = true;
+
+        // Handle changes to assigned price
+        assignedPriceInput.addEventListener('input', () => {
+          const currentValue = assignedPriceInput.value;
+          const previousValue = assignedPriceInput.dataset.previousValue;
+          const hasChanges = currentValue !== previousValue;
+          
+          savePriceBtn.disabled = !hasChanges;
+          savePriceBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+          savePriceBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+        });
+
+        // Handle save button click
+        savePriceBtn.addEventListener('click', async () => {
+          try {
+            savePriceBtn.disabled = true;
+            savePriceBtn.textContent = "Saving...";
+            
+            const response = await fetch("/dashboard/update-assigned-price", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                credentials: 'include'
+              },
+              body: JSON.stringify({
+                orderId: order.id,
+                assignedPrice: parseFloat(assignedPriceInput.value)
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to save assigned price');
+            }
+
+            const data = await response.json();
+            
+            // Update the input with the new value
+            assignedPriceInput.value = data.order.assigned_price || '';
+            assignedPriceInput.dataset.previousValue = data.order.assigned_price || '';
+            
+            // Update button state
+            savePriceBtn.textContent = "Save Price";
+            savePriceBtn.disabled = true;
+            savePriceBtn.style.backgroundColor = "#ccc";
+            savePriceBtn.style.cursor = "not-allowed";
+
+            // Show success notification
+            ui.showNotification('Assigned price updated successfully');
+
+          } catch (err) {
+            console.error('Failed to save assigned price:', err);
+            ui.showError('Failed to save assigned price');
+            
+            savePriceBtn.textContent = "Save Price";
+            savePriceBtn.disabled = false;
+            savePriceBtn.style.backgroundColor = "#1f6463";
+            savePriceBtn.style.cursor = "pointer";
+          }
+        });
+
+        // Add Ctrl+Enter / Cmd+Enter save shortcut
+        assignedPriceInput.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !savePriceBtn.disabled) {
+            e.preventDefault();
+            savePriceBtn.click();
+          }
+        });
+
+        priceWrapper.appendChild(assignedPriceInput);
+        priceWrapper.appendChild(savePriceBtn);
+        assignedPriceContentCell.appendChild(priceWrapper);
+        assignedPriceRow.appendChild(assignedPriceCell);
+        assignedPriceRow.appendChild(assignedPriceContentCell);
+        table.appendChild(assignedPriceRow);
+
+        // Add divider
+        const dividerRow = document.createElement("tr");
+        const dividerCell = document.createElement("td");
+        dividerCell.colSpan = 2;
+        const divider = document.createElement("div");
+        divider.className = "details-divider";
+        dividerCell.appendChild(divider);
+        dividerRow.appendChild(dividerCell);
+        table.appendChild(dividerRow);
 
         // Add email row
         const emailRow = document.createElement("tr");
