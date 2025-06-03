@@ -5485,20 +5485,13 @@
         </div>
         
         <!-- Custom Delete Confirmation Modal -->
-        <div id="couponDeleteModal" class="modal-overlay" style="display: none;">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h3>Delete Coupon</h3>
-              <button class="modal-close" onclick="hideCouponDeleteModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-              <div class="warning-icon">⚠️</div>
-              <p>Are you sure you want to delete the coupon <strong id="deleteCouponCode"></strong>?</p>
-              <p class="warning-text">This action cannot be undone and will immediately deactivate the coupon.</p>
-            </div>
-            <div class="modal-footer">
-              <button class="modal-btn cancel-btn" onclick="hideCouponDeleteModal()">Cancel</button>
-              <button class="modal-btn delete-btn" id="confirmDeleteCoupon">Delete Coupon</button>
+        <div id="couponDeleteModal" class="delete-confirmation-overlay" style="display: none;">
+          <div class="delete-confirmation-box">
+            <h3>Delete Coupon</h3>
+            <p>Are you sure you want to delete the coupon <strong id="deleteCouponCode"></strong>? This action cannot be undone.</p>
+            <div class="delete-confirmation-buttons">
+              <button class="delete-cancel-btn" onclick="hideCouponDeleteModal()">Cancel</button>
+              <button class="delete-confirm-btn" id="confirmDeleteCoupon">Delete</button>
             </div>
           </div>
         </div>
@@ -5727,10 +5720,6 @@
 
     // Delete a coupon
     async function deleteCoupon(code) {
-      if (!confirm(`Are you sure you want to delete the coupon "${code}"?`)) {
-        return;
-      }
-
       try {
         console.log('🗑️ Deleting coupon:', code);
 
@@ -5744,11 +5733,26 @@
           throw new Error(error.error || `HTTP error! status: ${response.status}`);
         }
 
+        // Hide the confirmation overlay
+        hideCouponDeleteModal();
+
         console.log('✅ Coupon deleted:', code);
 
-        // Remove from state and re-render
+        // Remove from state
         state.coupons = state.coupons.filter(coupon => coupon.code !== code);
-        renderCoupons(state.coupons);
+
+        // Find and remove the card with animation
+        const card = document.querySelector(`[data-coupon-code="${code}"]`);
+        if (card) {
+          card.style.transition = "all 0.3s ease";
+          card.style.opacity = "0";
+          card.style.transform = "scale(0.9)";
+          setTimeout(() => {
+            renderCoupons(state.coupons);
+          }, 300);
+        } else {
+          renderCoupons(state.coupons);
+        }
 
         // Show success message
         ui.showNotification(`Coupon "${code}" deleted successfully!`);
@@ -5756,6 +5760,7 @@
       } catch (err) {
         console.error('❌ Failed to delete coupon:', err);
         ui.showError(err.message || 'Failed to delete coupon');
+        hideCouponDeleteModal();
       }
     }
 
@@ -5821,83 +5826,24 @@
 
     // Show coupon delete confirmation modal
     function showCouponDeleteModal(code) {
-      const modal = document.getElementById('couponDeleteModal');
-      const codeElement = document.getElementById('deleteCouponCode');
-      const confirmBtn = document.getElementById('confirmDeleteCoupon');
-      
-      if (!modal || !codeElement || !confirmBtn) return;
-      
-      codeElement.textContent = code;
-      modal.style.display = 'flex';
-      
-      // Remove any existing listeners and add new one
-      const newConfirmBtn = confirmBtn.cloneNode(true);
-      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-      
-      newConfirmBtn.addEventListener('click', () => {
-        hideCouponDeleteModal();
-        deleteCoupon(code);
-      });
+      const overlay = document.getElementById('couponDeleteModal');
+      overlay.innerHTML = `
+        <div class="delete-confirmation-box">
+          <h3>Delete Coupon</h3>
+          <p>Are you sure you want to delete the coupon <strong>${code}</strong>? This action cannot be undone.</p>
+          <div class="delete-confirmation-buttons">
+            <button class="delete-cancel-btn" onclick="hideCouponDeleteModal()">Cancel</button>
+            <button class="delete-confirm-btn" onclick="deleteCoupon('${code}')">Delete</button>
+          </div>
+        </div>
+      `;
+      overlay.style.display = "flex";
     }
 
     // Hide coupon delete confirmation modal
     function hideCouponDeleteModal() {
-      const modal = document.getElementById('couponDeleteModal');
-      if (modal) {
-        modal.style.display = 'none';
-      }
-    }
-
-    // Updated delete function without confirm dialog
-    async function deleteCoupon(code) {
-      try {
-        console.log('🗑️ Deleting coupon:', code);
-
-        // Find the coupon card and add deleting state
-        const couponCard = document.querySelector(`[data-coupon-code="${code}"]`);
-        if (couponCard) {
-          couponCard.classList.add('deleting');
-          const deleteBtn = couponCard.querySelector('.delete-btn');
-          if (deleteBtn) {
-            deleteBtn.disabled = true;
-            deleteBtn.innerHTML = '<span class="btn-icon">⏳</span>Deleting...';
-          }
-        }
-
-        const response = await fetch(`/dashboard/coupons/${encodeURIComponent(code)}`, {
-          method: 'DELETE',
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || `HTTP error! status: ${response.status}`);
-        }
-
-        console.log('✅ Coupon deleted:', code);
-
-        // Remove from state and re-render
-        state.coupons = state.coupons.filter(coupon => coupon.code !== code);
-        renderCoupons(state.coupons);
-
-        // Show success message
-        ui.showNotification(`Coupon "${code}" deleted successfully!`);
-
-      } catch (err) {
-        console.error('❌ Failed to delete coupon:', err);
-        ui.showError(err.message || 'Failed to delete coupon');
-        
-        // Reset the button state on error
-        const couponCard = document.querySelector(`[data-coupon-code="${code}"]`);
-        if (couponCard) {
-          couponCard.classList.remove('deleting');
-          const deleteBtn = couponCard.querySelector('.delete-btn');
-          if (deleteBtn) {
-            deleteBtn.disabled = false;
-            deleteBtn.innerHTML = '<span class="btn-icon">🗑️</span>Delete';
-          }
-        }
-      }
+      const overlay = document.getElementById('couponDeleteModal');
+      overlay.style.display = "none";
     }
   </script>
 
