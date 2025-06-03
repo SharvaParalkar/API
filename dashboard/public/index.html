@@ -750,6 +750,26 @@
       transform: translateY(0);
     }
 
+    .tab-button.active {
+      background-color: #1f6463;
+      color: white;
+    }
+
+    .tab-button.inactive {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .tab-button.coupon {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .tab-button.coupon.active {
+      background-color: #1f6463;
+      color: white;
+    }
+
     /* Add consistent button styles */
     .action-button {
       border: none;
@@ -933,6 +953,8 @@
       style="background: #1f6463; color: white;">All Orders</button>
     <button id="tabClaimed" class="tab-button"
       style="background: #ccc; color: black;">Claimed Orders</button>
+    <button id="tabCoupon" class="tab-button coupon"
+      style="background: #ccc; color: black;">Coupons</button>
   </div>
 
   <div class="search-bar-flex">
@@ -1598,13 +1620,16 @@
       updateTabStyles() {
         const allTab = document.getElementById("tabAll");
         const claimedTab = document.getElementById("tabClaimed");
+        const couponTab = document.getElementById("tabCoupon");
 
-        if (allTab && claimedTab) {
-          allTab.style.backgroundColor = state.currentTab === "all" ? "#1f6463" : "#ccc";
-          allTab.style.color = state.currentTab === "all" ? "white" : "black";
-          claimedTab.style.backgroundColor = state.currentTab === "claimed" ? "#1f6463" : "#ccc";
-          claimedTab.style.color = state.currentTab === "claimed" ? "white" : "black";
-        }
+        if (allTab) allTab.style.background = state.currentTab === "all" ? "#1f6463" : "#ccc";
+        if (allTab) allTab.style.color = state.currentTab === "all" ? "white" : "black";
+        
+        if (claimedTab) claimedTab.style.background = state.currentTab === "claimed" ? "#1f6463" : "#ccc";
+        if (claimedTab) claimedTab.style.color = state.currentTab === "claimed" ? "white" : "black";
+
+        if (couponTab) couponTab.style.background = state.currentTab === "coupon" ? "#1f6463" : "#ccc";
+        if (couponTab) couponTab.style.color = state.currentTab === "coupon" ? "white" : "black";
       },
 
       showLoginOverlay() {
@@ -2053,12 +2078,15 @@
       // Tab click handlers
       const allTab = document.getElementById("tabAll");
       const claimedTab = document.getElementById("tabClaimed");
+      const couponTab = document.getElementById("tabCoupon");
 
       console.log('🔍 Found tab elements:', { 
         allTab: !!allTab, 
         claimedTab: !!claimedTab,
+        couponTab: !!couponTab,
         allTabVisible: allTab ? getComputedStyle(allTab).display !== 'none' : false,
-        claimedTabVisible: claimedTab ? getComputedStyle(claimedTab).display !== 'none' : false
+        claimedTabVisible: claimedTab ? getComputedStyle(claimedTab).display !== 'none' : false,
+        couponTabVisible: couponTab ? getComputedStyle(couponTab).display !== 'none' : false
       });
 
       if (allTab) {
@@ -2071,8 +2099,6 @@
           filterOrders(query);
         };
         console.log('✅ All Orders tab onclick handler set');
-      } else {
-        console.error('❌ All Orders tab element not found!');
       }
 
       if (claimedTab) {
@@ -2085,15 +2111,25 @@
           filterOrders(query);
         };
         console.log('✅ Claimed Orders tab onclick handler set');
-      } else {
-        console.error('❌ Claimed Orders tab element not found!');
+      }
+
+      if (couponTab) {
+        couponTab.onclick = () => {
+          console.log('🎯 Coupon tab clicked!');
+          state.currentTab = "coupon";
+          console.log('Switching to Coupon tab');
+          ui.updateTabStyles();
+          document.getElementById("orderGrid").innerHTML = '<div style="text-align: center; padding: 2rem;">Coupon Management Coming Soon</div>';
+        };
+        console.log('✅ Coupon tab onclick handler set');
       }
 
       // Verify that the handlers are actually set
       setTimeout(() => {
         console.log('🔍 Verifying onclick handlers after setup:', {
           allTabHandler: allTab ? typeof allTab.onclick : 'tab not found',
-          claimedTabHandler: claimedTab ? typeof claimedTab.onclick : 'tab not found'
+          claimedTabHandler: claimedTab ? typeof claimedTab.onclick : 'tab not found',
+          couponTabHandler: couponTab ? typeof couponTab.onclick : 'tab not found'
         });
       }, 50);
 
