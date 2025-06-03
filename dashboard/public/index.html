@@ -4254,13 +4254,34 @@
       }
 
       handleOrderDeletion(update) {
+        console.log('🗑️ Processing order deletion:', update);
+        
+        // Get the order before removing it for better notification info
+        const deletedOrder = state.allOrders.find(order => order.id === update.orderId);
+        
         // Remove from state
         state.allOrders = state.allOrders.filter(order => order.id !== update.orderId);
         
         // Remove from UI
         const orderElement = document.querySelector(`[data-order-id="${update.orderId}"]`);
         if (orderElement) {
-          orderElement.remove();
+          // Add smooth removal animation
+          orderElement.style.transition = "all 0.3s ease";
+          orderElement.style.opacity = "0";
+          orderElement.style.transform = "scale(0.9)";
+          setTimeout(() => {
+            if (orderElement.isConnected) {
+              orderElement.remove();
+            }
+          }, 300);
+        }
+        
+        // Show notification about who deleted the order
+        if (update.deletedBy && update.deletedBy !== state.currentUser) {
+          const orderDisplayName = deletedOrder?.customer_name || update.orderId;
+          ui.showNotification(`Order "${orderDisplayName}" was deleted by ${update.deletedBy}`);
+        } else if (update.deletedBy === state.currentUser) {
+          console.log('✅ Order deleted by current user, no notification needed');
         }
       }
 
