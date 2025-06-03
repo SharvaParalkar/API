@@ -37,8 +37,8 @@ const server = http.createServer(app);
 // ✅ Sessions config with better security
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || "filamentbros-secret",
-  resave: true,
-  saveUninitialized: true,
+  resave: false,
+  saveUninitialized: false,
   name: 'filamentbros.sid',
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000,
@@ -46,10 +46,10 @@ const sessionMiddleware = session({
     httpOnly: true,
     sameSite: 'lax'
   },
-  store: new session.MemoryStore() // Explicit memory store for testing
+  store: new session.MemoryStore()
 });
 
-// Apply session middleware to Express
+// Apply session middleware to both Express and raw HTTP server
 app.use(sessionMiddleware);
 
 // Security headers with adjusted CSP
@@ -401,25 +401,39 @@ app.post("/dashboard/update-assigned-price", requireLogin, (req, res) => {
 // Add after the express app creation but before routes
 const clients = new Set();
 
-// SSE endpoint for order updates
-app.get('/dashboard/updates', requireLogin, (req, res) => {
+// SSE endpoint for order updates with enhanced session handling
+app.get('/dashboard/updates', (req, res) => {
+  // Check authentication first
+  if (!req.session.user) {
+    return res.status(401).end();
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   
   // Send initial connection ID and timestamp
   const connectionId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-  res.write(`event: connect\ndata: {"id":"${connectionId}","time":${Date.now()}}\n\n`);
+  const username = req.session.user;
   
-  // Send heartbeat every 30 seconds
+  res.write(`event: connect\ndata: ${JSON.stringify({
+    id: connectionId,
+    time: Date.now(),
+    username: username
+  })}\n\n`);
+  
+  // Send heartbeat every 15 seconds
   const heartbeat = setInterval(() => {
-    res.write(`event: heartbeat\ndata: ${Date.now()}\n\n`);
-  }, 30000);
+    if (!res.writableEnded) {
+      res.write(`event: heartbeat\ndata: ${Date.now()}\n\n`);
+    }
+  }, 15000);
   
   // Add client to the set with metadata
   const client = {
     res,
     id: connectionId,
+    username: username,
     lastSeen: Date.now()
   };
   clients.add(client);
@@ -428,11 +442,14 @@ app.get('/dashboard/updates', requireLogin, (req, res) => {
   req.on('close', () => {
     clearInterval(heartbeat);
     clients.delete(client);
-    console.log(`Client disconnected: ${connectionId}`);
+    console.log(`Client disconnected: ${connectionId} (${username})`);
   });
+
+  // Handle session expiration
+  req.session.touch();
 });
 
-// Enhanced broadcast function with retry logic
+// Enhanced broadcast function with targeted updates
 function broadcastUpdate(eventType, data) {
   const eventData = JSON.stringify({
     ...data,
@@ -444,8 +461,31 @@ function broadcastUpdate(eventType, data) {
   
   clients.forEach(client => {
     try {
-      client.res.write(`event: ${eventType}\ndata: ${eventData}\n\n`);
-      client.lastSeen = Date.now();
+      // For staff updates, ensure the client should receive the update
+      if (eventType === 'orderUpdate' && data.type === 'staff') {
+        const order = data.order;
+        const username = client.username;
+        
+        // Send update if:
+        // 1. User is in assigned_staff
+        // 2. User is the one who made the change
+        // 3. User has claimed the order
+        const shouldReceive = 
+          (order.assigned_staff && order.assigned_staff.includes(username)) ||
+          data.metadata?.updatedBy === username ||
+          order.claimed_by === username;
+
+        if (!shouldReceive) {
+          return; // Skip this client
+        }
+      }
+
+      if (!client.res.writableEnded) {
+        client.res.write(`event: ${eventType}\ndata: ${eventData}\n\n`);
+        client.lastSeen = Date.now();
+      } else {
+        deadClients.add(client);
+      }
     } catch (err) {
       console.error(`Failed to send to client ${client.id}:`, err);
       deadClients.add(client);
@@ -459,10 +499,10 @@ function broadcastUpdate(eventType, data) {
   });
 }
 
-// Periodic check for stale connections
+// Periodic session cleanup
 setInterval(() => {
   const now = Date.now();
-  const staleTimeout = 70000; // Consider connections stale after 70 seconds
+  const staleTimeout = 30000; // 30 seconds
   
   const deadClients = new Set();
   clients.forEach(client => {
@@ -473,9 +513,9 @@ setInterval(() => {
   
   deadClients.forEach(client => {
     clients.delete(client);
-    console.log(`Removed stale client: ${client.id}`);
+    console.log(`Removed stale client: ${client.id} (${client.username})`);
   });
-}, 60000);
+}, 30000);
 
 // Watch for new orders
 let lastOrderId = null;

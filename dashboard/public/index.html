@@ -4005,6 +4005,9 @@
         this.connectionAttempts = 0;
         this.maxRetries = 5;
         this.retryDelay = 1000;
+        this.reconnectTimer = null;
+        this.connected = false;
+        this.username = null;
         this.connect();
       }
 
@@ -4017,25 +4020,31 @@
         
         this.eventSource.addEventListener('connect', (e) => {
           console.log('Connected to SSE');
+          this.connected = true;
           this.connectionAttempts = 0;
           const data = JSON.parse(e.data);
           this.connectionId = data.id;
+          this.username = data.username;
+          
           // Force refresh data on new connection
-          fetchAndUpdateOrders();
+          this.refreshData();
         });
 
         this.eventSource.addEventListener('heartbeat', (e) => {
-          // Update last seen timestamp
           this.lastHeartbeat = Date.now();
+          // Touch the session to keep it alive
+          fetch('/dashboard/whoami', { credentials: 'include' }).catch(() => {});
         });
 
         this.eventSource.addEventListener('orderUpdate', (e) => {
+          if (!this.connected) return;
+          
           const update = JSON.parse(e.data);
           
-          // Check sequence number to ensure we haven't missed any updates
+          // Check sequence number
           if (update.sequence && update.sequence !== this.lastSequence + 1) {
             console.warn('Detected missed updates, refreshing all data...');
-            fetchAndUpdateOrders();
+            this.refreshData();
             return;
           }
           
@@ -4043,33 +4052,97 @@
           
           // Handle the update based on type
           switch (update.type) {
-            case 'new':
-            case 'status':
-            case 'claim':
-            case 'unclaim':
             case 'staff':
-            case 'price':
-            case 'notes':
-              handleOrderUpdate(update);
+              this.handleStaffUpdate(update);
               break;
             case 'delete':
-              handleOrderDeletion(update);
+              this.handleOrderDeletion(update);
               break;
+            default:
+              this.handleOrderUpdate(update);
           }
         });
 
         this.eventSource.onerror = (error) => {
           console.error('SSE Connection Error:', error);
+          this.connected = false;
           this.eventSource.close();
           
           if (this.connectionAttempts < this.maxRetries) {
             this.connectionAttempts++;
-            setTimeout(() => this.connect(), this.retryDelay * this.connectionAttempts);
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = setTimeout(() => this.connect(), this.retryDelay * this.connectionAttempts);
           } else {
             console.error('Max reconnection attempts reached');
-            showReconnectionError();
+            this.showReconnectionError();
           }
         };
+      }
+
+      async refreshData() {
+        try {
+          const response = await fetch('/dashboard/data' + window.location.search, {
+            credentials: 'include'
+          });
+          if (!response.ok) throw new Error('Failed to fetch orders');
+          const orders = await response.json();
+          updateAllOrders(orders);
+        } catch (error) {
+          console.error('Error fetching orders:', error);
+        }
+      }
+
+      handleStaffUpdate(update) {
+        const { order, metadata } = update;
+        
+        // If this update involves the current user, refresh all data
+        if (this.username && (
+          order.assigned_staff?.includes(this.username) ||
+          metadata?.updatedBy === this.username ||
+          order.claimed_by === this.username
+        )) {
+          this.refreshData();
+        } else {
+          // Otherwise just update the specific order
+          this.handleOrderUpdate(update);
+        }
+      }
+
+      handleOrderUpdate(update) {
+        const { order } = update;
+        const orderElement = document.querySelector(`[data-order-id="${order.id}"]`);
+        
+        if (orderElement) {
+          try {
+            updateOrderUI(orderElement, order, update.metadata);
+          } catch (err) {
+            console.error(`Failed to update order ${order.id}:`, err);
+            this.refreshData();
+          }
+        } else {
+          // If we can't find the order but should have it, refresh all data
+          this.refreshData();
+        }
+      }
+
+      handleOrderDeletion(update) {
+        const orderElement = document.querySelector(`[data-order-id="${update.orderId}"]`);
+        if (orderElement) {
+          orderElement.remove();
+        }
+      }
+
+      showReconnectionError() {
+        const existingBanner = document.querySelector('.error-banner');
+        if (existingBanner) return;
+
+        const errorBanner = document.createElement('div');
+        errorBanner.className = 'error-banner';
+        errorBanner.innerHTML = `
+          <p>Lost connection to server. Please refresh the page.</p>
+          <button onclick="window.location.reload()">Refresh Now</button>
+        `;
+        document.body.prepend(errorBanner);
       }
     }
 
@@ -4078,31 +4151,11 @@
 
     // Periodic health check
     setInterval(() => {
-      if (eventManager.lastHeartbeat && Date.now() - eventManager.lastHeartbeat > 45000) {
+      if (eventManager.lastHeartbeat && Date.now() - eventManager.lastHeartbeat > 20000) {
         console.warn('No heartbeat received, reconnecting...');
         eventManager.connect();
       }
-    }, 15000);
-
-    // Handle order updates
-    function handleOrderUpdate(update) {
-      const { order, type, metadata } = update;
-      
-      // Find existing order in the UI
-      const existingOrder = document.querySelector(`[data-order-id="${order.id}"]`);
-      
-      if (existingOrder) {
-        // Update existing order
-        updateOrderUI(existingOrder, order, metadata);
-      } else if (type === 'new') {
-        // Add new order to the list
-        addNewOrderToUI(order);
-      } else {
-        // If we can't find the order but should, refresh all data
-        console.warn('Order not found in UI, refreshing...');
-        fetchAndUpdateOrders();
-      }
-    }
+    }, 10000);
 
     // Update order UI
     function updateOrderUI(orderElement, order, metadata = {}) {
@@ -4235,8 +4288,28 @@
     // Update all orders in the UI
     function updateAllOrders(orders) {
       const ordersList = document.querySelector('#orders-list');
-      ordersList.innerHTML = ''; // Clear existing
-      orders.forEach(order => addNewOrderToUI(order));
+      if (!ordersList) {
+        console.error('Orders list element not found');
+        return;
+      }
+
+      // Store current scroll position
+      const scrollPosition = window.scrollY;
+
+      // Clear existing orders
+      ordersList.innerHTML = '';
+      
+      // Add orders back
+      orders.forEach(order => {
+        try {
+          addNewOrderToUI(order);
+        } catch (err) {
+          console.error(`Failed to add order ${order.id}:`, err);
+        }
+      });
+
+      // Restore scroll position
+      window.scrollTo(0, scrollPosition);
     }
 
     // Add styles for error banner
