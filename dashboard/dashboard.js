@@ -1012,6 +1012,215 @@ app.get("/dashboard/staff", (req, res) => {
   res.json(staffList);
 });
 
+// 🎫 COUPON MANAGEMENT ENDPOINTS
+
+// Get all coupons
+app.get("/dashboard/coupons", requireLogin, (req, res) => {
+  try {
+    const coupons = db.prepare("SELECT * FROM coupons ORDER BY code").all();
+    console.log(`📦 Fetched ${coupons.length} coupons`);
+    res.json(coupons);
+  } catch (err) {
+    console.error("❌ Failed to fetch coupons:", err.message);
+    res.status(500).json({ error: "Failed to fetch coupons" });
+  }
+});
+
+// Create a new coupon
+app.post("/dashboard/coupons", requireLogin, (req, res) => {
+  const { code, discount_type, discount_value, max_uses } = req.body;
+  const username = req.session.user;
+  
+  console.log('🎫 Creating coupon:', { code, discount_type, discount_value, max_uses, createdBy: username });
+
+  // Validation
+  if (!code || !discount_type || discount_value === undefined) {
+    return res.status(400).json({ error: "Missing required fields: code, discount_type, discount_value" });
+  }
+
+  // Validate discount_type
+  const validDiscountTypes = ['percentage', 'fixed'];
+  if (!validDiscountTypes.includes(discount_type)) {
+    return res.status(400).json({ error: "Invalid discount_type. Must be 'percentage' or 'fixed'" });
+  }
+
+  // Validate discount_value
+  if (typeof discount_value !== 'number' || discount_value <= 0) {
+    return res.status(400).json({ error: "Invalid discount_value. Must be a positive number" });
+  }
+
+  // Validate percentage discount
+  if (discount_type === 'percentage' && discount_value > 100) {
+    return res.status(400).json({ error: "Percentage discount cannot exceed 100%" });
+  }
+
+  // Validate max_uses
+  if (max_uses !== undefined && (typeof max_uses !== 'number' || max_uses < 0)) {
+    return res.status(400).json({ error: "Invalid max_uses. Must be a non-negative number or null for unlimited" });
+  }
+
+  try {
+    // Normalize code to uppercase
+    const normalizedCode = code.trim().toUpperCase();
+    
+    // Check if coupon already exists
+    const existing = db.prepare("SELECT code FROM coupons WHERE code = ?").get(normalizedCode);
+    if (existing) {
+      return res.status(409).json({ error: "Coupon code already exists" });
+    }
+
+    // Insert the coupon
+    const stmt = db.prepare(`
+      INSERT INTO coupons (code, discount_type, discount_value, max_uses, used_count)
+      VALUES (?, ?, ?, ?, 0)
+    `);
+    
+    const result = stmt.run(normalizedCode, discount_type, discount_value, max_uses || null);
+    
+    if (result.changes === 0) {
+      throw new Error("Failed to insert coupon");
+    }
+
+    // Fetch the created coupon
+    const newCoupon = db.prepare("SELECT * FROM coupons WHERE code = ?").get(normalizedCode);
+    
+    // Broadcast the update to all connected clients
+    broadcastUpdate('couponUpdate', {
+      type: 'create',
+      coupon: newCoupon,
+      createdBy: username
+    });
+
+    console.log(`✅ Created coupon: ${normalizedCode}`);
+    res.status(201).json({ success: true, coupon: newCoupon });
+
+  } catch (err) {
+    console.error("❌ Failed to create coupon:", err.message);
+    if (err.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+      res.status(409).json({ error: "Coupon code already exists" });
+    } else {
+      res.status(500).json({ error: "Database error" });
+    }
+  }
+});
+
+// Update a coupon
+app.put("/dashboard/coupons/:code", requireLogin, (req, res) => {
+  const { code } = req.params;
+  const { discount_type, discount_value, max_uses } = req.body;
+  const username = req.session.user;
+
+  console.log('🎫 Updating coupon:', { code, discount_type, discount_value, max_uses, updatedBy: username });
+
+  try {
+    // Check if coupon exists
+    const existing = db.prepare("SELECT * FROM coupons WHERE code = ?").get(code);
+    if (!existing) {
+      return res.status(404).json({ error: "Coupon not found" });
+    }
+
+    // Build update query dynamically
+    const updates = [];
+    const values = [];
+    
+    if (discount_type !== undefined) {
+      if (!['percentage', 'fixed'].includes(discount_type)) {
+        return res.status(400).json({ error: "Invalid discount_type" });
+      }
+      updates.push("discount_type = ?");
+      values.push(discount_type);
+    }
+    
+    if (discount_value !== undefined) {
+      if (typeof discount_value !== 'number' || discount_value <= 0) {
+        return res.status(400).json({ error: "Invalid discount_value" });
+      }
+      if (discount_type === 'percentage' && discount_value > 100) {
+        return res.status(400).json({ error: "Percentage discount cannot exceed 100%" });
+      }
+      updates.push("discount_value = ?");
+      values.push(discount_value);
+    }
+    
+    if (max_uses !== undefined) {
+      if (max_uses !== null && (typeof max_uses !== 'number' || max_uses < 0)) {
+        return res.status(400).json({ error: "Invalid max_uses" });
+      }
+      updates.push("max_uses = ?");
+      values.push(max_uses);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "No valid fields to update" });
+    }
+
+    // Add the code to the end of values array
+    values.push(code);
+
+    const stmt = db.prepare(`UPDATE coupons SET ${updates.join(', ')} WHERE code = ?`);
+    const result = stmt.run(...values);
+
+    if (result.changes === 0) {
+      throw new Error("Failed to update coupon");
+    }
+
+    // Fetch the updated coupon
+    const updatedCoupon = db.prepare("SELECT * FROM coupons WHERE code = ?").get(code);
+    
+    // Broadcast the update
+    broadcastUpdate('couponUpdate', {
+      type: 'update',
+      coupon: updatedCoupon,
+      updatedBy: username
+    });
+
+    console.log(`✅ Updated coupon: ${code}`);
+    res.json({ success: true, coupon: updatedCoupon });
+
+  } catch (err) {
+    console.error("❌ Failed to update coupon:", err.message);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Delete a coupon
+app.delete("/dashboard/coupons/:code", requireLogin, (req, res) => {
+  const { code } = req.params;
+  const username = req.session.user;
+
+  console.log('🗑️ Deleting coupon:', { code, deletedBy: username });
+
+  try {
+    // Check if coupon exists
+    const existing = db.prepare("SELECT * FROM coupons WHERE code = ?").get(code);
+    if (!existing) {
+      return res.status(404).json({ error: "Coupon not found" });
+    }
+
+    // Delete the coupon
+    const stmt = db.prepare("DELETE FROM coupons WHERE code = ?");
+    const result = stmt.run(code);
+
+    if (result.changes === 0) {
+      throw new Error("Failed to delete coupon");
+    }
+
+    // Broadcast the update
+    broadcastUpdate('couponUpdate', {
+      type: 'delete',
+      code: code,
+      deletedBy: username
+    });
+
+    console.log(`✅ Deleted coupon: ${code}`);
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error("❌ Failed to delete coupon:", err.message);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 // Delete order endpoint
 app.delete("/dashboard/order/:orderId", requireLogin, (req, res) => {
   const { orderId } = req.params;

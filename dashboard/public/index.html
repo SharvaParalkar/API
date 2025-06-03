@@ -987,6 +987,136 @@
       border-radius: 4px;
       cursor: pointer;
     }
+    .coupon-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .coupon-form {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .coupon-form h3 {
+      margin-top: 0;
+      color: #1f6463;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .form-group label {
+      font-weight: bold;
+      color: #333;
+    }
+    .form-group input,
+    .form-group select {
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: #1f6463;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
+    }
+    .create-coupon-btn {
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .create-coupon-btn:hover {
+      background-color: #184f4e;
+    }
+    .create-coupon-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .coupons-list {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+    }
+    .coupons-list h3 {
+      margin-top: 0;
+      color: #1f6463;
+    }
+    .coupon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+    .coupon-card {
+      background: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      transition: all 0.2s ease;
+    }
+    .coupon-card:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+    }
+    .coupon-code {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #1f6463;
+      margin-bottom: 0.5rem;
+    }
+    .coupon-details {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+    .coupon-usage {
+      color: #999;
+      font-size: 0.8rem;
+    }
+    .coupon-actions {
+      margin-top: 1rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+    .edit-coupon-btn,
+    .delete-coupon-btn {
+      padding: 0.4rem 0.8rem;
+      border: none;
+      border-radius: 0.3rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .edit-coupon-btn {
+      background-color: #2196F3;
+      color: white;
+    }
+    .edit-coupon-btn:hover {
+      background-color: #1976D2;
+    }
+    .delete-coupon-btn {
+      background-color: #ff4444;
+      color: white;
+    }
+    .delete-coupon-btn:hover {
+      background-color: #cc0000;
+    }
   </style>
 </head>
 
@@ -1064,7 +1194,8 @@
       staffMembers: [],
       lastOrderHash: null,
       lastRefreshTime: 0,
-      minRefreshInterval: 5000
+      minRefreshInterval: 5000,
+      coupons: []
     };
 
     // First full load
@@ -2173,7 +2304,7 @@
           state.currentTab = "coupon";
           console.log('Switching to Coupon tab');
           ui.updateTabStyles();
-          document.getElementById("orderGrid").innerHTML = '<div style="text-align: center; padding: 2rem;">Coupon Management Coming Soon</div>';
+          showCouponManagement();
         };
         console.log('✅ Coupon tab onclick handler set');
       }
@@ -2991,183 +3122,69 @@
         eventSource.addEventListener('orderUpdate', (e) => {
           try {
             const update = JSON.parse(e.data);
-            console.log('📦 Received order update:', update);
-
-            if (update.type === 'delete') {
-              // Remove from state
-              state.allOrders = state.allOrders.filter(order => order.id !== update.orderId);
-
-              // Find and remove the card with animation
-              const card = document.querySelector(`[data-order-id="${update.orderId}"]`);
-              if (card) {
-                card.style.transition = "all 0.3s ease";
-                card.style.opacity = "0";
-                card.style.transform = "scale(0.9)";
-                setTimeout(() => card.remove(), 300);
-              }
-
-              // Show notification if deleted by someone else
-              if (update.deletedBy !== state.currentUser) {
-                ui.showNotification(`Order ${update.orderId} was deleted by ${update.deletedBy}`);
-              }
-            } else {
-              // Handle new orders
-              if (update.type === 'new') {
-                console.log('🆕 New order received:', update.order);
-                
-                // Add to state if not already present
-                const exists = state.allOrders.some(order => order.id === update.order.id);
-                if (!exists) {
+            console.log('📦 Received order update:', update.type, update.order?.id);
+            
+            // Check sequence number
+            if (update.sequence && this.lastSequence && update.sequence !== this.lastSequence + 1) {
+              console.warn(`Sequence gap detected: expected ${this.lastSequence + 1}, got ${update.sequence}`);
+              this.refreshData();
+              return;
+            }
+            
+            this.lastSequence = update.sequence || this.lastSequence;
+            
+            // Handle the update based on type
+            switch (update.type) {
+              case 'staff':
+                handleStaffUpdate(update);
+                break;
+              case 'delete':
+                this.handleOrderDeletion(update);
+                break;
+              case 'new':
+                // For new orders, add them to state and re-filter
+                if (!state.allOrders.find(o => o.id === update.order.id)) {
                   state.allOrders.unshift(update.order);
-                  
-                  // Show notification
-                  ui.showNotification('New order received!');
-                  
-                  // Refresh the view
-                  const query = document.getElementById("searchInput").value;
+                  const query = document.getElementById("searchInput")?.value || '';
                   filterOrders(query);
                 }
-              } else {
-                // Handle updates to existing orders
-                console.log(`🔄 Processing ${update.type} update for order ${update.order.id}`);
-                
-                // Show notifications for claim/unclaim events
-                if (update.type === 'claim' && update.order.claimed_by !== state.currentUser) {
-                  ui.showNotification(`Order ${update.order.id} was claimed by ${update.order.claimed_by}`);
-                } else if (update.type === 'unclaim' && update.order.claimed_by === null) {
-                  ui.showNotification(`Order ${update.order.id} was unclaimed`);
-                }
-
-                // Find the card in the DOM
-                const orderCard = document.querySelector(`[data-order-id="${update.order.id}"]`);
-                if (!orderCard) {
-                  console.log(`Card not found for order ${update.order.id}, refreshing view...`);
-                  const query = document.getElementById("searchInput").value;
-                  filterOrders(query);
-                  return;
-                }
-
-                // Store the current state of the details section and staff notes
-                const detailsSection = orderCard.querySelector('.details-section');
-                const isExpanded = detailsSection?.classList.contains('visible');
-                
-                // Store staff notes state if expanded
-                let staffNotesState = null;
-                if (isExpanded) {
-                  const staffNotesEditor = orderCard.querySelector('.staff-notes-editor');
-                  if (staffNotesEditor) {
-                    staffNotesState = {
-                      value: staffNotesEditor.value,
-                      isEditing: staffNotesEditor === document.activeElement,
-                      cursorPosition: staffNotesEditor.selectionStart,
-                      previousValue: staffNotesEditor.dataset.previousValue
-                    };
-                  }
-                }
-
-                // Update order in state
-                const index = state.allOrders.findIndex(order => order.id === update.order.id);
-                if (index !== -1) {
-                  state.allOrders[index] = update.order;
-                } else {
-                  state.allOrders.unshift(update.order);
-                }
-
-                // Handle claimed tab visibility
-                if (state.currentTab === "claimed") {
-                  const assignedStaffList = update.order.assigned_staff ? update.order.assigned_staff.split(',') : [];
-                  const shouldBeVisible = (
-                    (update.order.claimed_by === state.currentUser || assignedStaffList.includes(state.currentUser)) &&
-                    update.order.status?.toLowerCase() !== "completed"
-                  );
-                  
-                  if (!shouldBeVisible) {
-                    console.log(`Removing card ${update.order.id} from claimed view`);
-                    orderCard.style.transition = "all 0.3s ease";
-                    orderCard.style.opacity = "0";
-                    orderCard.style.transform = "scale(0.9)";
-                    setTimeout(() => {
-                      if (orderCard.isConnected) {
-                        orderCard.remove();
-                      }
-                    }, 300);
-                    return;
-                  }
-                }
-
-                // Create a temporary container for the new card
-                const tempContainer = document.createElement('div');
-                
-                // Render a single order into the temporary container
-                renderOrders([update.order], isExpanded, tempContainer);
-                
-                // Get the newly rendered card
-                const newCard = tempContainer.firstChild;
-                if (!newCard) {
-                  console.warn('Failed to render new card');
-                  return;
-                }
-                
-                // Replace the old card with the new one
-                if (orderCard.parentNode) {
-                  orderCard.parentNode.replaceChild(newCard, orderCard);
-                  
-                  // If it was expanded and had staff notes being edited, restore that state
-                  if (staffNotesState) {
-                    const newEditor = newCard.querySelector('.staff-notes-editor');
-                    if (newEditor) {
-                      // Only restore the user's edits if they were actively editing
-                      // Otherwise use the new value from the server
-                      if (staffNotesState.isEditing) {
-                        newEditor.value = staffNotesState.value;
-                        newEditor.dataset.previousValue = staffNotesState.previousValue;
-                        
-                        setTimeout(() => {
-                          newEditor.focus();
-                          newEditor.setSelectionRange(
-                            staffNotesState.cursorPosition, 
-                            staffNotesState.cursorPosition
-                          );
-                        }, 0);
-
-                        // Update save button state
-                        const saveBtn = newCard.querySelector('.save-notes-btn');
-                        if (saveBtn) {
-                          const hasChanges = newEditor.value !== newEditor.dataset.previousValue;
-                          saveBtn.disabled = !hasChanges;
-                          saveBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
-                          saveBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
-                          saveBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
-                        }
-                      }
-                    }
-                  }
-                  
-                  console.log('Successfully refreshed order card after remote update');
-                }
-              }
+                break;
+              default:
+                this.handleOrderUpdate(update);
             }
           } catch (err) {
-            console.error('❌ Failed to process order update:', err);
-            ui.showError('Failed to process update');
+            console.error('Error processing order update:', err);
+            // Don't refresh on processing errors to avoid cascading issues
           }
         });
 
-        eventSource.addEventListener('heartbeat', (e) => {
-          this.lastHeartbeat = Date.now();
-          console.log('💓 Heartbeat received');
-          // Touch the session to keep it alive
-          fetch('/dashboard/whoami', { credentials: 'include' }).catch(() => {});
+        eventSource.addEventListener('couponUpdate', (e) => {
+          if (!this.connected || this.isRefreshing) return;
+          
+          try {
+            const update = JSON.parse(e.data);
+            console.log('🎫 Received coupon update:', update.type, update.coupon?.code || update.code);
+            handleCouponUpdate(update);
+          } catch (err) {
+            console.error('Error processing coupon update:', err);
+          }
         });
 
-        eventSource.addEventListener('ping', (e) => {
-          this.lastHeartbeat = Date.now();
-          console.log('🔔 Keep-alive ping received');
-          // Touch the session to keep it alive
-          fetch('/dashboard/whoami', { credentials: 'include' }).catch(() => {});
-        });
-
-        return eventSource;
+        eventSource.onerror = (error) => {
+          console.error('❌ SSE Connection Error:', error);
+          this.connected = false;
+          this.eventSource.close();
+          
+          if (this.connectionAttempts < this.maxRetries) {
+            this.connectionAttempts++;
+            console.log(`🔄 Reconnecting in ${this.retryDelay * this.connectionAttempts}ms (attempt ${this.connectionAttempts}/${this.maxRetries})`);
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = setTimeout(() => this.connect(), this.retryDelay * this.connectionAttempts);
+          } else {
+            console.error('❌ Max reconnection attempts reached');
+            this.showReconnectionError();
+          }
+        };
       }
 
       connect();
@@ -4085,6 +4102,18 @@
           }
         });
 
+        this.eventSource.addEventListener('couponUpdate', (e) => {
+          if (!this.connected || this.isRefreshing) return;
+          
+          try {
+            const update = JSON.parse(e.data);
+            console.log('🎫 Received coupon update:', update.type, update.coupon?.code || update.code);
+            handleCouponUpdate(update);
+          } catch (err) {
+            console.error('Error processing coupon update:', err);
+          }
+        });
+
         this.eventSource.onerror = (error) => {
           console.error('❌ SSE Connection Error:', error);
           this.connected = false;
@@ -4575,6 +4604,494 @@
         }
       }
     }
+
+    // Add styles for update animation and error banner
+    const updateStyles = document.createElement('style');
+    updateStyles.textContent = `
+      .order-card {
+        transition: background-color 0.3s ease;
+      }
+      .updated {
+        background-color: rgba(255, 255, 0, 0.1) !important;
+      }
+      .submission-time {
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 4px;
+      }
+      .assigned-staff {
+        font-weight: bold;
+        color: #2196F3;
+      }
+      .error-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #ff5252;
+        color: white;
+        padding: 1rem;
+        text-align: center;
+        z-index: 9999;
+      }
+      .error-banner button {
+        margin-left: 1rem;
+        padding: 0.5rem 1rem;
+        background: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .coupon-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+      .coupon-form {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+      }
+      .coupon-form h3 {
+        margin-top: 0;
+        color: #1f6463;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .form-group label {
+        font-weight: bold;
+        color: #333;
+      }
+      .form-group input,
+      .form-group select {
+        padding: 0.75rem;
+        border: 1px solid #ccc;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+      }
+      .form-group input:focus,
+      .form-group select:focus {
+        border-color: #1f6463;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
+      }
+      .create-coupon-btn {
+        background-color: #1f6463;
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+      .create-coupon-btn:hover {
+        background-color: #184f4e;
+      }
+      .create-coupon-btn:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      .coupons-list {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+      }
+      .coupons-list h3 {
+        margin-top: 0;
+        color: #1f6463;
+      }
+      .coupon-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+      }
+      .coupon-card {
+        background: #f9f9f9;
+        border: 1px solid #e0e0e0;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        transition: all 0.2s ease;
+      }
+      .coupon-card:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+      }
+      .coupon-code {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #1f6463;
+        margin-bottom: 0.5rem;
+      }
+      .coupon-details {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+      }
+      .coupon-usage {
+        color: #999;
+        font-size: 0.8rem;
+      }
+      .coupon-actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.5rem;
+      }
+      .edit-coupon-btn,
+      .delete-coupon-btn {
+        padding: 0.4rem 0.8rem;
+        border: none;
+        border-radius: 0.3rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .edit-coupon-btn {
+        background-color: #2196F3;
+        color: white;
+      }
+      .edit-coupon-btn:hover {
+        background-color: #1976D2;
+      }
+      .delete-coupon-btn {
+        background-color: #ff4444;
+        color: white;
+      }
+      .delete-coupon-btn:hover {
+        background-color: #cc0000;
+      }
+    `;
+    document.head.appendChild(updateStyles);
+
+    // 🎫 COUPON MANAGEMENT FUNCTIONS
+    
+    // Add coupon state to main state object
+    state.coupons = [];
+
+    // Show coupon management interface
+    async function showCouponManagement() {
+      console.log('🎫 Loading coupon management...');
+      
+      const orderGrid = document.getElementById("orderGrid");
+      orderGrid.innerHTML = `
+        <div class="coupon-container">
+          <div class="coupon-form">
+            <h3>Create New Coupon</h3>
+            <form id="couponForm">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="couponCode">Coupon Code</label>
+                  <input type="text" id="couponCode" placeholder="e.g., SAVE20" required>
+                </div>
+                <div class="form-group">
+                  <label for="discountType">Discount Type</label>
+                  <select id="discountType" required>
+                    <option value="">Select discount type...</option>
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed Amount ($)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="discountValue">Discount Value</label>
+                  <input type="number" id="discountValue" step="0.01" min="0" placeholder="e.g., 20" required>
+                </div>
+                <div class="form-group">
+                  <label for="maxUses">Max Uses (optional)</label>
+                  <input type="number" id="maxUses" min="0" placeholder="Leave empty for unlimited">
+                </div>
+              </div>
+              <button type="submit" class="create-coupon-btn">Create Coupon</button>
+            </form>
+          </div>
+          
+          <div class="coupons-list">
+            <h3>Active Coupons</h3>
+            <div id="couponsGrid" class="coupon-grid">
+              <p style="text-align: center; color: #666;">Loading coupons...</p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Initialize coupon form
+      initializeCouponForm();
+      
+      // Load existing coupons
+      await loadCoupons();
+    }
+
+    // Initialize coupon form handlers
+    function initializeCouponForm() {
+      const form = document.getElementById('couponForm');
+      const discountType = document.getElementById('discountType');
+      const discountValue = document.getElementById('discountValue');
+
+      // Update placeholder and validation based on discount type
+      discountType.addEventListener('change', () => {
+        const type = discountType.value;
+        if (type === 'percentage') {
+          discountValue.placeholder = 'e.g., 20 (for 20%)';
+          discountValue.max = '100';
+        } else if (type === 'fixed') {
+          discountValue.placeholder = 'e.g., 5.00 (for $5.00)';
+          discountValue.removeAttribute('max');
+        }
+      });
+
+      // Handle form submission
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await createCoupon();
+      });
+    }
+
+    // Load coupons from server
+    async function loadCoupons() {
+      try {
+        console.log('🔄 Loading coupons...');
+        const response = await fetch('/dashboard/coupons', {
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const coupons = await response.json();
+        state.coupons = coupons;
+        renderCoupons(coupons);
+        console.log(`✅ Loaded ${coupons.length} coupons`);
+      } catch (err) {
+        console.error('❌ Failed to load coupons:', err);
+        ui.showError('Failed to load coupons');
+        
+        const grid = document.getElementById('couponsGrid');
+        if (grid) {
+          grid.innerHTML = '<p style="text-align: center; color: #ff4444;">Failed to load coupons</p>';
+        }
+      }
+    }
+
+    // Render coupons in the grid
+    function renderCoupons(coupons) {
+      const grid = document.getElementById('couponsGrid');
+      if (!grid) return;
+
+      if (coupons.length === 0) {
+        grid.innerHTML = '<p style="text-align: center; color: #666;">No coupons created yet</p>';
+        return;
+      }
+
+      grid.innerHTML = coupons.map(coupon => {
+        const discountText = coupon.discount_type === 'percentage' 
+          ? `${coupon.discount_value}% off`
+          : `$${coupon.discount_value.toFixed(2)} off`;
+        
+        const usageText = coupon.max_uses 
+          ? `${coupon.used_count || 0} / ${coupon.max_uses} uses`
+          : `${coupon.used_count || 0} uses`;
+
+        return `
+          <div class="coupon-card" data-coupon-code="${coupon.code}">
+            <div class="coupon-code">${coupon.code}</div>
+            <div class="coupon-details">${discountText}</div>
+            <div class="coupon-usage">${usageText}</div>
+            <div class="coupon-actions">
+              <button class="edit-coupon-btn" onclick="editCoupon('${coupon.code}')">Edit</button>
+              <button class="delete-coupon-btn" onclick="deleteCoupon('${coupon.code}')">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Create a new coupon
+    async function createCoupon() {
+      const form = document.getElementById('couponForm');
+      const submitBtn = form.querySelector('.create-coupon-btn');
+      const originalText = submitBtn.textContent;
+
+      try {
+        // Get form data
+        const formData = new FormData(form);
+        const code = document.getElementById('couponCode').value.trim();
+        const discountType = document.getElementById('discountType').value;
+        const discountValue = parseFloat(document.getElementById('discountValue').value);
+        const maxUses = document.getElementById('maxUses').value;
+
+        // Validation
+        if (!code) {
+          throw new Error('Coupon code is required');
+        }
+        if (!discountType) {
+          throw new Error('Discount type is required');
+        }
+        if (isNaN(discountValue) || discountValue <= 0) {
+          throw new Error('Valid discount value is required');
+        }
+        if (discountType === 'percentage' && discountValue > 100) {
+          throw new Error('Percentage discount cannot exceed 100%');
+        }
+
+        // Update button state
+        submitBtn.textContent = 'Creating...';
+        submitBtn.disabled = true;
+
+        // Prepare request data
+        const requestData = {
+          code: code,
+          discount_type: discountType,
+          discount_value: discountValue
+        };
+
+        if (maxUses && parseInt(maxUses) > 0) {
+          requestData.max_uses = parseInt(maxUses);
+        }
+
+        // Send request
+        const response = await fetch('/dashboard/coupons', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || `HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('✅ Coupon created:', result.coupon);
+
+        // Add to state and re-render
+        state.coupons.unshift(result.coupon);
+        renderCoupons(state.coupons);
+
+        // Reset form
+        form.reset();
+        document.getElementById('discountValue').removeAttribute('max');
+        document.getElementById('discountValue').placeholder = 'e.g., 20';
+
+        // Show success message
+        ui.showNotification(`Coupon "${result.coupon.code}" created successfully!`);
+
+      } catch (err) {
+        console.error('❌ Failed to create coupon:', err);
+        ui.showError(err.message || 'Failed to create coupon');
+      } finally {
+        // Reset button state
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      }
+    }
+
+    // Edit a coupon (placeholder for now)
+    function editCoupon(code) {
+      ui.showNotification(`Edit functionality for "${code}" coming soon!`);
+    }
+
+    // Delete a coupon
+    async function deleteCoupon(code) {
+      if (!confirm(`Are you sure you want to delete the coupon "${code}"?`)) {
+        return;
+      }
+
+      try {
+        console.log('🗑️ Deleting coupon:', code);
+
+        const response = await fetch(`/dashboard/coupons/${encodeURIComponent(code)}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || `HTTP error! status: ${response.status}`);
+        }
+
+        console.log('✅ Coupon deleted:', code);
+
+        // Remove from state and re-render
+        state.coupons = state.coupons.filter(coupon => coupon.code !== code);
+        renderCoupons(state.coupons);
+
+        // Show success message
+        ui.showNotification(`Coupon "${code}" deleted successfully!`);
+
+      } catch (err) {
+        console.error('❌ Failed to delete coupon:', err);
+        ui.showError(err.message || 'Failed to delete coupon');
+      }
+    }
+
+    // Handle coupon updates from SSE
+    function handleCouponUpdate(update) {
+      console.log('🎫 Received coupon update:', update);
+      
+      // Only update if we're currently on the coupon tab
+      if (state.currentTab !== 'coupon') {
+        return;
+      }
+
+      switch (update.type) {
+        case 'create':
+          // Add new coupon if not already in state
+          if (!state.coupons.find(c => c.code === update.coupon.code)) {
+            state.coupons.unshift(update.coupon);
+            renderCoupons(state.coupons);
+            
+            // Show notification if created by someone else
+            if (update.createdBy !== state.currentUser) {
+              ui.showNotification(`New coupon "${update.coupon.code}" created by ${update.createdBy}`);
+            }
+          }
+          break;
+
+        case 'update':
+          // Update existing coupon
+          const updateIndex = state.coupons.findIndex(c => c.code === update.coupon.code);
+          if (updateIndex !== -1) {
+            state.coupons[updateIndex] = update.coupon;
+            renderCoupons(state.coupons);
+            
+            // Show notification if updated by someone else
+            if (update.updatedBy !== state.currentUser) {
+              ui.showNotification(`Coupon "${update.coupon.code}" updated by ${update.updatedBy}`);
+            }
+          }
+          break;
+
+        case 'delete':
+          // Remove deleted coupon
+          state.coupons = state.coupons.filter(c => c.code !== update.code);
+          renderCoupons(state.coupons);
+          
+          // Show notification if deleted by someone else
+          if (update.deletedBy !== state.currentUser) {
+            ui.showNotification(`Coupon "${update.code}" deleted by ${update.deletedBy}`);
+          }
+          break;
+      }
+    }
+
+    // Make functions globally available
+    window.editCoupon = editCoupon;
+    window.deleteCoupon = deleteCoupon;
   </script>
 
   <div id="loginOverlay" class="login-overlay">
