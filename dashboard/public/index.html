@@ -770,6 +770,16 @@
       color: white;
     }
 
+    .tab-button.analytics {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .tab-button.analytics.active {
+      background-color: #1f6463;
+      color: white;
+    }
+
     /* Add consistent button styles */
     .action-button {
       border: none;
@@ -955,6 +965,8 @@
       style="background: #ccc; color: black;">Claimed Orders</button>
     <button id="tabCoupon" class="tab-button coupon"
       style="background: #ccc; color: black;">Coupons</button>
+    <button id="tabAnalytics" class="tab-button analytics"
+      style="background: #ccc; color: black;">Analytics</button>
   </div>
 
   <div class="search-bar-flex">
@@ -1621,6 +1633,7 @@
         const allTab = document.getElementById("tabAll");
         const claimedTab = document.getElementById("tabClaimed");
         const couponTab = document.getElementById("tabCoupon");
+        const analyticsTab = document.getElementById("tabAnalytics");
 
         if (allTab) allTab.style.background = state.currentTab === "all" ? "#1f6463" : "#ccc";
         if (allTab) allTab.style.color = state.currentTab === "all" ? "white" : "black";
@@ -1630,6 +1643,9 @@
 
         if (couponTab) couponTab.style.background = state.currentTab === "coupon" ? "#1f6463" : "#ccc";
         if (couponTab) couponTab.style.color = state.currentTab === "coupon" ? "white" : "black";
+
+        if (analyticsTab) analyticsTab.style.background = state.currentTab === "analytics" ? "#1f6463" : "#ccc";
+        if (analyticsTab) analyticsTab.style.color = state.currentTab === "analytics" ? "white" : "black";
       },
 
       showLoginOverlay() {
@@ -2079,14 +2095,17 @@
       const allTab = document.getElementById("tabAll");
       const claimedTab = document.getElementById("tabClaimed");
       const couponTab = document.getElementById("tabCoupon");
+      const analyticsTab = document.getElementById("tabAnalytics");
 
       console.log('🔍 Found tab elements:', { 
         allTab: !!allTab, 
         claimedTab: !!claimedTab,
         couponTab: !!couponTab,
+        analyticsTab: !!analyticsTab,
         allTabVisible: allTab ? getComputedStyle(allTab).display !== 'none' : false,
         claimedTabVisible: claimedTab ? getComputedStyle(claimedTab).display !== 'none' : false,
-        couponTabVisible: couponTab ? getComputedStyle(couponTab).display !== 'none' : false
+        couponTabVisible: couponTab ? getComputedStyle(couponTab).display !== 'none' : false,
+        analyticsTabVisible: analyticsTab ? getComputedStyle(analyticsTab).display !== 'none' : false
       });
 
       if (allTab) {
@@ -2124,12 +2143,24 @@
         console.log('✅ Coupon tab onclick handler set');
       }
 
+      if (analyticsTab) {
+        analyticsTab.onclick = () => {
+          console.log('🎯 Analytics tab clicked!');
+          state.currentTab = "analytics";
+          console.log('Switching to Analytics tab');
+          ui.updateTabStyles();
+          document.getElementById("orderGrid").innerHTML = '<div style="text-align: center; padding: 2rem;">Analytics Dashboard Coming Soon</div>';
+        };
+        console.log('✅ Analytics tab onclick handler set');
+      }
+
       // Verify that the handlers are actually set
       setTimeout(() => {
         console.log('🔍 Verifying onclick handlers after setup:', {
           allTabHandler: allTab ? typeof allTab.onclick : 'tab not found',
           claimedTabHandler: claimedTab ? typeof claimedTab.onclick : 'tab not found',
-          couponTabHandler: couponTab ? typeof couponTab.onclick : 'tab not found'
+          couponTabHandler: couponTab ? typeof couponTab.onclick : 'tab not found',
+          analyticsTabHandler: analyticsTab ? typeof analyticsTab.onclick : 'tab not found'
         });
       }, 50);
 
