@@ -1198,7 +1198,7 @@
     .coupon-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 1rem;
+      gap: 0.75rem;
     }
     
     .coupon-card {
@@ -1226,10 +1226,7 @@
     
     .coupon-header-row {
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
       margin-bottom: 1rem;
-      gap: 1rem;
     }
     
     .coupon-code {
@@ -1240,8 +1237,6 @@
       background: #e8f4f4;
       padding: 0.25rem 0.75rem;
       border-radius: 0.5rem;
-      flex-shrink: 1;
-      min-width: 0;
       word-break: break-word;
     }
     
@@ -1683,14 +1678,14 @@
     @media (min-width: 1400px) {
       .coupon-grid {
         grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-        gap: 1.25rem;
+        gap: 0.875rem;
       }
     }
     
     @media (min-width: 768px) and (max-width: 1399px) {
       .coupon-grid {
         grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        gap: 1rem;
+        gap: 0.75rem;
       }
     }
     
@@ -5645,9 +5640,6 @@
           <div class="coupon-card" data-coupon-code="${coupon.code}">
             <div class="coupon-header-row">
               <div class="coupon-code">${coupon.code}</div>
-              <div class="coupon-status ${coupon.max_uses && usagePercentage >= 100 ? 'exhausted' : 'active'}">
-                ${coupon.max_uses && usagePercentage >= 100 ? 'Exhausted' : 'Active'}
-              </div>
             </div>
             
             <div class="coupon-discount">
