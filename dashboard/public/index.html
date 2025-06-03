@@ -980,12 +980,13 @@
         return;
       }
 
-      // Store the current state of the staff notes before updating
+      // Store the current state of the staff notes and details section
+      const detailsSection = orderCard.querySelector('.details-section');
+      const isExpanded = detailsSection?.classList.contains('visible');
       const staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
       const currentNotesValue = staffNotesEditor ? staffNotesEditor.value : '';
       const isEditorFocused = staffNotesEditor === document.activeElement;
       const cursorPosition = staffNotesEditor ? staffNotesEditor.selectionStart : 0;
-      const detailsVisible = orderCard.querySelector('.details-section').classList.contains('visible');
 
       // Handle claimed tab visibility
       if (state.currentTab === "claimed") {
@@ -1083,54 +1084,58 @@
       // Update other card elements
       updateCardElements(orderCard, updatedOrder);
 
-      // Restore staff notes state
-      const newStaffNotesEditor = orderCard.querySelector(".staff-notes-editor");
-      if (newStaffNotesEditor) {
-        newStaffNotesEditor.value = isEditorFocused ? currentNotesValue : (updatedOrder.order_notes || '');
-        newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+      // If the card was expanded, we need to re-expand it and restore the staff notes
+      if (isExpanded) {
+        const newDetailsSection = orderCard.querySelector('.details-section');
+        const newToggleBtn = orderCard.querySelector('.details-toggle');
+        const newStaffNotesEditor = orderCard.querySelector('.staff-notes-editor');
+        const newSaveNotesBtn = orderCard.querySelector('.save-notes-btn');
+
+        if (newDetailsSection) {
+          newDetailsSection.classList.add('visible');
+        }
         
-        if (isEditorFocused) {
-          newStaffNotesEditor.focus();
-          newStaffNotesEditor.setSelectionRange(cursorPosition, cursorPosition);
-        }
-      }
-
-      // Restore details section visibility if it was visible
-      const newDetailsSection = orderCard.querySelector('.details-section');
-      if (newDetailsSection && detailsVisible) {
-        newDetailsSection.classList.add('visible');
-        const toggleBtn = orderCard.querySelector('.details-toggle');
-        if (toggleBtn) {
-          toggleBtn.textContent = "Hide ▲";
-        }
-      }
-
-      // Update staff notes if they exist
-      const saveNotesBtn = orderCard.querySelector(".save-notes-btn");
-      
-      if (newStaffNotesEditor && saveNotesBtn) {
-        // Only update if the editor is not currently focused (being edited)
-        if (!isEditorFocused) {
-          newStaffNotesEditor.value = updatedOrder.order_notes || '';
-          newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+        if (newToggleBtn) {
+          newToggleBtn.textContent = "Hide ▲";
         }
 
-        // Ensure the editor remains editable
-        newStaffNotesEditor.disabled = false;
-        newStaffNotesEditor.readOnly = false;
+        if (newStaffNotesEditor) {
+          // Restore the previous value if it was being edited
+          if (isEditorFocused) {
+            newStaffNotesEditor.value = currentNotesValue;
+            newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+            setTimeout(() => {
+              newStaffNotesEditor.focus();
+              newStaffNotesEditor.setSelectionRange(cursorPosition, cursorPosition);
+            }, 0);
+          } else {
+            newStaffNotesEditor.value = updatedOrder.order_notes || '';
+            newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+          }
 
-        // Reset save button state
-        const hasChanges = currentNotesValue !== (updatedOrder.order_notes || '');
-        saveNotesBtn.disabled = !hasChanges;
-        
-        if (hasChanges) {
-          saveNotesBtn.textContent = "Save Notes";
-          saveNotesBtn.style.backgroundColor = "#1f6463";
-          saveNotesBtn.style.cursor = "pointer";
-        } else {
-          saveNotesBtn.textContent = "No Changes";
-          saveNotesBtn.style.backgroundColor = "#ccc";
-          saveNotesBtn.style.cursor = "not-allowed";
+          // Ensure the editor is enabled
+          newStaffNotesEditor.disabled = false;
+          newStaffNotesEditor.readOnly = false;
+
+          // Update save button state
+          if (newSaveNotesBtn) {
+            const hasChanges = newStaffNotesEditor.value !== newStaffNotesEditor.dataset.previousValue;
+            newSaveNotesBtn.disabled = !hasChanges;
+            newSaveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+            newSaveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+            newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+          }
+
+          // Reattach the input event listener
+          newStaffNotesEditor.addEventListener('input', () => {
+            const hasChanges = newStaffNotesEditor.value !== newStaffNotesEditor.dataset.previousValue;
+            if (newSaveNotesBtn) {
+              newSaveNotesBtn.disabled = !hasChanges;
+              newSaveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+              newSaveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+              newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+            }
+          });
         }
       }
     }
