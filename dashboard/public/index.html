@@ -1192,8 +1192,9 @@
           newToggleBtn.textContent = "Hide ▲";
         }
 
+        // Always reinitialize the staff notes editor with fresh data
         if (newStaffNotesEditor) {
-          // Restore the previous value if it was being edited
+          // If the editor was being edited, preserve the current state
           if (isEditorFocused) {
             newStaffNotesEditor.value = currentNotesValue;
             newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
@@ -1202,6 +1203,7 @@
               newStaffNotesEditor.setSelectionRange(cursorPosition, cursorPosition);
             }, 0);
           } else {
+            // Otherwise use the latest data from the server
             newStaffNotesEditor.value = updatedOrder.order_notes || '';
             newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
           }
@@ -1219,32 +1221,68 @@
             newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
           }
 
-          // Reattach the input event listener
-          newStaffNotesEditor.addEventListener('input', () => {
-            const hasChanges = newStaffNotesEditor.value !== newStaffNotesEditor.dataset.previousValue;
-            if (newSaveNotesBtn) {
-              newSaveNotesBtn.disabled = !hasChanges;
-              newSaveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
-              newSaveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
-              newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
-            }
-          });
+          // Reattach all event listeners
+          const reattachEditorListeners = () => {
+            // Clear existing listeners
+            const freshEditor = newStaffNotesEditor.cloneNode(true);
+            newStaffNotesEditor.parentNode.replaceChild(freshEditor, newStaffNotesEditor);
 
-          // Add Ctrl+Enter / Cmd+Enter save shortcut
-          newStaffNotesEditor.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !newSaveNotesBtn?.disabled) {
-              e.preventDefault();
-              newSaveNotesBtn.click();
-            }
-          });
-
-          // Add save button click handler
-          if (newSaveNotesBtn) {
-            newSaveNotesBtn.addEventListener('click', () => {
-              if (newStaffNotesEditor.value !== newStaffNotesEditor.dataset.previousValue) {
-                saveStaffNotes(updatedOrder.id, newStaffNotesEditor.value, newStaffNotesEditor, newSaveNotesBtn);
+            // Add input event listener
+            freshEditor.addEventListener('input', () => {
+              const hasChanges = freshEditor.value !== freshEditor.dataset.previousValue;
+              if (newSaveNotesBtn) {
+                newSaveNotesBtn.disabled = !hasChanges;
+                newSaveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+                newSaveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+                newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
               }
             });
+
+            // Handle paste and cut events
+            ['paste', 'cut'].forEach(eventName => {
+              freshEditor.addEventListener(eventName, () => {
+                setTimeout(() => freshEditor.dispatchEvent(new Event('input')), 0);
+              });
+            });
+
+            // Add Ctrl+Enter / Cmd+Enter save shortcut
+            freshEditor.addEventListener('keydown', (e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !newSaveNotesBtn?.disabled) {
+                e.preventDefault();
+                newSaveNotesBtn.click();
+              }
+            });
+
+            return freshEditor;
+          };
+
+          // Reattach save button listeners
+          const reattachSaveButtonListeners = () => {
+            if (!newSaveNotesBtn) return;
+
+            const freshSaveBtn = newSaveNotesBtn.cloneNode(true);
+            newSaveNotesBtn.parentNode.replaceChild(freshSaveBtn, newSaveNotesBtn);
+
+            freshSaveBtn.addEventListener('click', () => {
+              const editor = orderCard.querySelector('.staff-notes-editor');
+              if (editor && editor.value !== editor.dataset.previousValue) {
+                saveStaffNotes(updatedOrder.id, editor.value, editor, freshSaveBtn);
+              }
+            });
+
+            return freshSaveBtn;
+          };
+
+          // Apply the reattached listeners
+          const freshEditor = reattachEditorListeners();
+          const freshSaveBtn = reattachSaveButtonListeners();
+
+          // If we were editing, restore focus
+          if (isEditorFocused) {
+            setTimeout(() => {
+              freshEditor.focus();
+              freshEditor.setSelectionRange(cursorPosition, cursorPosition);
+            }, 0);
           }
         }
       }
@@ -2559,66 +2597,8 @@
                 } else if (update.type === 'unclaim' && update.order.claimed_by === null) {
                   ui.showNotification(`Order ${update.order.id} was unclaimed`);
                 }
-
-                // Find the existing card
-                const orderCard = document.querySelector(`[data-order-id="${update.order.id}"]`);
-                if (orderCard) {
-                  // Store staff notes state before update
-                  const staffNotesEditor = orderCard.querySelector('.staff-notes-editor');
-                  const saveNotesBtn = orderCard.querySelector('.save-notes-btn');
-                  const detailsSection = orderCard.querySelector('.details-section');
-                  
-                  const editorState = staffNotesEditor ? {
-                    value: staffNotesEditor.value,
-                    previousValue: staffNotesEditor.dataset.previousValue,
-                    isFocused: staffNotesEditor === document.activeElement,
-                    cursorPosition: staffNotesEditor.selectionStart,
-                    isExpanded: detailsSection?.classList.contains('visible')
-                  } : null;
-
-                  // Process the update
-                  handleOrderUpdate(update.order);
-
-                  // If the editor was active, restore its state
-                  if (editorState && editorState.isExpanded) {
-                    const newEditor = orderCard.querySelector('.staff-notes-editor');
-                    const newSaveBtn = orderCard.querySelector('.save-notes-btn');
-                    const newDetailsSection = orderCard.querySelector('.details-section');
-
-                    if (newEditor && newDetailsSection) {
-                      // Restore expansion state
-                      newDetailsSection.classList.add('visible');
-                      const toggleBtn = orderCard.querySelector('.details-toggle');
-                      if (toggleBtn) toggleBtn.textContent = "Hide ▲";
-
-                      // Restore editor state
-                      if (editorState.isFocused) {
-                        newEditor.value = editorState.value;
-                        newEditor.dataset.previousValue = editorState.previousValue;
-                        setTimeout(() => {
-                          newEditor.focus();
-                          newEditor.setSelectionRange(editorState.cursorPosition, editorState.cursorPosition);
-                        }, 0);
-                      }
-
-                      // Ensure editor is enabled
-                      newEditor.disabled = false;
-                      newEditor.readOnly = false;
-
-                      // Update save button state
-                      if (newSaveBtn) {
-                        const hasChanges = newEditor.value !== newEditor.dataset.previousValue;
-                        newSaveBtn.disabled = !hasChanges;
-                        newSaveBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
-                        newSaveBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
-                        newSaveBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
-                      }
-                    }
-                  }
-                } else {
-                  // If card not found, just update state and let normal rendering handle it
-                  handleOrderUpdate(update.order);
-                }
+                
+                handleOrderUpdate(update.order);
               }
             }
           } catch (err) {
@@ -3083,8 +3063,9 @@
           newToggleBtn.textContent = "Hide ▲";
         }
 
+        // Always reinitialize the staff notes editor with fresh data
         if (newStaffNotesEditor) {
-          // Restore the previous value if it was being edited
+          // If the editor was being edited, preserve the current state
           if (isEditorFocused) {
             newStaffNotesEditor.value = currentNotesValue;
             newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
@@ -3093,6 +3074,7 @@
               newStaffNotesEditor.setSelectionRange(cursorPosition, cursorPosition);
             }, 0);
           } else {
+            // Otherwise use the latest data from the server
             newStaffNotesEditor.value = updatedOrder.order_notes || '';
             newStaffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
           }
@@ -3110,32 +3092,68 @@
             newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
           }
 
-          // Reattach the input event listener
-          newStaffNotesEditor.addEventListener('input', () => {
-            const hasChanges = newStaffNotesEditor.value !== newStaffNotesEditor.dataset.previousValue;
-            if (newSaveNotesBtn) {
-              newSaveNotesBtn.disabled = !hasChanges;
-              newSaveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
-              newSaveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
-              newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
-            }
-          });
+          // Reattach all event listeners
+          const reattachEditorListeners = () => {
+            // Clear existing listeners
+            const freshEditor = newStaffNotesEditor.cloneNode(true);
+            newStaffNotesEditor.parentNode.replaceChild(freshEditor, newStaffNotesEditor);
 
-          // Add Ctrl+Enter / Cmd+Enter save shortcut
-          newStaffNotesEditor.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !newSaveNotesBtn?.disabled) {
-              e.preventDefault();
-              newSaveNotesBtn.click();
-            }
-          });
-
-          // Add save button click handler
-          if (newSaveNotesBtn) {
-            newSaveNotesBtn.addEventListener('click', () => {
-              if (newStaffNotesEditor.value !== newStaffNotesEditor.dataset.previousValue) {
-                saveStaffNotes(updatedOrder.id, newStaffNotesEditor.value, newStaffNotesEditor, newSaveNotesBtn);
+            // Add input event listener
+            freshEditor.addEventListener('input', () => {
+              const hasChanges = freshEditor.value !== freshEditor.dataset.previousValue;
+              if (newSaveNotesBtn) {
+                newSaveNotesBtn.disabled = !hasChanges;
+                newSaveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+                newSaveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+                newSaveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
               }
             });
+
+            // Handle paste and cut events
+            ['paste', 'cut'].forEach(eventName => {
+              freshEditor.addEventListener(eventName, () => {
+                setTimeout(() => freshEditor.dispatchEvent(new Event('input')), 0);
+              });
+            });
+
+            // Add Ctrl+Enter / Cmd+Enter save shortcut
+            freshEditor.addEventListener('keydown', (e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !newSaveNotesBtn?.disabled) {
+                e.preventDefault();
+                newSaveNotesBtn.click();
+              }
+            });
+
+            return freshEditor;
+          };
+
+          // Reattach save button listeners
+          const reattachSaveButtonListeners = () => {
+            if (!newSaveNotesBtn) return;
+
+            const freshSaveBtn = newSaveNotesBtn.cloneNode(true);
+            newSaveNotesBtn.parentNode.replaceChild(freshSaveBtn, newSaveNotesBtn);
+
+            freshSaveBtn.addEventListener('click', () => {
+              const editor = orderCard.querySelector('.staff-notes-editor');
+              if (editor && editor.value !== editor.dataset.previousValue) {
+                saveStaffNotes(updatedOrder.id, editor.value, editor, freshSaveBtn);
+              }
+            });
+
+            return freshSaveBtn;
+          };
+
+          // Apply the reattached listeners
+          const freshEditor = reattachEditorListeners();
+          const freshSaveBtn = reattachSaveButtonListeners();
+
+          // If we were editing, restore focus
+          if (isEditorFocused) {
+            setTimeout(() => {
+              freshEditor.focus();
+              freshEditor.setSelectionRange(cursorPosition, cursorPosition);
+            }, 0);
           }
         }
       }
