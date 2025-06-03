@@ -1014,7 +1014,7 @@
     
     .coupon-layout {
       display: grid;
-      grid-template-columns: 400px 1fr;
+      grid-template-columns: 500px 1fr;
       gap: 3rem;
       align-items: start;
       width: 100%;
@@ -1544,7 +1544,7 @@
     /* Responsive design */
     @media (max-width: 1200px) {
       .coupon-layout {
-        grid-template-columns: 350px 1fr;
+        grid-template-columns: 450px 1fr;
         gap: 2rem;
       }
     }
@@ -5412,11 +5412,6 @@
       const orderGrid = document.getElementById("orderGrid");
       orderGrid.innerHTML = `
         <div class="coupon-container">
-          <div class="coupon-header">
-            <h2>Coupon Management</h2>
-            <p class="coupon-subtitle">Create and manage discount coupons for your store</p>
-          </div>
-          
           <div class="coupon-layout">
             <div class="coupon-sidebar">
               <div class="coupon-form">
