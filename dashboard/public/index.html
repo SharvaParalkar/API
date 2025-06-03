@@ -1493,16 +1493,15 @@
     
     .modal-footer {
       display: flex;
-      gap: 1rem;
+      flex-direction: column;
+      gap: 0.75rem;
       padding: 1rem 2rem 2rem 2rem;
-      justify-content: space-between;
-      align-items: center;
       margin-top: auto;
       flex-shrink: 0;
     }
     
     .modal-btn {
-      flex: 1;
+      width: 100%;
       padding: 0.75rem 1.5rem;
       border: none;
       border-radius: 0.5rem;
@@ -1510,7 +1509,7 @@
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s ease;
-      min-width: 120px;
+      min-height: 44px;
       white-space: nowrap;
     }
     
@@ -1601,13 +1600,13 @@
       }
       
       .modal-footer {
-        flex-direction: row;
-        gap: 1rem;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem 1.5rem 1.5rem 1.5rem;
       }
       
       .modal-btn {
-        width: auto;
-        flex: 1;
+        width: 100%;
       }
     }
     
@@ -1662,6 +1661,11 @@
       .modal-body,
       .modal-footer {
         padding: 1rem;
+      }
+      
+      .modal-footer {
+        gap: 0.5rem;
+        padding: 0.75rem 1rem 1rem 1rem;
       }
     }
   </style>
@@ -5897,9 +5901,9 @@
   <div id="loginOverlay" class="login-overlay">
     <div class="login-box">
       <h2>FilamentBros Login</h2>
-      <form id="loginForm">
+      <form id="loginForm"> 
         <input type="text" id="username" placeholder="Username" required />
-        <input type="password" id="password" placeholder="Password" required />
+        <input type="password" id="password" placeholder="Password" required /> 
         <label class="remember-line">
           <input type="checkbox" id="rememberMe" />
           Remember Me
