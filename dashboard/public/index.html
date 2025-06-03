@@ -4172,6 +4172,130 @@
       addUpdateFeedback(orderElement);
     }
 
+    // Add the missing update functions
+    function updateOrderStatus(orderElement, order) {
+      const statusDropdown = orderElement.querySelector('.status-dropdown');
+      if (statusDropdown) {
+        const newStatus = order.status || 'pending';
+        statusDropdown.value = newStatus;
+        statusDropdown.dataset.previousValue = newStatus;
+        applyStatusColor(statusDropdown, newStatus);
+      }
+    }
+
+    function updateOrderClaim(orderElement, order) {
+      const actionBtn = orderElement.querySelector('.action-button:not(.save-notes-btn):not(.save-price-btn)');
+      if (actionBtn) {
+        if (order.status?.toLowerCase() === 'completed') {
+          // Replace with completed label
+          const completedLabel = document.createElement("button");
+          completedLabel.textContent = "Completed";
+          completedLabel.disabled = true;
+          completedLabel.className = "action-button";
+          completedLabel.style.backgroundColor = "#999";
+          completedLabel.style.color = "#666";
+          completedLabel.style.cursor = "not-allowed";
+          actionBtn.replaceWith(completedLabel);
+        } else if (order.claimed_by === state.currentUser) {
+          // Replace with unclaim button if not already an unclaim button
+          if (!actionBtn.textContent.includes('Unclaim')) {
+            actionBtn.replaceWith(createUnclaimButton(order));
+          }
+        } else {
+          // Update or replace with claim button
+          const newClaimBtn = document.createElement('button');
+          newClaimBtn.className = 'action-button';
+          
+          if (order.claimed_by) {
+            newClaimBtn.textContent = `Claimed by ${order.claimed_by}`;
+            newClaimBtn.disabled = true;
+            newClaimBtn.style.backgroundColor = '#999';
+            newClaimBtn.style.cursor = 'not-allowed';
+          } else {
+            newClaimBtn.textContent = 'Claim Order';
+            newClaimBtn.addEventListener('click', async () => {
+              try {
+                newClaimBtn.textContent = 'Claiming...';
+                newClaimBtn.disabled = true;
+                newClaimBtn.classList.add('claiming');
+
+                const response = await api.claimOrder(order.id);
+                
+                if (response && response.order) {
+                  Object.assign(order, response.order);
+                  updateStaffTagsForOrder(orderElement, [state.currentUser]);
+                  newClaimBtn.replaceWith(createUnclaimButton(order));
+                }
+              } catch (err) {
+                console.error(`Failed to claim order ${order.id}:`, err);
+                ui.showError(err.message || "Failed to claim order");
+                newClaimBtn.textContent = 'Claim Order';
+                newClaimBtn.disabled = false;
+                newClaimBtn.classList.remove('claiming');
+              }
+            });
+          }
+          
+          actionBtn.replaceWith(newClaimBtn);
+        }
+      }
+    }
+
+    function updateOrderPrice(orderElement, order) {
+      // Update estimated price
+      const priceElement = orderElement.querySelector('p');
+      if (priceElement && priceElement.innerHTML.includes('Est. Price:')) {
+        priceElement.innerHTML = `<strong>Est. Price:</strong> ${order.est_price ? `$${order.est_price.toFixed(2)}` : '—'}`;
+      }
+
+      // Update assigned price input if it exists and details are visible
+      const assignedPriceInput = orderElement.querySelector('.assigned-price-input');
+      if (assignedPriceInput) {
+        const currentValue = assignedPriceInput.value;
+        const newValue = order.assigned_price || '';
+        
+        // Only update if the user isn't currently editing
+        if (assignedPriceInput !== document.activeElement) {
+          assignedPriceInput.value = newValue;
+          assignedPriceInput.dataset.previousValue = newValue;
+          
+          // Update save button state
+          const savePriceBtn = orderElement.querySelector('.save-price-btn');
+          if (savePriceBtn) {
+            savePriceBtn.disabled = true;
+            savePriceBtn.style.backgroundColor = "#ccc";
+            savePriceBtn.style.cursor = "not-allowed";
+          }
+        }
+      }
+    }
+
+    function updateOrderNotes(orderElement, order) {
+      // Update staff notes if they exist and details are visible
+      const staffNotesEditor = orderElement.querySelector('.staff-notes-editor');
+      if (staffNotesEditor) {
+        // Only update if the editor is not currently focused (being edited)
+        const isEditorFocused = staffNotesEditor === document.activeElement;
+        
+        if (!isEditorFocused) {
+          staffNotesEditor.value = order.order_notes || '';
+          staffNotesEditor.dataset.previousValue = order.order_notes || '';
+        }
+
+        // Update save button state
+        const saveNotesBtn = orderElement.querySelector('.save-notes-btn');
+        if (saveNotesBtn) {
+          const currentValue = staffNotesEditor.value;
+          const hasChanges = currentValue !== (order.order_notes || '');
+          
+          saveNotesBtn.disabled = !hasChanges;
+          saveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+          saveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+          saveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+        }
+      }
+    }
+
     // Format date for display
     function formatDate(dateString) {
       if (!dateString) return 'Unknown';
@@ -4473,4 +4597,4 @@
   </div>
 </body>
 
-</html>
+</html>     
