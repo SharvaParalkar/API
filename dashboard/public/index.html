@@ -2559,8 +2559,66 @@
                 } else if (update.type === 'unclaim' && update.order.claimed_by === null) {
                   ui.showNotification(`Order ${update.order.id} was unclaimed`);
                 }
-                
-                handleOrderUpdate(update.order);
+
+                // Find the existing card
+                const orderCard = document.querySelector(`[data-order-id="${update.order.id}"]`);
+                if (orderCard) {
+                  // Store staff notes state before update
+                  const staffNotesEditor = orderCard.querySelector('.staff-notes-editor');
+                  const saveNotesBtn = orderCard.querySelector('.save-notes-btn');
+                  const detailsSection = orderCard.querySelector('.details-section');
+                  
+                  const editorState = staffNotesEditor ? {
+                    value: staffNotesEditor.value,
+                    previousValue: staffNotesEditor.dataset.previousValue,
+                    isFocused: staffNotesEditor === document.activeElement,
+                    cursorPosition: staffNotesEditor.selectionStart,
+                    isExpanded: detailsSection?.classList.contains('visible')
+                  } : null;
+
+                  // Process the update
+                  handleOrderUpdate(update.order);
+
+                  // If the editor was active, restore its state
+                  if (editorState && editorState.isExpanded) {
+                    const newEditor = orderCard.querySelector('.staff-notes-editor');
+                    const newSaveBtn = orderCard.querySelector('.save-notes-btn');
+                    const newDetailsSection = orderCard.querySelector('.details-section');
+
+                    if (newEditor && newDetailsSection) {
+                      // Restore expansion state
+                      newDetailsSection.classList.add('visible');
+                      const toggleBtn = orderCard.querySelector('.details-toggle');
+                      if (toggleBtn) toggleBtn.textContent = "Hide ▲";
+
+                      // Restore editor state
+                      if (editorState.isFocused) {
+                        newEditor.value = editorState.value;
+                        newEditor.dataset.previousValue = editorState.previousValue;
+                        setTimeout(() => {
+                          newEditor.focus();
+                          newEditor.setSelectionRange(editorState.cursorPosition, editorState.cursorPosition);
+                        }, 0);
+                      }
+
+                      // Ensure editor is enabled
+                      newEditor.disabled = false;
+                      newEditor.readOnly = false;
+
+                      // Update save button state
+                      if (newSaveBtn) {
+                        const hasChanges = newEditor.value !== newEditor.dataset.previousValue;
+                        newSaveBtn.disabled = !hasChanges;
+                        newSaveBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+                        newSaveBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+                        newSaveBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+                      }
+                    }
+                  }
+                } else {
+                  // If card not found, just update state and let normal rendering handle it
+                  handleOrderUpdate(update.order);
+                }
               }
             }
           } catch (err) {
