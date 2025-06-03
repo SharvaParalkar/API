@@ -2831,8 +2831,114 @@
                 } else if (update.type === 'unclaim' && update.order.claimed_by === null) {
                   ui.showNotification(`Order ${update.order.id} was unclaimed`);
                 }
+
+                // Find the card in the DOM
+                const orderCard = document.querySelector(`[data-order-id="${update.order.id}"]`);
+                if (!orderCard) {
+                  console.log(`Card not found for order ${update.order.id}, refreshing view...`);
+                  const query = document.getElementById("searchInput").value;
+                  filterOrders(query);
+                  return;
+                }
+
+                // Store the current state of the details section and staff notes
+                const detailsSection = orderCard.querySelector('.details-section');
+                const isExpanded = detailsSection?.classList.contains('visible');
                 
-                handleOrderUpdate(update.order);
+                // Store staff notes state if expanded
+                let staffNotesState = null;
+                if (isExpanded) {
+                  const staffNotesEditor = orderCard.querySelector('.staff-notes-editor');
+                  if (staffNotesEditor) {
+                    staffNotesState = {
+                      value: staffNotesEditor.value,
+                      isEditing: staffNotesEditor === document.activeElement,
+                      cursorPosition: staffNotesEditor.selectionStart,
+                      previousValue: staffNotesEditor.dataset.previousValue
+                    };
+                  }
+                }
+
+                // Update order in state
+                const index = state.allOrders.findIndex(order => order.id === update.order.id);
+                if (index !== -1) {
+                  state.allOrders[index] = update.order;
+                } else {
+                  state.allOrders.unshift(update.order);
+                }
+
+                // Handle claimed tab visibility
+                if (state.currentTab === "claimed") {
+                  const assignedStaffList = update.order.assigned_staff ? update.order.assigned_staff.split(',') : [];
+                  const shouldBeVisible = (
+                    (update.order.claimed_by === state.currentUser || assignedStaffList.includes(state.currentUser)) &&
+                    update.order.status?.toLowerCase() !== "completed"
+                  );
+                  
+                  if (!shouldBeVisible) {
+                    console.log(`Removing card ${update.order.id} from claimed view`);
+                    orderCard.style.transition = "all 0.3s ease";
+                    orderCard.style.opacity = "0";
+                    orderCard.style.transform = "scale(0.9)";
+                    setTimeout(() => {
+                      if (orderCard.isConnected) {
+                        orderCard.remove();
+                      }
+                    }, 300);
+                    return;
+                  }
+                }
+
+                // Create a temporary container for the new card
+                const tempContainer = document.createElement('div');
+                
+                // Render a single order into the temporary container
+                renderOrders([update.order], isExpanded, tempContainer);
+                
+                // Get the newly rendered card
+                const newCard = tempContainer.firstChild;
+                if (!newCard) {
+                  console.warn('Failed to render new card');
+                  return;
+                }
+                
+                // Replace the old card with the new one
+                if (orderCard.parentNode) {
+                  orderCard.parentNode.replaceChild(newCard, orderCard);
+                  
+                  // If it was expanded and had staff notes being edited, restore that state
+                  if (staffNotesState) {
+                    const newEditor = newCard.querySelector('.staff-notes-editor');
+                    if (newEditor) {
+                      // Only restore the user's edits if they were actively editing
+                      // Otherwise use the new value from the server
+                      if (staffNotesState.isEditing) {
+                        newEditor.value = staffNotesState.value;
+                        newEditor.dataset.previousValue = staffNotesState.previousValue;
+                        
+                        setTimeout(() => {
+                          newEditor.focus();
+                          newEditor.setSelectionRange(
+                            staffNotesState.cursorPosition, 
+                            staffNotesState.cursorPosition
+                          );
+                        }, 0);
+
+                        // Update save button state
+                        const saveBtn = newCard.querySelector('.save-notes-btn');
+                        if (saveBtn) {
+                          const hasChanges = newEditor.value !== newEditor.dataset.previousValue;
+                          saveBtn.disabled = !hasChanges;
+                          saveBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+                          saveBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+                          saveBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+                        }
+                      }
+                    }
+                  }
+                  
+                  console.log('Successfully refreshed order card after remote update');
+                }
               }
             }
           } catch (err) {
@@ -3250,9 +3356,9 @@
 
           // Add Ctrl+Enter / Cmd+Enter save shortcut
           newEditor.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveBtn.disabled) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveNotesBtn.disabled) {
               e.preventDefault();
-              saveBtn.click();
+              saveNotesBtn.click();
             }
           });
 
