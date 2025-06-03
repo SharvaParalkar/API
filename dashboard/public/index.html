@@ -128,12 +128,12 @@
     }
 
     .assigned-price-input {
-      width: 150px;
-      padding: 0.4rem;
+      width: 120px;
+      padding: 0.4rem 0.4rem 0.4rem 1.5rem;
       border: 1px solid #ccc;
       border-radius: 0.3rem;
       font-size: 0.9rem;
-      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
     }
 
     .assigned-price-input:focus {
@@ -142,15 +142,32 @@
       box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
     }
 
+    .price-input-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .dollar-sign {
+      position: absolute;
+      left: 0.5rem;
+      top: 0.4rem;
+      color: #666;
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+
     .save-price-btn {
-      padding: 0.4rem 0.8rem;
+      padding: 0.3rem 0.6rem;
       background-color: #1f6463;
       color: white;
       border: none;
       border-radius: 0.3rem;
       cursor: pointer;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       transition: background-color 0.2s ease;
+      width: 120px;
     }
 
     .save-price-btn:disabled {
@@ -2549,9 +2566,11 @@
         const assignedPriceContentCell = document.createElement("td");
         
         const priceWrapper = document.createElement("div");
-        priceWrapper.style.display = "flex";
-        priceWrapper.style.alignItems = "center";
-        priceWrapper.style.gap = "0.5rem";
+        priceWrapper.className = "price-input-wrapper";
+        
+        const dollarSign = document.createElement("span");
+        dollarSign.className = "dollar-sign";
+        dollarSign.textContent = "$";
         
         const assignedPriceInput = document.createElement("input");
         assignedPriceInput.type = "number";
@@ -2559,13 +2578,17 @@
         assignedPriceInput.min = "0";
         assignedPriceInput.className = "assigned-price-input";
         assignedPriceInput.value = order.assigned_price || '';
-        assignedPriceInput.placeholder = "Enter final price...";
+        assignedPriceInput.placeholder = "Enter price...";
         assignedPriceInput.dataset.previousValue = order.assigned_price || '';
         
         const savePriceBtn = document.createElement("button");
         savePriceBtn.className = "save-price-btn";
         savePriceBtn.textContent = "Save Price";
         savePriceBtn.disabled = true;
+
+        priceWrapper.appendChild(dollarSign);
+        priceWrapper.appendChild(assignedPriceInput);
+        priceWrapper.appendChild(savePriceBtn);
 
         // Handle changes to assigned price
         assignedPriceInput.addEventListener('input', () => {
@@ -2634,8 +2657,6 @@
           }
         });
 
-        priceWrapper.appendChild(assignedPriceInput);
-        priceWrapper.appendChild(savePriceBtn);
         assignedPriceContentCell.appendChild(priceWrapper);
         assignedPriceRow.appendChild(assignedPriceCell);
         assignedPriceRow.appendChild(assignedPriceContentCell);
