@@ -1197,8 +1197,8 @@
     
     .coupon-grid {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1rem;
     }
     
     .coupon-card {
@@ -1210,6 +1210,7 @@
       position: relative;
       width: 100%;
       box-sizing: border-box;
+      min-width: 320px;
     }
     
     .coupon-card:hover {
@@ -1226,8 +1227,9 @@
     .coupon-header-row {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       margin-bottom: 1rem;
+      gap: 1rem;
     }
     
     .coupon-code {
@@ -1238,6 +1240,9 @@
       background: #e8f4f4;
       padding: 0.25rem 0.75rem;
       border-radius: 0.5rem;
+      flex-shrink: 1;
+      min-width: 0;
+      word-break: break-word;
     }
     
     .coupon-status {
@@ -1247,6 +1252,8 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
     
     .coupon-status.active {
@@ -1669,6 +1676,53 @@
       .modal-footer {
         gap: 0.5rem;
         padding: 0.75rem 1rem 1rem 1rem;
+      }
+    }
+    
+    /* Responsive design */
+    @media (min-width: 1400px) {
+      .coupon-grid {
+        grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+        gap: 1.25rem;
+      }
+    }
+    
+    @media (min-width: 768px) and (max-width: 1399px) {
+      .coupon-grid {
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1rem;
+      }
+    }
+    
+    @media (max-width: 767px) {
+      .coupon-grid {
+        grid-template-columns: 1fr;
+        gap: 0.875rem;
+      }
+      
+      .coupon-card {
+        min-width: auto;
+        padding: 1.25rem;
+      }
+      
+      .coupon-header-row {
+        gap: 0.75rem;
+      }
+      
+      .coupon-code {
+        font-size: 1.2rem;
+        padding: 0.2rem 0.6rem;
+      }
+      
+      .discount-value {
+        font-size: 1.6rem;
+      }
+    }
+    
+    @media (max-width: 1200px) {
+      .coupon-layout {
+        grid-template-columns: 450px 1fr;
+        gap: 2rem;
       }
     }
   </style>
@@ -5729,7 +5783,7 @@
         }
 
         // Hide the confirmation overlay
-        hideCouponDeleteModal();
+        hideCouponDeleteModal();  
 
         console.log('✅ Coupon deleted:', code);
 
