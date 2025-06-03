@@ -1076,10 +1076,103 @@
       // Update other card elements
       updateCardElements(orderCard, updatedOrder);
 
+      // Update staff notes if they exist
+      let staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
+      let saveNotesBtn = orderCard.querySelector(".save-notes-btn");
+      
+      if (staffNotesEditor && updatedOrder.order_notes !== undefined) {
+        // Only update if the editor is not currently focused (being edited)
+        const isEditorFocused = staffNotesEditor === document.activeElement;
+        const currentValue = staffNotesEditor.value;
+        
+        if (!isEditorFocused) {
+          staffNotesEditor.value = updatedOrder.order_notes || '';
+          staffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+        }
+
+        // Ensure the editor remains editable
+        staffNotesEditor.disabled = false;
+        staffNotesEditor.readOnly = false;
+
+        // Reset save button state
+        if (saveNotesBtn) {
+          const hasChanges = currentValue !== (updatedOrder.order_notes || '');
+          saveNotesBtn.disabled = !hasChanges;
+          
+          if (hasChanges) {
+            saveNotesBtn.textContent = "Save Notes";
+            saveNotesBtn.style.backgroundColor = "#1f6463";
+            saveNotesBtn.style.cursor = "pointer";
+          } else {
+            saveNotesBtn.textContent = "No Changes";
+            saveNotesBtn.style.backgroundColor = "#ccc";
+            saveNotesBtn.style.cursor = "not-allowed";
+          }
+        }
+
+        // Reattach event listeners
+        const reattachListeners = (editor, saveBtn) => {
+          // Clear existing listeners
+          const newEditor = editor.cloneNode(true);
+          editor.parentNode.replaceChild(newEditor, editor);
+
+          // Add input event listener
+          newEditor.addEventListener('input', () => {
+            const currentValue = newEditor.value;
+            const previousValue = newEditor.dataset.previousValue || '';
+            const hasChanges = currentValue !== previousValue;
+            
+            if (saveBtn) {
+              saveBtn.disabled = !hasChanges;
+              if (hasChanges) {
+                saveBtn.textContent = "Save Notes";
+                saveBtn.style.backgroundColor = "#1f6463";
+                saveBtn.style.cursor = "pointer";
+              } else {
+                saveBtn.textContent = "No Changes";
+                saveBtn.style.backgroundColor = "#ccc";
+                saveBtn.style.cursor = "not-allowed";
+              }
+            }
+          });
+
+          // Handle paste and cut events
+          ['paste', 'cut'].forEach(eventName => {
+            newEditor.addEventListener(eventName, () => {
+              setTimeout(() => newEditor.dispatchEvent(new Event('input')), 0);
+            });
+          });
+
+          // Add Ctrl+Enter / Cmd+Enter save shortcut
+          newEditor.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveBtn.disabled) {
+              e.preventDefault();
+              saveBtn.click();
+            }
+          });
+
+          // Update save button click handler
+          if (saveBtn) {
+            const newSaveBtn = saveBtn.cloneNode(true);
+            saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+            
+            newSaveBtn.addEventListener('click', () => {
+              if (newEditor.value !== newEditor.dataset.previousValue) {
+                saveStaffNotes(updatedOrder.id, newEditor.value, newEditor, newSaveBtn);
+              }
+            });
+          }
+
+          return newEditor;
+        };
+
+        // Reattach all listeners
+        staffNotesEditor = reattachListeners(staffNotesEditor, saveNotesBtn);
+      }
+
       // Store the current state of the staff notes and details section
       const detailsSection = orderCard.querySelector('.details-section');
       const isExpanded = detailsSection?.classList.contains('visible');
-      const staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
       const currentNotesValue = staffNotesEditor ? staffNotesEditor.value : '';
       const isEditorFocused = staffNotesEditor === document.activeElement;
       const cursorPosition = staffNotesEditor ? staffNotesEditor.selectionStart : 0;
@@ -2817,8 +2910,8 @@
       updateCardElements(orderCard, updatedOrder);
 
       // Update staff notes if they exist
-      const staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
-      const saveNotesBtn = orderCard.querySelector(".save-notes-btn");
+      let staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
+      let saveNotesBtn = orderCard.querySelector(".save-notes-btn");
       
       if (staffNotesEditor && updatedOrder.order_notes !== undefined) {
         // Only update if the editor is not currently focused (being edited)
@@ -2907,13 +3000,12 @@
         };
 
         // Reattach all listeners
-        reattachListeners(staffNotesEditor, saveNotesBtn);
+        staffNotesEditor = reattachListeners(staffNotesEditor, saveNotesBtn);
       }
 
       // Store the current state of the staff notes and details section
       const detailsSection = orderCard.querySelector('.details-section');
       const isExpanded = detailsSection?.classList.contains('visible');
-      const staffNotesEditor = orderCard.querySelector(".staff-notes-editor");
       const currentNotesValue = staffNotesEditor ? staffNotesEditor.value : '';
       const isEditorFocused = staffNotesEditor === document.activeElement;
       const cursorPosition = staffNotesEditor ? staffNotesEditor.selectionStart : 0;
