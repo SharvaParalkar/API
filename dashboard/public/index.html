@@ -4008,7 +4008,16 @@
         this.reconnectTimer = null;
         this.connected = false;
         this.username = null;
+        this.currentView = 'all'; // Track current view (all, claimed, etc.)
         this.connect();
+
+        // Listen for tab changes
+        document.addEventListener('click', (e) => {
+          const tab = e.target.closest('[data-view-tab]');
+          if (tab) {
+            this.currentView = tab.dataset.viewTab;
+          }
+        });
       }
 
       connect() {
@@ -4079,14 +4088,44 @@
         };
       }
 
-      async refreshData() {
+      async refreshData(forceRefresh = false) {
         try {
+          // Get current URL parameters
+          const params = new URLSearchParams(window.location.search);
+          const showClaimed = params.get('showClaimed') === 'true';
+          const showCompleted = params.get('showCompleted') === 'true';
+          const showOld = params.get('showOld') === 'true';
+
           const response = await fetch('/dashboard/data' + window.location.search, {
             credentials: 'include'
           });
           if (!response.ok) throw new Error('Failed to fetch orders');
           const orders = await response.json();
-          updateAllOrders(orders);
+          
+          // Find or create orders container
+          let ordersList = document.querySelector('#orders-list');
+          if (!ordersList) {
+            ordersList = document.createElement('div');
+            ordersList.id = 'orders-list';
+            document.querySelector('.orders-container').appendChild(ordersList);
+          }
+
+          // Store expanded state of orders before update
+          const expandedStates = new Map();
+          document.querySelectorAll('.order-card').forEach(card => {
+            expandedStates.set(card.dataset.orderId, {
+              expanded: card.querySelector('.order-details').style.display === 'block',
+              scrollTop: window.scrollY
+            });
+          });
+
+          // Update orders
+          updateAllOrders(orders, expandedStates);
+
+          // If in claimed view, ensure proper filtering
+          if (showClaimed) {
+            this.updateClaimedView();
+          }
         } catch (error) {
           console.error('Error fetching orders:', error);
         }
@@ -4095,16 +4134,60 @@
       handleStaffUpdate(update) {
         const { order, metadata } = update;
         
-        // If this update involves the current user, refresh all data
+        // Always refresh if this update involves the current user
         if (this.username && (
           order.assigned_staff?.includes(this.username) ||
           metadata?.updatedBy === this.username ||
-          order.claimed_by === this.username
+          order.claimed_by === this.username ||
+          metadata?.previousStaff?.includes(this.username)
         )) {
-          this.refreshData();
+          // Force refresh to ensure claimed orders are updated
+          this.refreshData(true);
         } else {
           // Otherwise just update the specific order
           this.handleOrderUpdate(update);
+        }
+
+        // Update claimed view if necessary
+        if (this.currentView === 'claimed') {
+          this.updateClaimedView();
+        }
+      }
+
+      updateClaimedView() {
+        const orderCards = document.querySelectorAll('.order-card');
+        orderCards.forEach(card => {
+          const orderId = card.dataset.orderId;
+          const assignedStaff = card.dataset.assignedStaff?.split(',') || [];
+          const claimedBy = card.dataset.claimedBy;
+          
+          // Show card if user is assigned or has claimed it
+          const shouldShow = 
+            (assignedStaff.includes(this.username) || claimedBy === this.username) &&
+            card.dataset.status?.toLowerCase() !== 'completed';
+
+          card.style.display = shouldShow ? '' : 'none';
+        });
+
+        // Update empty state message
+        this.updateEmptyState();
+      }
+
+      updateEmptyState() {
+        const visibleCards = document.querySelectorAll('.order-card[style="display: "]').length;
+        let emptyState = document.querySelector('.empty-state');
+        
+        if (visibleCards === 0) {
+          if (!emptyState) {
+            emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            document.querySelector('#orders-list').appendChild(emptyState);
+          }
+          emptyState.textContent = this.currentView === 'claimed' 
+            ? 'No claimed orders found'
+            : 'No orders found';
+        } else if (emptyState) {
+          emptyState.remove();
         }
       }
 
@@ -4159,6 +4242,9 @@
 
     // Update order UI
     function updateOrderUI(orderElement, order, metadata = {}) {
+      // Store expanded state
+      const isExpanded = orderElement.querySelector('.order-details')?.style.display === 'block';
+      
       // Update assigned staff
       const staffDisplay = orderElement.querySelector('.assigned-staff');
       if (staffDisplay) {
@@ -4167,19 +4253,22 @@
         staffDisplay.title = `Last updated: ${formatDate(order.last_updated)}`;
       }
 
-      // Update submission date/time
-      const submissionTime = orderElement.querySelector('.submission-time');
-      if (submissionTime) {
-        const submittedAt = order.submitted_at ? new Date(order.submitted_at) : null;
-        submissionTime.textContent = submittedAt ? formatDate(submittedAt) : 'Unknown';
-        submissionTime.title = `Submitted: ${submittedAt ? submittedAt.toLocaleString() : 'Unknown'}`;
-      }
+      // Update data attributes
+      orderElement.dataset.assignedStaff = order.assigned_staff || '';
+      orderElement.dataset.claimedBy = order.claimed_by || '';
+      orderElement.dataset.status = order.status || '';
 
       // Update other order details
       updateOrderStatus(orderElement, order);
       updateOrderClaim(orderElement, order);
       updateOrderPrice(orderElement, order);
       updateOrderNotes(orderElement, order);
+
+      // Restore expanded state if it was expanded
+      const detailsSection = orderElement.querySelector('.order-details');
+      if (detailsSection && isExpanded) {
+        detailsSection.style.display = 'block';
+      }
 
       // Add visual feedback for updates
       addUpdateFeedback(orderElement);
@@ -4286,14 +4375,14 @@
     }
 
     // Update all orders in the UI
-    function updateAllOrders(orders) {
+    function updateAllOrders(orders, expandedStates = new Map()) {
       const ordersList = document.querySelector('#orders-list');
       if (!ordersList) {
         console.error('Orders list element not found');
         return;
       }
 
-      // Store current scroll position
+      // Store scroll position
       const scrollPosition = window.scrollY;
 
       // Clear existing orders
@@ -4302,7 +4391,16 @@
       // Add orders back
       orders.forEach(order => {
         try {
-          addNewOrderToUI(order);
+          const orderCard = addNewOrderToUI(order);
+          
+          // Restore expanded state if it was expanded
+          const savedState = expandedStates.get(order.id);
+          if (savedState?.expanded) {
+            const detailsSection = orderCard.querySelector('.order-details');
+            if (detailsSection) {
+              detailsSection.style.display = 'block';
+            }
+          }
         } catch (err) {
           console.error(`Failed to add order ${order.id}:`, err);
         }
@@ -4310,6 +4408,9 @@
 
       // Restore scroll position
       window.scrollTo(0, scrollPosition);
+
+      // Update empty state
+      eventManager.updateEmptyState();
     }
 
     // Add styles for error banner
@@ -4336,6 +4437,279 @@
       }
     `;
     document.head.appendChild(styles);
+
+    // Add styles for empty state
+    const emptyStateStyles = document.createElement('style');
+    emptyStateStyles.textContent = `
+      .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #666;
+        font-style: italic;
+      }
+    `;
+    document.head.appendChild(emptyStateStyles);
+
+    // State management for the dashboard
+    class DashboardState {
+      constructor() {
+        this.currentView = 'all';
+        this.expandedOrders = new Set();
+        this.lastSequence = 0;
+        this.initialized = false;
+        this.username = null;
+        
+        // Initialize state when DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', () => this.initialize());
+        } else {
+          this.initialize();
+        }
+      }
+
+      initialize() {
+        // Set up view tracking
+        document.addEventListener('click', (e) => {
+          const tab = e.target.closest('[data-view-tab]');
+          if (tab) {
+            this.currentView = tab.dataset.viewTab;
+            this.updateView();
+          }
+        });
+
+        // Track expanded states
+        document.addEventListener('click', (e) => {
+          const detailsToggle = e.target.closest('.toggle-details');
+          if (detailsToggle) {
+            const orderId = detailsToggle.closest('.order-card').dataset.orderId;
+            if (this.expandedOrders.has(orderId)) {
+              this.expandedOrders.delete(orderId);
+            } else {
+              this.expandedOrders.add(orderId);
+            }
+          }
+        });
+
+        this.initialized = true;
+        console.log('Dashboard state initialized');
+      }
+
+      updateView() {
+        if (!this.initialized) return;
+
+        const orderCards = document.querySelectorAll('.order-card');
+        orderCards.forEach(card => {
+          const orderId = card.dataset.orderId;
+          const assignedStaff = card.dataset.assignedStaff?.split(',') || [];
+          const claimedBy = card.dataset.claimedBy;
+          const status = card.dataset.status;
+
+          // Handle visibility based on view
+          if (this.currentView === 'claimed') {
+            const shouldShow = 
+              (assignedStaff.includes(this.username) || claimedBy === this.username) &&
+              status?.toLowerCase() !== 'completed';
+            card.style.display = shouldShow ? '' : 'none';
+          } else {
+            card.style.display = '';
+          }
+
+          // Restore expanded state
+          const detailsSection = card.querySelector('.order-details');
+          if (detailsSection) {
+            detailsSection.style.display = this.expandedOrders.has(orderId) ? 'block' : 'none';
+          }
+        });
+
+        this.updateEmptyState();
+      }
+
+      updateEmptyState() {
+        const visibleCards = document.querySelectorAll('.order-card[style="display: "]').length;
+        let emptyState = document.querySelector('.empty-state');
+        
+        if (visibleCards === 0) {
+          if (!emptyState) {
+            emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            const ordersList = document.querySelector('#orders-list');
+            if (ordersList) {
+              ordersList.appendChild(emptyState);
+            }
+          }
+          emptyState.textContent = this.currentView === 'claimed' 
+            ? 'No claimed orders found'
+            : 'No orders found';
+        } else if (emptyState) {
+          emptyState.remove();
+        }
+      }
+    }
+
+    // Enhanced EventSource Manager
+    class EventSourceManager {
+      constructor(dashboardState) {
+        this.state = dashboardState;
+        this.eventSource = null;
+        this.connectionAttempts = 0;
+        this.maxRetries = 5;
+        this.retryDelay = 1000;
+        this.reconnectTimer = null;
+        this.connected = false;
+
+        // Start connection when document is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', () => this.connect());
+        } else {
+          this.connect();
+        }
+      }
+
+      connect() {
+        if (this.eventSource) {
+          this.eventSource.close();
+        }
+
+        // Ensure we have a valid session before connecting
+        fetch('/dashboard/whoami', { credentials: 'include' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.username) {
+              this.state.username = data.username;
+              this.initializeEventSource();
+            } else {
+              console.error('No valid session found');
+              window.location.href = '/dashboard/login';
+            }
+          })
+          .catch(error => {
+            console.error('Failed to verify session:', error);
+            setTimeout(() => this.connect(), this.retryDelay);
+          });
+      }
+
+      initializeEventSource() {
+        this.eventSource = new EventSource('/dashboard/updates');
+        
+        this.eventSource.addEventListener('connect', (e) => {
+          console.log('Connected to SSE');
+          this.connected = true;
+          this.connectionAttempts = 0;
+          this.refreshData();
+        });
+
+        this.eventSource.addEventListener('heartbeat', () => {
+          this.lastHeartbeat = Date.now();
+        });
+
+        this.eventSource.addEventListener('orderUpdate', (e) => {
+          if (!this.connected) return;
+          
+          const update = JSON.parse(e.data);
+          
+          if (update.sequence && update.sequence !== this.state.lastSequence + 1) {
+            console.warn('Detected missed updates, refreshing all data...');
+            this.refreshData();
+            return;
+          }
+          
+          this.state.lastSequence = update.sequence || this.state.lastSequence;
+          this.handleUpdate(update);
+        });
+
+        this.eventSource.onerror = this.handleError.bind(this);
+      }
+
+      handleError(error) {
+        console.error('SSE Connection Error:', error);
+        this.connected = false;
+        this.eventSource.close();
+        
+        if (this.connectionAttempts < this.maxRetries) {
+          this.connectionAttempts++;
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = setTimeout(() => this.connect(), this.retryDelay * this.connectionAttempts);
+        } else {
+          this.showReconnectionError();
+        }
+      }
+
+      async refreshData() {
+        try {
+          const response = await fetch('/dashboard/data' + window.location.search, {
+            credentials: 'include'
+          });
+          
+          if (!response.ok) {
+            if (response.status === 401) {
+              window.location.href = '/dashboard/login';
+              return;
+            }
+            throw new Error('Failed to fetch orders');
+          }
+
+          const orders = await response.json();
+          this.updateOrders(orders);
+        } catch (error) {
+          console.error('Error fetching orders:', error);
+        }
+      }
+
+      updateOrders(orders) {
+        // Ensure orders container exists
+        let ordersList = document.querySelector('#orders-list');
+        if (!ordersList) {
+          ordersList = document.createElement('div');
+          ordersList.id = 'orders-list';
+          const container = document.querySelector('.orders-container');
+          if (container) {
+            container.appendChild(ordersList);
+          } else {
+            console.error('Orders container not found');
+            return;
+          }
+        }
+
+        // Clear and update orders
+        ordersList.innerHTML = '';
+        orders.forEach(order => {
+          try {
+            addNewOrderToUI(order);
+          } catch (err) {
+            console.error(`Failed to add order ${order.id}:`, err);
+          }
+        });
+
+        // Update view state
+        this.state.updateView();
+      }
+
+      handleUpdate(update) {
+        const { order, type, metadata } = update;
+        
+        // Check if update is relevant for current user
+        const isRelevant = 
+          this.state.username && (
+            order.assigned_staff?.includes(this.state.username) ||
+            metadata?.updatedBy === this.state.username ||
+            order.claimed_by === this.state.username ||
+            metadata?.previousStaff?.includes(this.state.username)
+          );
+
+        if (isRelevant || type === 'new') {
+          this.refreshData();
+        } else {
+          const orderElement = document.querySelector(`[data-order-id="${order.id}"]`);
+          if (orderElement) {
+            updateOrderUI(orderElement, order, metadata);
+          }
+        }
+      }
+    }
+
+    // Initialize dashboard
+    const dashboardState = new DashboardState();
+    const eventManager = new EventSourceManager(dashboardState);
   </script>
 
   <div id="loginOverlay" class="login-overlay">
