@@ -461,23 +461,10 @@ function broadcastUpdate(eventType, data) {
   
   clients.forEach(client => {
     try {
-      // For staff updates, ensure the client should receive the update
+      // For staff updates, send to ALL authenticated clients
+      // The client-side will decide if it needs to act on the update
       if (eventType === 'orderUpdate' && data.type === 'staff') {
-        const order = data.order;
-        const username = client.username;
-        
-        // Send update if:
-        // 1. User is in assigned_staff
-        // 2. User is the one who made the change
-        // 3. User has claimed the order
-        const shouldReceive = 
-          (order.assigned_staff && order.assigned_staff.includes(username)) ||
-          data.metadata?.updatedBy === username ||
-          order.claimed_by === username;
-
-        if (!shouldReceive) {
-          return; // Skip this client
-        }
+        console.log(`📤 Sending staff update to client ${client.id} (${client.username})`);
       }
 
       if (!client.res.writableEnded) {
@@ -670,6 +657,13 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
   const username = req.session.user;
   const timestamp = new Date().toISOString();
 
+  console.log(`📝 Staff assignment request:`, {
+    orderId,
+    staffName,
+    requestedBy: username,
+    timestamp
+  });
+
   if (!orderId) {
     return res.status(400).json({ error: "Missing orderId" });
   }
@@ -688,8 +682,16 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
     `).get(orderId);
     
     if (!current) {
+      console.log(`❌ Order ${orderId} not found`);
       return res.status(404).json({ error: "Order not found" });
     }
+
+    console.log(`📄 Current order state:`, {
+      orderId: current.id,
+      currentStaff: current.assigned_staff,
+      claimedBy: current.claimed_by,
+      status: current.status
+    });
 
     // Don't allow assigning staff to completed orders
     if (current.status?.toLowerCase() === 'completed') {
@@ -700,9 +702,15 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
     const validStaffMembers = Object.keys(USERS);
     const assignedStaff = staffName ? staffName.split(',').map(s => s.trim()).filter(Boolean) : [];
     
+    console.log(`👥 Processing staff assignment:`, {
+      requestedStaff: assignedStaff,
+      validStaffMembers
+    });
+
     // Check if all assigned staff members are valid
     const invalidStaff = assignedStaff.filter(staff => !validStaffMembers.includes(staff));
     if (invalidStaff.length > 0) {
+      console.log(`❌ Invalid staff members:`, invalidStaff);
       return res.status(400).json({
         error: "Invalid staff members",
         invalidMembers: invalidStaff
@@ -713,11 +721,17 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
     let finalStaffList = [...new Set([...assignedStaff])]; // Remove duplicates
     if (current.claimed_by && !finalStaffList.includes(current.claimed_by)) {
       finalStaffList.push(current.claimed_by);
+      console.log(`➕ Added claimer ${current.claimed_by} to staff list`);
     }
     const finalStaffString = finalStaffList.join(',');
 
+    console.log(`📋 Final staff assignment:`, {
+      previous: current.assigned_staff,
+      new: finalStaffString
+    });
+
     // Begin transaction
-    db.transaction(() => {
+    const updatedOrder = db.transaction(() => {
       const stmt = db.prepare(`
         UPDATE orders 
         SET assigned_staff = ?,
@@ -749,36 +763,35 @@ app.post("/dashboard/assign-staff", requireLogin, (req, res) => {
       return updatedOrder;
     })();
 
-    // Fetch final state after transaction
-    const finalOrder = db.prepare(`
-      SELECT o.*, 
-             o.submitted_at,
-             o.last_updated,
-             o.updated_by
-      FROM orders o 
-      WHERE o.id = ?
-    `).get(orderId);
+    console.log(`✅ Staff assignment completed:`, {
+      orderId,
+      newStaff: updatedOrder.assigned_staff,
+      updatedBy: username
+    });
 
     // Broadcast the update with rich metadata
-    broadcastUpdate('orderUpdate', {
+    const updateData = {
       type: 'staff',
-      order: finalOrder,
+      order: updatedOrder,
       metadata: {
         previousStaff: current.assigned_staff,
-        newStaff: finalOrder.assigned_staff,
+        newStaff: updatedOrder.assigned_staff,
         updatedBy: username,
         timestamp: timestamp,
-        submittedAt: finalOrder.submitted_at,
-        lastUpdated: finalOrder.last_updated
+        submittedAt: updatedOrder.submitted_at,
+        lastUpdated: updatedOrder.last_updated
       }
-    });
+    };
+
+    console.log(`📡 Broadcasting staff update:`, updateData);
+    broadcastUpdate('orderUpdate', updateData);
 
     res.json({ 
       success: true, 
-      order: finalOrder,
+      order: updatedOrder,
       metadata: {
         previousStaff: current.assigned_staff,
-        newStaff: finalOrder.assigned_staff,
+        newStaff: updatedOrder.assigned_staff,
         timestamp: timestamp
       }
     });

@@ -3318,7 +3318,7 @@
       tag.textContent = staff.displayName;
       
       // Set initial selection state
-      const currentStaff = order.assigned_staff ? order.assigned_staff.split(',') : [];
+      const currentStaff = order.assigned_staff ? order.assigned_staff.split(',').map(s => s.trim()) : [];
       if (currentStaff.includes(staff.username)) {
         tag.classList.add("selected");
       }
@@ -3326,7 +3326,7 @@
       // Handle click events
       tag.addEventListener("click", async () => {
         try {
-          // Toggle selection visually first for immediate feedback
+          // Toggle selection visually first
           const isSelected = tag.classList.toggle("selected");
           
           // Get all selected staff
@@ -3338,23 +3338,65 @@
             })
             .filter(Boolean);
           
-          console.log(`🔄 Updating staff for order ${order.id}:`, selectedStaff);
+          // Make the API call
+          const response = await fetch("/dashboard/assign-staff", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: 'include',
+            body: JSON.stringify({ 
+              orderId: order.id, 
+              staffName: selectedStaff.join(',') 
+            })
+          });
           
-          const response = await api.assignStaff(order.id, selectedStaff.join(','));
-          if (response && response.order) {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const result = await response.json();
+          console.log(`✅ Staff assignment API response:`, result);
+          
+          if (result && result.order) {
             // Update the order object
-            Object.assign(order, response.order);
-            console.log(`✅ Staff updated for order ${order.id}`);
+            Object.assign(order, result.order);
+            console.log(`Updated order object with new staff: ${result.order.assigned_staff}`);
           }
         } catch (err) {
           // Revert the selection on error
           tag.classList.toggle("selected");
           console.error(`❌ Failed to update staff:`, err);
-          ui.showError(err.message || "Failed to update staff");
+          ui.showError(err.message || "Failed to update staff assignment");
         }
       });
       
       return tag;
+    }
+
+    // Function to update staff tags based on assigned staff
+    function updateStaffTagsForOrder(orderCard, assignedStaff) {
+      console.log('🔄 Updating staff tags for order:', { 
+        orderId: orderCard.dataset.orderId, 
+        assignedStaff 
+      });
+      
+      const staffTags = orderCard.querySelectorAll('.staff-tag');
+      let updatedCount = 0;
+      
+      staffTags.forEach(tag => {
+        const staffMember = state.staffMembers.find(s => s.displayName === tag.textContent);
+        if (staffMember) {
+          const isSelected = assignedStaff.includes(staffMember.username);
+          const wasSelected = tag.classList.contains('selected');
+          
+          if (isSelected !== wasSelected) {
+            tag.classList.toggle('selected', isSelected);
+            updatedCount++;
+            console.log(`Updated staff tag ${staffMember.username}: ${wasSelected} -> ${isSelected}`);
+          }
+        }
+      });
+      
+      console.log(`Updated ${updatedCount} staff tags`);
     }
 
     // Update the handleOrderUpdate function to better handle staff updates
@@ -3924,6 +3966,7 @@
         this.reconnectTimer = null;
         this.connected = false;
         this.username = null;
+        this.isRefreshing = false;
         this.connect();
       }
 
@@ -3935,15 +3978,17 @@
         this.eventSource = new EventSource('/dashboard/updates');
         
         this.eventSource.addEventListener('connect', (e) => {
-          console.log('Connected to SSE');
+          console.log('✅ Connected to SSE');
           this.connected = true;
           this.connectionAttempts = 0;
           const data = JSON.parse(e.data);
           this.connectionId = data.id;
           this.username = data.username;
           
-          // Force refresh data on new connection
-          this.refreshData();
+          // Only refresh on initial connection, not reconnections
+          if (!this.lastSequence) {
+            this.refreshData();
+          }
         });
 
         this.eventSource.addEventListener('heartbeat', (e) => {
@@ -3953,29 +3998,42 @@
         });
 
         this.eventSource.addEventListener('orderUpdate', (e) => {
-          if (!this.connected) return;
+          if (!this.connected || this.isRefreshing) return;
           
-          const update = JSON.parse(e.data);
-          
-          // Check sequence number
-          if (update.sequence && update.sequence !== this.lastSequence + 1) {
-            console.warn('Detected missed updates, refreshing all data...');
-            this.refreshData();
-            return;
-          }
-          
-          this.lastSequence = update.sequence || this.lastSequence;
-          
-          // Handle the update based on type
-          switch (update.type) {
-            case 'staff':
-              this.handleStaffUpdate(update);
-              break;
-            case 'delete':
-              this.handleOrderDeletion(update);
-              break;
-            default:
-              this.handleOrderUpdate(update);
+          try {
+            const update = JSON.parse(e.data);
+            
+            // Check sequence number
+            if (update.sequence && this.lastSequence && update.sequence !== this.lastSequence + 1) {
+              console.warn(`Sequence gap detected: expected ${this.lastSequence + 1}, got ${update.sequence}`);
+              this.refreshData();
+              return;
+            }
+            
+            this.lastSequence = update.sequence || this.lastSequence;
+            
+            // Handle the update based on type
+            switch (update.type) {
+              case 'staff':
+                handleStaffUpdate(update);
+                break;
+              case 'delete':
+                this.handleOrderDeletion(update);
+                break;
+              case 'new':
+                // For new orders, add them to state and re-filter
+                if (!state.allOrders.find(o => o.id === update.order.id)) {
+                  state.allOrders.unshift(update.order);
+                  const query = document.getElementById("searchInput")?.value || '';
+                  filterOrders(query);
+                }
+                break;
+              default:
+                this.handleOrderUpdate(update);
+            }
+          } catch (err) {
+            console.error('Error processing order update:', err);
+            // Don't refresh on processing errors to avoid cascading issues
           }
         });
 
@@ -3996,6 +4054,9 @@
       }
 
       async refreshData() {
+        if (this.isRefreshing) return;
+        
+        this.isRefreshing = true;
         try {
           const showOld = document.getElementById("showOldToggle")?.checked || false;
           const showCompleted = document.getElementById("showCompletedToggle")?.checked || false;
@@ -4015,63 +4076,8 @@
           updateAllOrders(orders);
         } catch (error) {
           console.error('Error fetching orders:', error);
-        }
-      }
-
-      handleStaffUpdate(update) {
-        const { order, metadata } = update;
-        const currentUser = state.currentUser;
-        
-        console.log('🔄 Handling staff update:', {
-          orderId: order.id,
-          assignedStaff: order.assigned_staff,
-          currentUser: currentUser,
-          currentTab: state.currentTab,
-          previousStaff: metadata?.previousStaff,
-          newStaff: metadata?.newStaff
-        });
-
-        // Check if current user is affected by this update
-        const previousStaffList = metadata?.previousStaff ? metadata.previousStaff.split(',') : [];
-        const newStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
-        
-        const wasAssigned = previousStaffList.includes(currentUser);
-        const isNowAssigned = newStaffList.includes(currentUser);
-        const userAffected = wasAssigned !== isNowAssigned;
-
-        // If in claimed tab and user is affected, refresh all data
-        if (state.currentTab === "claimed" && userAffected) {
-          console.log('User assignment changed in claimed tab, refreshing...');
-          eventManager.refreshData();
-          return;
-        }
-
-        // Find the existing card
-        const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
-        
-        if (orderCard) {
-          // Update the staff tags in the expanded details
-          const staffTagsGrid = orderCard.querySelector('.staff-tags-grid');
-          if (staffTagsGrid) {
-            const staffTags = staffTagsGrid.querySelectorAll('.staff-tag');
-            staffTags.forEach(tag => {
-              const staffMember = state.staffMembers.find(s => s.displayName === tag.textContent);
-              if (staffMember) {
-                const isSelected = newStaffList.includes(staffMember.username);
-                tag.classList.toggle('selected', isSelected);
-              }
-            });
-          }
-
-          // Update any other card elements that might show staff info
-          updateCardElements(orderCard, order);
-          
-          // Add visual feedback
-          addUpdateFeedback(orderCard);
-        } else if (state.currentTab === "claimed" && isNowAssigned) {
-          // User was just assigned and we're in claimed tab - refresh to show the new card
-          console.log('User was newly assigned, refreshing claimed tab...');
-          eventManager.refreshData();
+        } finally {
+          this.isRefreshing = false;
         }
       }
 
@@ -4081,18 +4087,32 @@
         
         if (orderElement) {
           try {
+            // Update the order in state
+            const orderIndex = state.allOrders.findIndex(o => o.id === order.id);
+            if (orderIndex !== -1) {
+              state.allOrders[orderIndex] = order;
+            }
+            
+            // Update the UI
             updateOrderUI(orderElement, order, update.metadata);
           } catch (err) {
             console.error(`Failed to update order ${order.id}:`, err);
-            this.refreshData();
           }
         } else {
-          // If we can't find the order but should have it, refresh all data
-          this.refreshData();
+          // If order doesn't exist in UI but should, add it
+          if (!state.allOrders.find(o => o.id === order.id)) {
+            state.allOrders.unshift(order);
+          }
+          const query = document.getElementById("searchInput")?.value || '';
+          filterOrders(query);
         }
       }
 
       handleOrderDeletion(update) {
+        // Remove from state
+        state.allOrders = state.allOrders.filter(order => order.id !== update.orderId);
+        
+        // Remove from UI
         const orderElement = document.querySelector(`[data-order-id="${update.orderId}"]`);
         if (orderElement) {
           orderElement.remove();
@@ -4224,7 +4244,7 @@
     // Handle order deletion
     function handleOrderDeletion(update) {
       const orderElement = document.querySelector(`[data-order-id="${update.orderId}"]`);
-      if (orderElement) {
+      if (orderElement) { 
         orderElement.remove();
       }
     }
@@ -4378,6 +4398,62 @@
       }
     `;
     document.head.appendChild(styles);
+
+    // Simplified and more reliable staff update handling
+    function handleStaffUpdate(update) {
+      const { order, metadata } = update;
+      const currentUser = state.currentUser;
+      
+      console.log('🔄 Handling staff update:', {
+        orderId: order.id,
+        assignedStaff: order.assigned_staff,
+        currentUser: currentUser,
+        currentTab: state.currentTab
+      });
+
+      // Update the order in state
+      const orderIndex = state.allOrders.findIndex(o => o.id === order.id);
+      if (orderIndex !== -1) {
+        state.allOrders[orderIndex] = order;
+      }
+
+      // Find the existing card
+      const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
+      
+      if (orderCard) {
+        // Simply update the staff tags - no complex logic
+        updateStaffTagsForOrder(orderCard, order.assigned_staff ? order.assigned_staff.split(',').map(s => s.trim()) : []);
+        
+        // Update other card elements
+        updateCardElements(orderCard, order);
+        
+        // Add visual feedback
+        addUpdateFeedback(orderCard);
+      }
+
+      // For claimed tab, do a simple filter check instead of complex refresh logic
+      if (state.currentTab === "claimed") {
+        const currentStaffList = order.assigned_staff ? order.assigned_staff.split(',').map(s => s.trim()) : [];
+        const isUserAssigned = currentStaffList.includes(currentUser) || order.claimed_by === currentUser;
+        const isCompleted = order.status?.toLowerCase() === "completed";
+        
+        if (orderCard && (!isUserAssigned || isCompleted)) {
+          // Remove card if user is no longer assigned
+          orderCard.style.transition = "all 0.3s ease";
+          orderCard.style.opacity = "0";
+          orderCard.style.transform = "scale(0.9)";
+          setTimeout(() => {
+            if (orderCard.isConnected) {
+              orderCard.remove();
+            }
+          }, 300);
+        } else if (!orderCard && isUserAssigned && !isCompleted) {
+          // Add card if user was just assigned - use simple approach
+          const query = document.getElementById("searchInput")?.value || '';
+          filterOrders(query);
+        }
+      }
+    }
   </script>
 
   <div id="loginOverlay" class="login-overlay">
