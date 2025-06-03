@@ -422,27 +422,39 @@ app.get('/dashboard/updates', (req, res) => {
     username: username
   })}\n\n`);
   
-  // Send heartbeat every 15 seconds
+  // Send heartbeat every 10 seconds (more frequent)
   const heartbeat = setInterval(() => {
     if (!res.writableEnded) {
-      res.write(`event: heartbeat\ndata: ${Date.now()}\n\n`);
+      try {
+        res.write(`event: heartbeat\ndata: ${Date.now()}\n\n`);
+      } catch (err) {
+        console.log(`Heartbeat failed for client ${connectionId}, cleaning up`);
+        clearInterval(heartbeat);
+        clients.delete(client);
+      }
+    } else {
+      clearInterval(heartbeat);
+      clients.delete(client);
     }
-  }, 15000);
+  }, 10000);
   
   // Add client to the set with metadata
   const client = {
     res,
     id: connectionId,
     username: username,
-    lastSeen: Date.now()
+    lastSeen: Date.now(),
+    heartbeat: heartbeat
   };
   clients.add(client);
+  
+  console.log(`✅ New SSE client connected: ${connectionId} (${username}). Total clients: ${clients.size}`);
   
   // Remove client when connection closes
   req.on('close', () => {
     clearInterval(heartbeat);
     clients.delete(client);
-    console.log(`Client disconnected: ${connectionId} (${username})`);
+    console.log(`📡 SSE client disconnected: ${connectionId} (${username}). Total clients: ${clients.size}`);
   });
 
   // Handle session expiration
@@ -458,6 +470,8 @@ function broadcastUpdate(eventType, data) {
   });
 
   const deadClients = new Set();
+  
+  console.log(`📡 Broadcasting ${eventType} to ${clients.size} clients`);
   
   clients.forEach(client => {
     try {
@@ -481,28 +495,48 @@ function broadcastUpdate(eventType, data) {
   
   // Clean up dead clients
   deadClients.forEach(client => {
+    if (client.heartbeat) {
+      clearInterval(client.heartbeat);
+    }
     clients.delete(client);
-    console.log(`Removed dead client: ${client.id}`);
+    console.log(`🧹 Removed dead client: ${client.id}`);
   });
+  
+  console.log(`📊 Active clients after broadcast: ${clients.size}`);
 }
 
-// Periodic session cleanup
+// Add connection keep-alive ping every 30 seconds
 setInterval(() => {
-  const now = Date.now();
-  const staleTimeout = 30000; // 30 seconds
-  
-  const deadClients = new Set();
-  clients.forEach(client => {
-    if (now - client.lastSeen > staleTimeout) {
-      deadClients.add(client);
-    }
-  });
-  
-  deadClients.forEach(client => {
-    clients.delete(client);
-    console.log(`Removed stale client: ${client.id} (${client.username})`);
-  });
-}, 30000);
+  if (clients.size > 0) {
+    console.log(`🔄 Sending keep-alive ping to ${clients.size} clients`);
+    
+    const deadClients = new Set();
+    clients.forEach(client => {
+      try {
+        if (!client.res.writableEnded) {
+          client.res.write(`event: ping\ndata: ${Date.now()}\n\n`);
+          client.lastSeen = Date.now();
+        } else {
+          deadClients.add(client);
+        }
+      } catch (err) {
+        console.log(`Keep-alive failed for client ${client.id}, marking for cleanup`);
+        deadClients.add(client);
+      }
+    });
+
+    // Clean up dead clients
+    deadClients.forEach(client => {
+      if (client.heartbeat) {
+        clearInterval(client.heartbeat);
+      }
+      clients.delete(client);
+      console.log(`🧹 Removed dead client during keep-alive: ${client.id}`);
+    });
+
+    console.log(`📊 Active clients after keep-alive: ${clients.size}`);
+  }
+}, 30000); // Every 30 seconds
 
 // Watch for new orders
 let lastOrderId = null;

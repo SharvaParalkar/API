@@ -968,6 +968,25 @@
       font-weight: bold;
       color: #2196F3;
     }
+    .error-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #ff5252;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      z-index: 9999;
+    }
+    .error-banner button {
+      margin-left: 1rem;
+      padding: 0.5rem 1rem;
+      background: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
   </style>
 </head>
 
@@ -3134,6 +3153,20 @@
           }
         });
 
+        eventSource.addEventListener('heartbeat', (e) => {
+          this.lastHeartbeat = Date.now();
+          console.log('💓 Heartbeat received');
+          // Touch the session to keep it alive
+          fetch('/dashboard/whoami', { credentials: 'include' }).catch(() => {});
+        });
+
+        eventSource.addEventListener('ping', (e) => {
+          this.lastHeartbeat = Date.now();
+          console.log('🔔 Keep-alive ping received');
+          // Touch the session to keep it alive
+          fetch('/dashboard/whoami', { credentials: 'include' }).catch(() => {});
+        });
+
         return eventSource;
       }
 
@@ -3961,13 +3994,17 @@
         this.eventSource = null;
         this.lastSequence = 0;
         this.connectionAttempts = 0;
-        this.maxRetries = 5;
+        this.maxRetries = 10; // Increased from 5
         this.retryDelay = 1000;
         this.reconnectTimer = null;
         this.connected = false;
         this.username = null;
         this.isRefreshing = false;
+        this.lastHeartbeat = Date.now();
+        this.heartbeatCheckInterval = null;
+        this.connectionId = null;
         this.connect();
+        this.startHeartbeatMonitor();
       }
 
       connect() {
@@ -3975,6 +4012,7 @@
           this.eventSource.close();
         }
 
+        console.log(`🔌 Attempting SSE connection (attempt ${this.connectionAttempts + 1})`);
         this.eventSource = new EventSource('/dashboard/updates');
         
         this.eventSource.addEventListener('connect', (e) => {
@@ -3984,6 +4022,7 @@
           const data = JSON.parse(e.data);
           this.connectionId = data.id;
           this.username = data.username;
+          this.lastHeartbeat = Date.now();
           
           // Only refresh on initial connection, not reconnections
           if (!this.lastSequence) {
@@ -3993,6 +4032,14 @@
 
         this.eventSource.addEventListener('heartbeat', (e) => {
           this.lastHeartbeat = Date.now();
+          console.log('💓 Heartbeat received');
+          // Touch the session to keep it alive
+          fetch('/dashboard/whoami', { credentials: 'include' }).catch(() => {});
+        });
+
+        this.eventSource.addEventListener('ping', (e) => {
+          this.lastHeartbeat = Date.now();
+          console.log('🔔 Keep-alive ping received');
           // Touch the session to keep it alive
           fetch('/dashboard/whoami', { credentials: 'include' }).catch(() => {});
         });
@@ -4002,6 +4049,7 @@
           
           try {
             const update = JSON.parse(e.data);
+            console.log('📦 Received order update:', update.type, update.order?.id);
             
             // Check sequence number
             if (update.sequence && this.lastSequence && update.sequence !== this.lastSequence + 1) {
@@ -4038,19 +4086,35 @@
         });
 
         this.eventSource.onerror = (error) => {
-          console.error('SSE Connection Error:', error);
+          console.error('❌ SSE Connection Error:', error);
           this.connected = false;
           this.eventSource.close();
           
           if (this.connectionAttempts < this.maxRetries) {
             this.connectionAttempts++;
+            console.log(`🔄 Reconnecting in ${this.retryDelay * this.connectionAttempts}ms (attempt ${this.connectionAttempts}/${this.maxRetries})`);
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = setTimeout(() => this.connect(), this.retryDelay * this.connectionAttempts);
           } else {
-            console.error('Max reconnection attempts reached');
+            console.error('❌ Max reconnection attempts reached');
             this.showReconnectionError();
           }
         };
+      }
+
+      startHeartbeatMonitor() {
+        // Check for heartbeat every 5 seconds
+        this.heartbeatCheckInterval = setInterval(() => {
+          const timeSinceHeartbeat = Date.now() - this.lastHeartbeat;
+          
+          // If no heartbeat for 20 seconds, reconnect
+          if (timeSinceHeartbeat > 20000) {
+            console.warn(`⚠️ No heartbeat for ${Math.round(timeSinceHeartbeat/1000)}s, reconnecting...`);
+            this.connected = false;
+            this.connectionAttempts = 0; // Reset attempts for heartbeat-triggered reconnections
+            this.connect();
+          }
+        }, 5000);
       }
 
       async refreshData() {
@@ -4058,6 +4122,7 @@
         
         this.isRefreshing = true;
         try {
+          console.log('🔄 Refreshing order data...');
           const showOld = document.getElementById("showOldToggle")?.checked || false;
           const showCompleted = document.getElementById("showCompletedToggle")?.checked || false;
           
@@ -4074,8 +4139,9 @@
           if (!response.ok) throw new Error('Failed to fetch orders');
           const orders = await response.json();
           updateAllOrders(orders);
+          console.log('✅ Order data refreshed');
         } catch (error) {
-          console.error('Error fetching orders:', error);
+          console.error('❌ Error fetching orders:', error);
         } finally {
           this.isRefreshing = false;
         }
@@ -4126,24 +4192,51 @@
         const errorBanner = document.createElement('div');
         errorBanner.className = 'error-banner';
         errorBanner.innerHTML = `
-          <p>Lost connection to server. Please refresh the page.</p>
-          <button onclick="window.location.reload()">Refresh Now</button>
+          <p>Lost connection to server. Click to retry or refresh the page.</p>
+          <button onclick="eventManager.retryConnection()">Retry Connection</button>
+          <button onclick="window.location.reload()">Refresh Page</button>
         `;
         document.body.prepend(errorBanner);
+      }
+
+      retryConnection() {
+        console.log('🔄 Manual retry requested');
+        const banner = document.querySelector('.error-banner');
+        if (banner) banner.remove();
+        
+        this.connectionAttempts = 0; // Reset attempts
+        this.connected = false;
+        this.connect();
+      }
+
+      cleanup() {
+        if (this.eventSource) {
+          this.eventSource.close();
+        }
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+        }
+        if (this.heartbeatCheckInterval) {
+          clearInterval(this.heartbeatCheckInterval);
+        }
       }
     }
 
     // Initialize SSE manager
-    const eventManager = new EventSourceManager();
+    let eventManager = null;
 
-    // Periodic health check
-    setInterval(() => {
-      if (eventManager.lastHeartbeat && Date.now() - eventManager.lastHeartbeat > 20000) {
-        console.warn('No heartbeat received, reconnecting...');
-        eventManager.connect();
+    // Update the initializeSSE function to use the new class
+    function initializeSSE() {
+      if (eventManager) {
+        eventManager.cleanup();
       }
-    }, 10000);
+      eventManager = new EventSourceManager();
+      
+      // Make it globally accessible for manual retry
+      window.eventManager = eventManager;
+    }
 
+    // Add back the missing functions
     // Update order UI
     function updateOrderUI(orderElement, order, metadata = {}) {
       // Update assigned staff
@@ -4325,77 +4418,6 @@
       setTimeout(() => element.classList.remove('updated'), 1000);
     }
 
-    // Add styles for update animation
-    const updateStyles = document.createElement('style');
-    updateStyles.textContent = `
-      .order-card {
-        transition: background-color 0.3s ease;
-      }
-      .updated {
-        background-color: rgba(255, 255, 0, 0.1) !important;
-      }
-      .submission-time {
-        color: #666;
-        font-size: 0.9em;
-        margin-top: 4px;
-      }
-      .assigned-staff {
-        font-weight: bold;
-        color: #2196F3;
-      }
-    `;
-    document.head.appendChild(updateStyles);
-
-    // Add or update submission time to order cards
-    function addSubmissionTimeToOrders() {
-      const orders = document.querySelectorAll('.order-card');
-      orders.forEach(order => {
-        let submissionTime = order.querySelector('.submission-time');
-        if (!submissionTime) {
-          submissionTime = document.createElement('div');
-          submissionTime.className = 'submission-time';
-          order.querySelector('.order-header').appendChild(submissionTime);
-        }
-        const submittedAt = order.dataset.submittedAt;
-        submissionTime.textContent = formatDate(submittedAt);
-        submissionTime.title = `Submitted: ${new Date(submittedAt).toLocaleString()}`;
-      });
-    }
-
-    // Call this when page loads and after any updates
-    document.addEventListener('DOMContentLoaded', addSubmissionTimeToOrders);
-
-    // Handle order deletion
-    function handleOrderDeletion(update) {
-      const orderElement = document.querySelector(`[data-order-id="${update.orderId}"]`);
-      if (orderElement) { 
-        orderElement.remove();
-      }
-    }
-
-    // Show reconnection error
-    function showReconnectionError() {
-      const errorBanner = document.createElement('div');
-      errorBanner.className = 'error-banner';
-      errorBanner.innerHTML = `
-        <p>Lost connection to server. Please refresh the page.</p>
-        <button onclick="window.location.reload()">Refresh Now</button>
-      `;
-      document.body.prepend(errorBanner);
-    }
-
-    // Fetch and update all orders
-    async function fetchAndUpdateOrders() {
-      try {
-        const response = await fetch('/dashboard/data' + window.location.search);
-        if (!response.ok) throw new Error('Failed to fetch orders');
-        const orders = await response.json();
-        updateAllOrders(orders);
-      } catch (error) {
-        console.error('Error fetching orders:', error);
-      }
-    }
-
     // Update all orders in the UI
     function updateAllOrders(orders) {
       const orderGrid = document.querySelector('#orderGrid');
@@ -4497,31 +4519,6 @@
       // Restore scroll position
       window.scrollTo(0, scrollPosition);
     }
-
-    // Add styles for error banner
-    const styles = document.createElement('style');
-    styles.textContent = `
-      .error-banner {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background: #ff5252;
-        color: white;
-        padding: 1rem;
-        text-align: center;
-        z-index: 9999;
-      }
-      .error-banner button {
-        margin-left: 1rem;
-        padding: 0.5rem 1rem;
-        background: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-    `;
-    document.head.appendChild(styles);
 
     // Simplified and more reliable staff update handling
     function handleStaffUpdate(update) {
