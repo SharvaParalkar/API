@@ -1254,9 +1254,9 @@
 
           // Add Ctrl+Enter / Cmd+Enter save shortcut
           newEditor.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveBtn.disabled) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveNotesBtn.disabled) {
               e.preventDefault();
-              saveBtn.click();
+              saveNotesBtn.click();
             }
           });
 
@@ -1952,15 +1952,15 @@
       // First, filter based on the current tab
       let filtered = [...state.allOrders];
 
-      // For claimed tab, ONLY show orders claimed by current user
+      // For claimed tab, show orders where user is assigned or claimed
       if (state.currentTab === "claimed") {
-        const validStaffMembers = state.staffMembers.map(staff => staff.username);
         filtered = filtered.filter(order => {
-          const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
-          return (
-            assignedStaffList.includes(state.currentUser) &&
-            order.status?.toLowerCase() !== "completed"
-          );
+          const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',').map(s => s.trim()) : [];
+          const isAssignedToUser = assignedStaffList.includes(state.currentUser);
+          const isClaimedByUser = order.claimed_by === state.currentUser;
+          const isNotCompleted = order.status?.toLowerCase() !== "completed";
+          
+          return (isAssignedToUser || isClaimedByUser) && isNotCompleted;
         });
         console.log('Filtered claimed orders:', filtered.length);
       }
@@ -1984,7 +1984,7 @@
       if (staffFilter) {
         console.log('Applying staff filter:', staffFilter);
         filtered = filtered.filter(order => {
-          const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
+          const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',').map(s => s.trim()) : [];
           return assignedStaffList.includes(staffFilter);
         });
       }
@@ -2446,6 +2446,14 @@
         heading.textContent = order.name || "Unnamed Order";
         card.appendChild(heading);
 
+        // Add submission date/time
+        const submissionTime = document.createElement("div");
+        submissionTime.className = "submission-time";
+        const submittedAt = order.submitted_at ? new Date(order.submitted_at) : null;
+        submissionTime.textContent = `Submitted: ${submittedAt ? formatDate(submittedAt) : 'Unknown'}`;
+        submissionTime.title = `Submitted: ${submittedAt ? submittedAt.toLocaleString() : 'Unknown'}`;
+        card.appendChild(submissionTime);
+
         const statusOptions = [
           "pending",
           "pre print",
@@ -2492,121 +2500,11 @@
             const response = await api.updateStatus(order.id, newStatus);
             console.log('✅ Status update response:', response);
 
-            // After successful status update, refresh the entire card
+            // Update order in state
             if (response && response.order) {
-              try {
-                // Get current filter states
-                const showOld = document.getElementById("showOldToggle").checked;
-                const showCompleted = document.getElementById("showCompletedToggle").checked;
-
-                // Build query string
-                const params = new URLSearchParams({
-                  showOld: showOld.toString(),
-                  showCompleted: showCompleted.toString(),
-                  showClaimed: (state.currentTab === "claimed").toString()
-                });
-
-                const ordersResponse = await fetch(`/dashboard/data?${params.toString()}`, {
-                  credentials: 'include'
-                });
-                
-                if (!ordersResponse.ok) {
-                  throw new Error('Failed to fetch updated orders');
-                }
-                
-                const orders = await ordersResponse.json();
-                
-                // Find the updated order
-                const updatedOrder = orders.find(o => o.id === order.id);
-                if (!updatedOrder) {
-                  console.warn('Updated order not found in response');
-                  return;
-                }
-
-                // Update order in state
-                const orderIndex = state.allOrders.findIndex(o => o.id === order.id);
-                if (orderIndex !== -1) {
-                  state.allOrders[orderIndex] = updatedOrder;
-                }
-                
-                // Find the card in the DOM
-                const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
-                if (!orderCard) {
-                  console.warn('Order card not found in DOM');
-                  return;
-                }
-
-                // Store the current state of the details section
-                const detailsSection = orderCard.querySelector('.details-section');
-                const isExpanded = detailsSection?.classList.contains('visible');
-                
-                // Store staff notes state if expanded
-                let staffNotesState = null;
-                if (isExpanded) {
-                  const staffNotesEditor = orderCard.querySelector('.staff-notes-editor');
-                  if (staffNotesEditor) {
-                    staffNotesState = {
-                      value: staffNotesEditor.value,
-                      isEditing: staffNotesEditor === document.activeElement,
-                      cursorPosition: staffNotesEditor.selectionStart,
-                      previousValue: staffNotesEditor.dataset.previousValue
-                    };
-                  }
-                }
-                
-                // Create a temporary container
-                const tempContainer = document.createElement('div');
-                
-                // Render a single order into the temporary container
-                await renderOrders([updatedOrder], isExpanded, tempContainer);
-                
-                // Get the newly rendered card
-                const newCard = tempContainer.firstChild;
-                if (!newCard) {
-                  console.warn('Failed to render new card');
-                  return;
-                }
-                
-                // Replace the old card with the new one
-                if (orderCard.parentNode) {
-                  orderCard.parentNode.replaceChild(newCard, orderCard);
-                  
-                  // If it was expanded and had staff notes being edited, restore that state
-                  if (staffNotesState) {
-                    const newEditor = newCard.querySelector('.staff-notes-editor');
-                    if (newEditor) {
-                      newEditor.value = staffNotesState.value;
-                      newEditor.dataset.previousValue = staffNotesState.previousValue;
-                      
-                      if (staffNotesState.isEditing) {
-                        setTimeout(() => {
-                          newEditor.focus();
-                          newEditor.setSelectionRange(
-                            staffNotesState.cursorPosition, 
-                            staffNotesState.cursorPosition
-                          );
-                        }, 0);
-                      }
-
-                      // Update save button state
-                      const saveBtn = newCard.querySelector('.save-notes-btn');
-                      if (saveBtn) {
-                        const hasChanges = newEditor.value !== newEditor.dataset.previousValue;
-                        saveBtn.disabled = !hasChanges;
-                        saveBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
-                        saveBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
-                        saveBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
-                      }
-                    }
-                  }
-                  
-                  console.log('Successfully refreshed order card after status change');
-                }
-              } catch (refreshError) {
-                console.error('Failed to refresh card:', refreshError);
-                // Even if refresh fails, the status change was successful
-                // Just update the status color
-                applyStatusColor(statusDropdown, newStatus);
+              const orderIndex = state.allOrders.findIndex(o => o.id === order.id);
+              if (orderIndex !== -1) {
+                state.allOrders[orderIndex] = response.order;
               }
             }
           } catch (err) {
@@ -3005,18 +2903,36 @@
     // Add back the renderClaimedOrders function
     async function renderClaimedOrders(orders, expandDetails = false) {
       const grid = document.getElementById("orderGrid");
-      grid.innerHTML = "";
+      if (!grid) {
+        console.error('Order grid not found');
+        return;
+      }
 
       // Filter for orders that are either claimed by current user OR where user is in assigned staff
       const claimedOrders = orders.filter(order => {
-        const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
-        return (
-          (order.claimed_by === state.currentUser || assignedStaffList.includes(state.currentUser)) &&
-          order.status?.toLowerCase() !== "completed"
-        );
+        const assignedStaffList = order.assigned_staff ? order.assigned_staff.split(',').map(s => s.trim()) : [];
+        const isAssignedToUser = assignedStaffList.includes(state.currentUser);
+        const isClaimedByUser = order.claimed_by === state.currentUser;
+        const isNotCompleted = order.status?.toLowerCase() !== "completed";
+        
+        console.log(`Checking order ${order.id}:`, {
+          assignedStaff: order.assigned_staff,
+          assignedStaffList,
+          isAssignedToUser,
+          isClaimedByUser,
+          isNotCompleted,
+          currentUser: state.currentUser
+        });
+        
+        return (isAssignedToUser || isClaimedByUser) && isNotCompleted;
       });
 
       console.log(`📋 Rendering ${claimedOrders.length} claimed orders for user ${state.currentUser}`);
+
+      // Clear the grid if not already done
+      if (!grid.querySelector('.card')) {
+        grid.innerHTML = '';
+      }
 
       // Use the existing renderOrders function to render the filtered orders
       await renderOrders(claimedOrders, expandDetails, grid);
@@ -4008,16 +3924,7 @@
         this.reconnectTimer = null;
         this.connected = false;
         this.username = null;
-        this.currentView = 'all'; // Track current view (all, claimed, etc.)
         this.connect();
-
-        // Listen for tab changes
-        document.addEventListener('click', (e) => {
-          const tab = e.target.closest('[data-view-tab]');
-          if (tab) {
-            this.currentView = tab.dataset.viewTab;
-          }
-        });
       }
 
       connect() {
@@ -4088,44 +3995,24 @@
         };
       }
 
-      async refreshData(forceRefresh = false) {
+      async refreshData() {
         try {
-          // Get current URL parameters
-          const params = new URLSearchParams(window.location.search);
-          const showClaimed = params.get('showClaimed') === 'true';
-          const showCompleted = params.get('showCompleted') === 'true';
-          const showOld = params.get('showOld') === 'true';
+          const showOld = document.getElementById("showOldToggle")?.checked || false;
+          const showCompleted = document.getElementById("showCompletedToggle")?.checked || false;
+          
+          const params = new URLSearchParams({
+            showOld: showOld.toString(),
+            showCompleted: showCompleted.toString(),
+            showClaimed: (state.currentTab === "claimed").toString()
+          });
 
-          const response = await fetch('/dashboard/data' + window.location.search, {
+          const response = await fetch(`/dashboard/data?${params.toString()}`, {
             credentials: 'include'
           });
+          
           if (!response.ok) throw new Error('Failed to fetch orders');
           const orders = await response.json();
-          
-          // Find or create orders container
-          let ordersList = document.querySelector('#orders-list');
-          if (!ordersList) {
-            ordersList = document.createElement('div');
-            ordersList.id = 'orders-list';
-            document.querySelector('.orders-container').appendChild(ordersList);
-          }
-
-          // Store expanded state of orders before update
-          const expandedStates = new Map();
-          document.querySelectorAll('.order-card').forEach(card => {
-            expandedStates.set(card.dataset.orderId, {
-              expanded: card.querySelector('.order-details').style.display === 'block',
-              scrollTop: window.scrollY
-            });
-          });
-
-          // Update orders
-          updateAllOrders(orders, expandedStates);
-
-          // If in claimed view, ensure proper filtering
-          if (showClaimed) {
-            this.updateClaimedView();
-          }
+          updateAllOrders(orders);
         } catch (error) {
           console.error('Error fetching orders:', error);
         }
@@ -4133,61 +4020,58 @@
 
       handleStaffUpdate(update) {
         const { order, metadata } = update;
+        const currentUser = state.currentUser;
         
-        // Always refresh if this update involves the current user
-        if (this.username && (
-          order.assigned_staff?.includes(this.username) ||
-          metadata?.updatedBy === this.username ||
-          order.claimed_by === this.username ||
-          metadata?.previousStaff?.includes(this.username)
-        )) {
-          // Force refresh to ensure claimed orders are updated
-          this.refreshData(true);
-        } else {
-          // Otherwise just update the specific order
-          this.handleOrderUpdate(update);
-        }
-
-        // Update claimed view if necessary
-        if (this.currentView === 'claimed') {
-          this.updateClaimedView();
-        }
-      }
-
-      updateClaimedView() {
-        const orderCards = document.querySelectorAll('.order-card');
-        orderCards.forEach(card => {
-          const orderId = card.dataset.orderId;
-          const assignedStaff = card.dataset.assignedStaff?.split(',') || [];
-          const claimedBy = card.dataset.claimedBy;
-          
-          // Show card if user is assigned or has claimed it
-          const shouldShow = 
-            (assignedStaff.includes(this.username) || claimedBy === this.username) &&
-            card.dataset.status?.toLowerCase() !== 'completed';
-
-          card.style.display = shouldShow ? '' : 'none';
+        console.log('🔄 Handling staff update:', {
+          orderId: order.id,
+          assignedStaff: order.assigned_staff,
+          currentUser: currentUser,
+          currentTab: state.currentTab,
+          previousStaff: metadata?.previousStaff,
+          newStaff: metadata?.newStaff
         });
 
-        // Update empty state message
-        this.updateEmptyState();
-      }
-
-      updateEmptyState() {
-        const visibleCards = document.querySelectorAll('.order-card[style="display: "]').length;
-        let emptyState = document.querySelector('.empty-state');
+        // Check if current user is affected by this update
+        const previousStaffList = metadata?.previousStaff ? metadata.previousStaff.split(',') : [];
+        const newStaffList = order.assigned_staff ? order.assigned_staff.split(',') : [];
         
-        if (visibleCards === 0) {
-          if (!emptyState) {
-            emptyState = document.createElement('div');
-            emptyState.className = 'empty-state';
-            document.querySelector('#orders-list').appendChild(emptyState);
+        const wasAssigned = previousStaffList.includes(currentUser);
+        const isNowAssigned = newStaffList.includes(currentUser);
+        const userAffected = wasAssigned !== isNowAssigned;
+
+        // If in claimed tab and user is affected, refresh all data
+        if (state.currentTab === "claimed" && userAffected) {
+          console.log('User assignment changed in claimed tab, refreshing...');
+          eventManager.refreshData();
+          return;
+        }
+
+        // Find the existing card
+        const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
+        
+        if (orderCard) {
+          // Update the staff tags in the expanded details
+          const staffTagsGrid = orderCard.querySelector('.staff-tags-grid');
+          if (staffTagsGrid) {
+            const staffTags = staffTagsGrid.querySelectorAll('.staff-tag');
+            staffTags.forEach(tag => {
+              const staffMember = state.staffMembers.find(s => s.displayName === tag.textContent);
+              if (staffMember) {
+                const isSelected = newStaffList.includes(staffMember.username);
+                tag.classList.toggle('selected', isSelected);
+              }
+            });
           }
-          emptyState.textContent = this.currentView === 'claimed' 
-            ? 'No claimed orders found'
-            : 'No orders found';
-        } else if (emptyState) {
-          emptyState.remove();
+
+          // Update any other card elements that might show staff info
+          updateCardElements(orderCard, order);
+          
+          // Add visual feedback
+          addUpdateFeedback(orderCard);
+        } else if (state.currentTab === "claimed" && isNowAssigned) {
+          // User was just assigned and we're in claimed tab - refresh to show the new card
+          console.log('User was newly assigned, refreshing claimed tab...');
+          eventManager.refreshData();
         }
       }
 
@@ -4242,9 +4126,6 @@
 
     // Update order UI
     function updateOrderUI(orderElement, order, metadata = {}) {
-      // Store expanded state
-      const isExpanded = orderElement.querySelector('.order-details')?.style.display === 'block';
-      
       // Update assigned staff
       const staffDisplay = orderElement.querySelector('.assigned-staff');
       if (staffDisplay) {
@@ -4253,22 +4134,19 @@
         staffDisplay.title = `Last updated: ${formatDate(order.last_updated)}`;
       }
 
-      // Update data attributes
-      orderElement.dataset.assignedStaff = order.assigned_staff || '';
-      orderElement.dataset.claimedBy = order.claimed_by || '';
-      orderElement.dataset.status = order.status || '';
+      // Update submission date/time
+      const submissionTime = orderElement.querySelector('.submission-time');
+      if (submissionTime) {
+        const submittedAt = order.submitted_at ? new Date(order.submitted_at) : null;
+        submissionTime.textContent = submittedAt ? formatDate(submittedAt) : 'Unknown';
+        submissionTime.title = `Submitted: ${submittedAt ? submittedAt.toLocaleString() : 'Unknown'}`;
+      }
 
       // Update other order details
       updateOrderStatus(orderElement, order);
       updateOrderClaim(orderElement, order);
       updateOrderPrice(orderElement, order);
       updateOrderNotes(orderElement, order);
-
-      // Restore expanded state if it was expanded
-      const detailsSection = orderElement.querySelector('.order-details');
-      if (detailsSection && isExpanded) {
-        detailsSection.style.display = 'block';
-      }
 
       // Add visual feedback for updates
       addUpdateFeedback(orderElement);
@@ -4375,42 +4253,105 @@
     }
 
     // Update all orders in the UI
-    function updateAllOrders(orders, expandedStates = new Map()) {
-      const ordersList = document.querySelector('#orders-list');
-      if (!ordersList) {
-        console.error('Orders list element not found');
+    function updateAllOrders(orders) {
+      const orderGrid = document.querySelector('#orderGrid');
+      if (!orderGrid) {
+        console.error('Order grid element not found');
         return;
       }
 
-      // Store scroll position
+      // Store current scroll position
       const scrollPosition = window.scrollY;
 
-      // Clear existing orders
-      ordersList.innerHTML = '';
+      // Store expanded states before clearing
+      const expandedStates = new Map();
+      const existingCards = orderGrid.querySelectorAll('.card[data-order-id]');
+      existingCards.forEach(card => {
+        const orderId = card.dataset.orderId;
+        const detailsSection = card.querySelector('.details-section');
+        const isExpanded = detailsSection?.classList.contains('visible');
+        
+        // Store staff notes state if expanded
+        let staffNotesState = null;
+        if (isExpanded) {
+          const staffNotesEditor = card.querySelector('.staff-notes-editor');
+          if (staffNotesEditor) {
+            staffNotesState = {
+              value: staffNotesEditor.value,
+              isEditing: staffNotesEditor === document.activeElement,
+              cursorPosition: staffNotesEditor.selectionStart,
+              previousValue: staffNotesEditor.dataset.previousValue
+            };
+          }
+        }
+        
+        expandedStates.set(orderId, {
+          isExpanded,
+          staffNotesState
+        });
+      });
+
+      // Update state
+      state.allOrders = orders;
       
-      // Add orders back
-      orders.forEach(order => {
-        try {
-          const orderCard = addNewOrderToUI(order);
-          
-          // Restore expanded state if it was expanded
-          const savedState = expandedStates.get(order.id);
-          if (savedState?.expanded) {
-            const detailsSection = orderCard.querySelector('.order-details');
+      // Clear and re-render based on current tab
+      orderGrid.innerHTML = '';
+      
+      if (state.currentTab === "claimed") {
+        renderClaimedOrders(orders, false);
+      } else {
+        renderOrders(orders, false);
+      }
+
+      // Restore expanded states
+      setTimeout(() => {
+        expandedStates.forEach((state, orderId) => {
+          const card = document.querySelector(`[data-order-id="${orderId}"]`);
+          if (card && state.isExpanded) {
+            const detailsSection = card.querySelector('.details-section');
+            const toggleBtn = card.querySelector('.details-toggle');
+            
             if (detailsSection) {
-              detailsSection.style.display = 'block';
+              detailsSection.classList.add('visible');
+            }
+            if (toggleBtn) {
+              toggleBtn.textContent = "Hide ▲";
+            }
+
+            // Restore staff notes state if it existed
+            if (state.staffNotesState) {
+              const staffNotesEditor = card.querySelector('.staff-notes-editor');
+              if (staffNotesEditor) {
+                if (state.staffNotesState.isEditing) {
+                  staffNotesEditor.value = state.staffNotesState.value;
+                  staffNotesEditor.dataset.previousValue = state.staffNotesState.previousValue;
+                  
+                  setTimeout(() => {
+                    staffNotesEditor.focus();
+                    staffNotesEditor.setSelectionRange(
+                      state.staffNotesState.cursorPosition, 
+                      state.staffNotesState.cursorPosition
+                    );
+                  }, 50);
+
+                  // Update save button state
+                  const saveBtn = card.querySelector('.save-notes-btn');
+                  if (saveBtn) {
+                    const hasChanges = staffNotesEditor.value !== staffNotesEditor.dataset.previousValue;
+                    saveBtn.disabled = !hasChanges;
+                    saveBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+                    saveBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+                    saveBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+                  }
+                }
+              }
             }
           }
-        } catch (err) {
-          console.error(`Failed to add order ${order.id}:`, err);
-        }
-      });
+        });
+      }, 100);
 
       // Restore scroll position
       window.scrollTo(0, scrollPosition);
-
-      // Update empty state
-      eventManager.updateEmptyState();
     }
 
     // Add styles for error banner
@@ -4437,279 +4378,6 @@
       }
     `;
     document.head.appendChild(styles);
-
-    // Add styles for empty state
-    const emptyStateStyles = document.createElement('style');
-    emptyStateStyles.textContent = `
-      .empty-state {
-        text-align: center;
-        padding: 2rem;
-        color: #666;
-        font-style: italic;
-      }
-    `;
-    document.head.appendChild(emptyStateStyles);
-
-    // State management for the dashboard
-    class DashboardState {
-      constructor() {
-        this.currentView = 'all';
-        this.expandedOrders = new Set();
-        this.lastSequence = 0;
-        this.initialized = false;
-        this.username = null;
-        
-        // Initialize state when DOM is ready
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', () => this.initialize());
-        } else {
-          this.initialize();
-        }
-      }
-
-      initialize() {
-        // Set up view tracking
-        document.addEventListener('click', (e) => {
-          const tab = e.target.closest('[data-view-tab]');
-          if (tab) {
-            this.currentView = tab.dataset.viewTab;
-            this.updateView();
-          }
-        });
-
-        // Track expanded states
-        document.addEventListener('click', (e) => {
-          const detailsToggle = e.target.closest('.toggle-details');
-          if (detailsToggle) {
-            const orderId = detailsToggle.closest('.order-card').dataset.orderId;
-            if (this.expandedOrders.has(orderId)) {
-              this.expandedOrders.delete(orderId);
-            } else {
-              this.expandedOrders.add(orderId);
-            }
-          }
-        });
-
-        this.initialized = true;
-        console.log('Dashboard state initialized');
-      }
-
-      updateView() {
-        if (!this.initialized) return;
-
-        const orderCards = document.querySelectorAll('.order-card');
-        orderCards.forEach(card => {
-          const orderId = card.dataset.orderId;
-          const assignedStaff = card.dataset.assignedStaff?.split(',') || [];
-          const claimedBy = card.dataset.claimedBy;
-          const status = card.dataset.status;
-
-          // Handle visibility based on view
-          if (this.currentView === 'claimed') {
-            const shouldShow = 
-              (assignedStaff.includes(this.username) || claimedBy === this.username) &&
-              status?.toLowerCase() !== 'completed';
-            card.style.display = shouldShow ? '' : 'none';
-          } else {
-            card.style.display = '';
-          }
-
-          // Restore expanded state
-          const detailsSection = card.querySelector('.order-details');
-          if (detailsSection) {
-            detailsSection.style.display = this.expandedOrders.has(orderId) ? 'block' : 'none';
-          }
-        });
-
-        this.updateEmptyState();
-      }
-
-      updateEmptyState() {
-        const visibleCards = document.querySelectorAll('.order-card[style="display: "]').length;
-        let emptyState = document.querySelector('.empty-state');
-        
-        if (visibleCards === 0) {
-          if (!emptyState) {
-            emptyState = document.createElement('div');
-            emptyState.className = 'empty-state';
-            const ordersList = document.querySelector('#orders-list');
-            if (ordersList) {
-              ordersList.appendChild(emptyState);
-            }
-          }
-          emptyState.textContent = this.currentView === 'claimed' 
-            ? 'No claimed orders found'
-            : 'No orders found';
-        } else if (emptyState) {
-          emptyState.remove();
-        }
-      }
-    }
-
-    // Enhanced EventSource Manager
-    class EventSourceManager {
-      constructor(dashboardState) {
-        this.state = dashboardState;
-        this.eventSource = null;
-        this.connectionAttempts = 0;
-        this.maxRetries = 5;
-        this.retryDelay = 1000;
-        this.reconnectTimer = null;
-        this.connected = false;
-
-        // Start connection when document is ready
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', () => this.connect());
-        } else {
-          this.connect();
-        }
-      }
-
-      connect() {
-        if (this.eventSource) {
-          this.eventSource.close();
-        }
-
-        // Ensure we have a valid session before connecting
-        fetch('/dashboard/whoami', { credentials: 'include' })
-          .then(response => response.json())
-          .then(data => {
-            if (data.username) {
-              this.state.username = data.username;
-              this.initializeEventSource();
-            } else {
-              console.error('No valid session found');
-              window.location.href = '/dashboard/login';
-            }
-          })
-          .catch(error => {
-            console.error('Failed to verify session:', error);
-            setTimeout(() => this.connect(), this.retryDelay);
-          });
-      }
-
-      initializeEventSource() {
-        this.eventSource = new EventSource('/dashboard/updates');
-        
-        this.eventSource.addEventListener('connect', (e) => {
-          console.log('Connected to SSE');
-          this.connected = true;
-          this.connectionAttempts = 0;
-          this.refreshData();
-        });
-
-        this.eventSource.addEventListener('heartbeat', () => {
-          this.lastHeartbeat = Date.now();
-        });
-
-        this.eventSource.addEventListener('orderUpdate', (e) => {
-          if (!this.connected) return;
-          
-          const update = JSON.parse(e.data);
-          
-          if (update.sequence && update.sequence !== this.state.lastSequence + 1) {
-            console.warn('Detected missed updates, refreshing all data...');
-            this.refreshData();
-            return;
-          }
-          
-          this.state.lastSequence = update.sequence || this.state.lastSequence;
-          this.handleUpdate(update);
-        });
-
-        this.eventSource.onerror = this.handleError.bind(this);
-      }
-
-      handleError(error) {
-        console.error('SSE Connection Error:', error);
-        this.connected = false;
-        this.eventSource.close();
-        
-        if (this.connectionAttempts < this.maxRetries) {
-          this.connectionAttempts++;
-          clearTimeout(this.reconnectTimer);
-          this.reconnectTimer = setTimeout(() => this.connect(), this.retryDelay * this.connectionAttempts);
-        } else {
-          this.showReconnectionError();
-        }
-      }
-
-      async refreshData() {
-        try {
-          const response = await fetch('/dashboard/data' + window.location.search, {
-            credentials: 'include'
-          });
-          
-          if (!response.ok) {
-            if (response.status === 401) {
-              window.location.href = '/dashboard/login';
-              return;
-            }
-            throw new Error('Failed to fetch orders');
-          }
-
-          const orders = await response.json();
-          this.updateOrders(orders);
-        } catch (error) {
-          console.error('Error fetching orders:', error);
-        }
-      }
-
-      updateOrders(orders) {
-        // Ensure orders container exists
-        let ordersList = document.querySelector('#orders-list');
-        if (!ordersList) {
-          ordersList = document.createElement('div');
-          ordersList.id = 'orders-list';
-          const container = document.querySelector('.orders-container');
-          if (container) {
-            container.appendChild(ordersList);
-          } else {
-            console.error('Orders container not found');
-            return;
-          }
-        }
-
-        // Clear and update orders
-        ordersList.innerHTML = '';
-        orders.forEach(order => {
-          try {
-            addNewOrderToUI(order);
-          } catch (err) {
-            console.error(`Failed to add order ${order.id}:`, err);
-          }
-        });
-
-        // Update view state
-        this.state.updateView();
-      }
-
-      handleUpdate(update) {
-        const { order, type, metadata } = update;
-        
-        // Check if update is relevant for current user
-        const isRelevant = 
-          this.state.username && (
-            order.assigned_staff?.includes(this.state.username) ||
-            metadata?.updatedBy === this.state.username ||
-            order.claimed_by === this.state.username ||
-            metadata?.previousStaff?.includes(this.state.username)
-          );
-
-        if (isRelevant || type === 'new') {
-          this.refreshData();
-        } else {
-          const orderElement = document.querySelector(`[data-order-id="${order.id}"]`);
-          if (orderElement) {
-            updateOrderUI(orderElement, order, metadata);
-          }
-        }
-      }
-    }
-
-    // Initialize dashboard
-    const dashboardState = new DashboardState();
-    const eventManager = new EventSourceManager(dashboardState);
   </script>
 
   <div id="loginOverlay" class="login-overlay">
