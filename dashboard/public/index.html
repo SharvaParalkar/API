@@ -23,13 +23,13 @@
       max-width: 700px;
       margin-left: auto;
       margin-right: auto;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
       display: flex;
-      gap: 1rem;
+      gap: 0.75rem;
       align-items: center;
       justify-content: center;
       width: 100%;
-      padding: 0 1rem;
+      padding: 0 0.75rem;
     }
 
     .search-container input {
@@ -45,8 +45,9 @@
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 1.5rem;
+      gap: 0.75rem;
       align-items: start;
+      margin-top: 0.75rem;
     }
 
     .card {
@@ -54,13 +55,13 @@
       flex-direction: column;
       justify-content: space-between;
       background: white;
-      border-radius: 1rem;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      padding: 1.5rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      padding: 1.25rem;
       color: #333;
       position: relative;
       height: auto;
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
 
     .card h2 {
@@ -534,19 +535,19 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 1rem;
+      gap: 0.75rem;
       flex-wrap: wrap;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
       width: 100%;
       max-width: 800px;
       margin-left: auto;
       margin-right: auto;
-      padding: 0 1rem;
+      padding: 0 0.75rem;
     }
 
     .left-toggles {
       display: flex;
-      gap: 1rem;
+      gap: 0.75rem;
       align-items: center;
       flex-shrink: 0;
     }
@@ -561,10 +562,10 @@
     .center-search input {
       width: 100%;
       max-width: 700px;
-      padding: 0.75rem;
+      padding: 0.75rem 1.25rem;
       font-size: 1rem;
       border: 2px solid #ccc;
-      border-radius: 5rem;
+      border-radius: 2rem;
       outline: none;
     }
 
@@ -723,15 +724,16 @@
     .tab-container {
       display: flex;
       justify-content: center;
-      gap: 1rem;
-      margin-bottom: 1rem;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
       position: relative;
       z-index: 100;
+      padding: 0 0.5rem;
     }
 
     .tab-button {
-      padding: 0.6rem 1rem;
-      border-radius: 1rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: 0.75rem;
       border: none;
       cursor: pointer;
       font-size: 1rem;
@@ -739,6 +741,7 @@
       transition: all 0.2s ease;
       user-select: none;
       pointer-events: auto;
+      min-width: 100px;
     }
 
     .tab-button:hover {
@@ -1266,8 +1269,9 @@
     .coupon-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
+      gap: 0.75rem;
       align-items: start;
+      margin-top: 0.75rem;
     }
     @media (max-width: 900px) {
       .coupon-grid {
