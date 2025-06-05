@@ -1264,10 +1264,11 @@
     }
     
     .coupon-grid {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
-  gap: 1.5rem !important;
-}
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
 
     
     
@@ -1847,35 +1848,36 @@
       }
     }
     
-    /* Enhanced responsiveness for coupon grid - maximum horizontal utilization */
+    /* Enhanced responsiveness for coupon grid - match order cards behavior */
     @media (min-width: 1400px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
         gap: 1.5rem;
-        max-width: none;
+        align-items: start;
       }
     }
     
     @media (min-width: 1200px) and (max-width: 1399px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
         gap: 1.5rem;
-        max-width: none;
+        align-items: start;
       }
     }
     
     @media (min-width: 1000px) and (max-width: 1199px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1.25rem;
-        max-width: none;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+        align-items: start;
       }
     }
     
     @media (min-width: 768px) and (max-width: 999px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 1.25rem;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+        align-items: start;
       }
     }
     
@@ -1930,13 +1932,6 @@
     
     /* Better form layout on small screens */
     @media (max-width: 768px) {
-  .coupon-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
-    gap: 1.5rem !important;
-  }
-
-
-      
       .form-group {
         margin-bottom: 1.25rem;
       }
@@ -5697,8 +5692,9 @@
       }
       .coupon-grid {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 1rem;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+        align-items: start;
       }
 
     `;
