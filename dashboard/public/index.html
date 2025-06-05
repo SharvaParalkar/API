@@ -866,6 +866,28 @@
     }
 
     .delete-btn {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      border-radius: 0.3rem;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      transition: opacity 0.2s ease;
+      z-index: 1;
+    }
+
+    .delete-btn:hover {
+      opacity: 1;
+    }
+
+    /* Coupon-specific delete button styling */
+    .coupon-usage-info .delete-btn {
+      position: static;
       background-color: #e53e3e;
       color: white;
       border: none;
@@ -878,9 +900,10 @@
       width: 100%;
       margin-top: 1rem;
       box-shadow: 0 4px 10px rgba(229, 62, 62, 0.15);
+      opacity: 1;
     }
 
-    .delete-btn:hover {
+    .coupon-usage-info .delete-btn:hover {
       background-color: #c53030;
     }
 
