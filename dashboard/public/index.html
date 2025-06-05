@@ -866,23 +866,22 @@
     }
 
     .delete-btn {
-      position: absolute;
-      top: 0.75rem;
-      right: 0.75rem;
-      background-color: #ff4444;
+      background-color: #e53e3e;
       color: white;
       border: none;
-      border-radius: 0.3rem;
-      padding: 0.3rem 0.6rem;
-      cursor: pointer;
+      border-radius: 0.75rem;
+      padding: 0.75rem;
       font-size: 0.9rem;
-      opacity: 0.8;
-      transition: opacity 0.2s ease;
-      z-index: 1;
+      font-weight: bold;
+      text-transform: uppercase;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 1rem;
+      box-shadow: 0 4px 10px rgba(229, 62, 62, 0.15);
     }
 
     .delete-btn:hover {
-      opacity: 1;
+      background-color: #c53030;
     }
 
     .delete-confirmation-overlay {
@@ -1364,16 +1363,15 @@
       cursor: not-allowed;
     }
     
-    .delete-btn {
-      background: #fff5f5;
-      color: #e53e3e;
-      border: 2px solid #fed7d7;
-    }
-    
-    .delete-btn:hover:not(:disabled) {
+    .modal-footer .delete-btn {
       background: #e53e3e;
       color: white;
-      border-color: #e53e3e;
+      border: 2px solid #e53e3e;
+    }
+    
+    .modal-footer .delete-btn:hover:not(:disabled) {
+      background: #c53030;
+      border-color: #c53030;
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
     }
@@ -1562,14 +1560,14 @@
       border-color: #dee2e6;
     }
     
-    .delete-btn {
+    .modal-btn.delete-btn {
       background: #e53e3e;
       color: white;
       border: 2px solid #e53e3e;
       order: 2;
     }
     
-    .delete-btn:hover {
+    .modal-btn.delete-btn:hover {
       background: #c53030;
       border-color: #c53030;
     }
@@ -5863,13 +5861,9 @@
                 ${coupon.max_uses ? `
                   <div class="usage-bar">
                     <div class="usage-progress" style="width: ${Math.min(usagePercentage, 100)}%"></div>
-                    <button class="coupon-btn delete-btn" onclick="showCouponDeleteModal('${coupon.code}')" style="margin-top: 1rem; width: 100%;">
-                  <span class="btn-icon">🗑️ Delete Coupon</span>
-            
-                </button>
                   </div>
                 ` : ''}
-                
+                <button class="coupon-btn delete-btn" onclick="showCouponDeleteModal('${coupon.code}')">🗑️ DELETE COUPON</button>
               </div>
             </div>
           </div>
