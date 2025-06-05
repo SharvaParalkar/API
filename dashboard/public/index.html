@@ -2042,6 +2042,35 @@
       transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       border-radius: 4px;
     }
+
+    // Add/replace styles for the new coupon grids
+    .coupon-sidebar.coupon-sidebar-grid {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+    .coupon-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+      width: 100%;
+    }
+    @media (max-width: 900px) {
+      .coupon-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 600px) {
+      .coupon-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      .coupon-sidebar.coupon-sidebar-grid {
+        grid-template-rows: auto auto;
+      }
+    }
   </style>
 </head>
 
@@ -5726,7 +5755,7 @@
       orderGrid.innerHTML = `
         <div class="coupon-container">
           <div class="coupon-layout">
-            <div class="coupon-sidebar">
+            <div class="coupon-sidebar coupon-sidebar-grid">
               <div class="coupon-form">
                 <h3>Create New Coupon</h3>
                 <form id="couponForm">
@@ -5735,7 +5764,6 @@
                     <input type="text" id="couponCode" placeholder="e.g., SAVE20" required>
                     <span class="form-help">Use uppercase letters and numbers</span>
                   </div>
-                  
                   <div class="form-row">
                     <div class="form-group">
                       <label for="discountType">Discount Type</label>
@@ -5750,20 +5778,16 @@
                       <input type="number" id="discountValue" step="0.01" min="0" placeholder="e.g., 20" required>
                     </div>
                   </div>
-                  
                   <div class="form-group">
                     <label for="maxUses">Usage Limit <span class="optional">(optional)</span></label>
                     <input type="number" id="maxUses" min="0" placeholder="Leave empty for unlimited uses">
                   </div>
-                  
                   <button type="submit" class="create-coupon-btn">
                     <span class="btn-icon">+</span>
                     Create Coupon
                   </button>
                 </form>
               </div>
-              
-              <!-- Future coupon usage log section -->
               <div class="coupon-log-section">
                 <h3>Recent Usage <span class="coming-soon">(Coming Soon)</span></h3>
                 <div class="usage-log-placeholder">
@@ -5772,9 +5796,8 @@
                 </div>
               </div>
             </div>
-            
             <div class="coupon-main">
-              <div id="couponsGrid" class="coupon-grid">
+              <div id="couponsGrid" class="coupon-cards-grid">
                 <div class="loading-placeholder">
                   <div class="loading-spinner"></div>
                   <p>Loading coupons...</p>
@@ -5783,8 +5806,6 @@
             </div>
           </div>
         </div>
-        
-        <!-- Custom Delete Confirmation Modal -->
         <div id="couponDeleteModal" class="delete-confirmation-overlay" style="display: none;">
           <div class="delete-confirmation-box">
             <h3>Delete Coupon</h3>
@@ -5796,7 +5817,43 @@
           </div>
         </div>
       `;
-
+      // Inject coupon grid styles dynamically, only once
+      if (!document.getElementById('couponGridStyles')) {
+        const couponGridStyles = `
+          .coupon-sidebar.coupon-sidebar-grid {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 2rem;
+            align-items: start;
+          }
+          .coupon-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 1.5rem;
+            align-items: start;
+            width: 100%;
+          }
+          @media (max-width: 900px) {
+            .coupon-cards-grid {
+              grid-template-columns: repeat(2, 1fr);
+            }
+          }
+          @media (max-width: 600px) {
+            .coupon-cards-grid {
+              grid-template-columns: 1fr;
+              gap: 1rem;
+            }
+            .coupon-sidebar.coupon-sidebar-grid {
+              grid-template-rows: auto auto;
+            }
+          }
+        `;
+        const styleTag = document.createElement('style');
+        styleTag.id = 'couponGridStyles';
+        styleTag.textContent = couponGridStyles;
+        document.head.appendChild(styleTag);
+      }
+      
       // Initialize coupon form
       initializeCouponForm();
       
