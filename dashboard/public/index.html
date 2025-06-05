@@ -5863,13 +5863,13 @@
                 ${coupon.max_uses ? `
                   <div class="usage-bar">
                     <div class="usage-progress" style="width: ${Math.min(usagePercentage, 100)}%"></div>
-                  </div>
-                ` : ''}
-                
-                <button class="coupon-btn delete-btn" onclick="showCouponDeleteModal('${coupon.code}')" style="margin-top: 1rem; width: 100%;">
+                    <button class="coupon-btn delete-btn" onclick="showCouponDeleteModal('${coupon.code}')" style="margin-top: 1rem; width: 100%;">
                   <span class="btn-icon">🗑️</span>
                   Delete Coupon
                 </button>
+                  </div>
+                ` : ''}
+                
               </div>
             </div>
           </div>
