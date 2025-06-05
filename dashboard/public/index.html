@@ -1265,7 +1265,7 @@
     
     .coupon-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
       gap: 1.5rem;
       align-items: start;
     }
@@ -1851,7 +1851,7 @@
     /* Enhanced responsiveness for coupon grid - optimized for more columns */
     @media (min-width: 1400px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
         gap: 1.5rem;
         align-items: start;
       }
@@ -1859,7 +1859,7 @@
     
     @media (min-width: 1200px) and (max-width: 1399px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
         gap: 1.5rem;
         align-items: start;
       }
@@ -1867,7 +1867,7 @@
     
     @media (min-width: 1000px) and (max-width: 1199px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
         gap: 1.5rem;
         align-items: start;
       }
@@ -1875,7 +1875,7 @@
     
     @media (min-width: 901px) and (max-width: 999px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
         gap: 1.5rem;
         align-items: start;
       }
@@ -1883,16 +1883,16 @@
     
     @media (min-width: 601px) and (max-width: 900px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1.5rem; /* Changed from 1.25rem */
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
         align-items: start;
       }
     }
     
     @media (max-width: 600px) {
       .coupon-grid {
-        /* Removed grid-template-columns: 1fr; to allow auto-fill */
-        gap: 1.5rem; /* Changed from 1rem */
+        grid-template-columns: 1fr;
+        gap: 1rem;
       }
       
       .coupon-card {
@@ -5764,7 +5764,6 @@
             
             <div class="coupon-main">
               <div class="coupons-list">
-                <!-- Removed coupons-header div -->
                 <div id="couponsGrid" class="coupon-grid">
                   <div class="loading-placeholder">
                     <div class="loading-spinner"></div>
