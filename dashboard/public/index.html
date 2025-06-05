@@ -1264,13 +1264,12 @@
     }
     
     .coupon-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 1.5rem;
-      padding: 0;
-      margin: 0;
-      align-items: start;
-    }
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+  gap: 1.5rem !important;
+}
+
+    
     
     .coupon-card {
       background: white;
@@ -1931,10 +1930,11 @@
     
     /* Better form layout on small screens */
     @media (max-width: 768px) {
-      .form-row {
-        grid-template-columns: 1fr;
-        gap: 0;
-      }
+  .coupon-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+    gap: 1.5rem !important;
+  }
+
       
       .form-group {
         margin-bottom: 1.25rem;
