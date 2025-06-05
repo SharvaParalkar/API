@@ -1286,17 +1286,16 @@
     .coupon-card {
       background: white;
       border: none;
-      border-radius: 1rem;
-      padding: 1.5rem;
+      border-radius: 1.25rem;
+      padding: 2rem;
       transition: all 0.3s ease;
       position: relative;
-      /* width: 100%; */
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
-      height: auto;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      gap: 1.25rem;
+      min-height: 280px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
       color: #333;
     }
     
@@ -2053,22 +2052,34 @@
     
     .coupon-cards-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(calc(50% - 1.5rem), 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 2rem;
       align-items: start;
       width: 100%;
+      padding: 1rem;
     }
     
-    @media (max-width: 900px) {
+    @media (max-width: 1200px) {
       .coupon-cards-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        padding: 0.75rem;
+      }
+      .coupon-card {
+        padding: 1.75rem;
+        min-height: 260px;
       }
     }
     
-    @media (max-width: 600px) {
+    @media (max-width: 800px) {
       .coupon-cards-grid {
         grid-template-columns: 1fr;
-        gap: 1rem;
+        gap: 1.25rem;
+        padding: 0.5rem;
+      }
+      .coupon-card {
+        padding: 1.5rem;
+        min-height: 240px;
       }
       .coupon-sidebar.coupon-sidebar-grid {
         grid-template-rows: auto auto;
