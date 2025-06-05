@@ -1851,15 +1851,25 @@
     /* Enhanced responsiveness for coupon grid - maximum horizontal utilization */
     @media (min-width: 1400px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 1.5rem;
+        max-width: none;
       }
     }
     
-    @media (min-width: 1000px) and (max-width: 1399px) {
+    @media (min-width: 1200px) and (max-width: 1399px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
         gap: 1.5rem;
+        max-width: none;
+      }
+    }
+    
+    @media (min-width: 1000px) and (max-width: 1199px) {
+      .coupon-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.25rem;
+        max-width: none;
       }
     }
     
@@ -1902,6 +1912,21 @@
       padding: 2rem;
       overflow-x: hidden;
       background-color: transparent;
+    }
+    
+    /* Allow wider containers on larger screens for better horizontal utilization */
+    @media (min-width: 1000px) {
+      .coupon-container {
+        max-width: 95%;
+        padding: 2rem 3rem;
+      }
+    }
+    
+    @media (min-width: 1600px) {
+      .coupon-container {
+        max-width: 90%;
+        padding: 2rem 4rem;
+      }
     }
     
     /* Better form layout on small screens */
