@@ -1265,7 +1265,7 @@
     
     .coupon-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 1.5rem;
       padding: 0;
       margin: 0;
@@ -1304,7 +1304,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      gap: 0.75rem;
+      gap: 0.5rem;
       height: 100%;
     }
     
@@ -1313,7 +1313,6 @@
       justify-content: flex-start;
       align-items: flex-start;
       margin: 0;
-      gap: 0.75rem;
     }
     
     .coupon-code {
@@ -1331,7 +1330,7 @@
       margin: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.1rem;
     }
     
     .discount-value {
@@ -1350,7 +1349,7 @@
       margin: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.3rem;
     }
     
     .usage-text {
@@ -1377,7 +1376,7 @@
       display: flex;
       gap: 0.5rem;
       width: 100%;
-      margin: 0.5rem 0 0 0;
+      margin: 0.25rem 0 0 0;
     }
     
     .coupon-btn {
@@ -1849,17 +1848,24 @@
       }
     }
     
-    /* Enhanced responsiveness for coupon grid - matching order tab */
-    @media (min-width: 1200px) {
+    /* Enhanced responsiveness for coupon grid - better horizontal utilization */
+    @media (min-width: 1400px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 1.5rem;
       }
     }
     
-    @media (min-width: 768px) and (max-width: 1199px) {
+    @media (min-width: 1000px) and (max-width: 1399px) {
       .coupon-grid {
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+      }
+    }
+    
+    @media (min-width: 768px) and (max-width: 999px) {
+      .coupon-grid {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 1.25rem;
       }
     }
@@ -1872,10 +1878,14 @@
       
       .coupon-card {
         padding: 1.25rem;
+        gap: 0.5rem;
+      }
+      
+      .coupon-content {
+        gap: 0.4rem;
       }
       
       .coupon-header-row {
-        gap: 0.5rem;
         flex-wrap: wrap;
       }
       
