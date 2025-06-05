@@ -2043,25 +2043,28 @@
       border-radius: 4px;
     }
 
-    // Add/replace styles for the new coupon grids
+    /* Coupon grid styles */
     .coupon-sidebar.coupon-sidebar-grid {
       display: grid;
       grid-template-rows: auto 1fr;
       gap: 2rem;
       align-items: start;
     }
+    
     .coupon-cards-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(calc(50% - 1.5rem), 1fr));
       gap: 1.5rem;
       align-items: start;
       width: 100%;
     }
+    
     @media (max-width: 900px) {
       .coupon-cards-grid {
         grid-template-columns: repeat(2, 1fr);
       }
     }
+    
     @media (max-width: 600px) {
       .coupon-cards-grid {
         grid-template-columns: 1fr;
@@ -5817,42 +5820,7 @@
           </div>
         </div>
       `;
-      // Inject coupon grid styles dynamically, only once
-      if (!document.getElementById('couponGridStyles')) {
-        const couponGridStyles = `
-          .coupon-sidebar.coupon-sidebar-grid {
-            display: grid;
-            grid-template-rows: auto 1fr;
-            gap: 2rem;
-            align-items: start;
-          }
-          .coupon-cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-            gap: 1.5rem;
-            align-items: start;
-            width: 100%;
-          }
-          @media (max-width: 900px) {
-            .coupon-cards-grid {
-              grid-template-columns: repeat(2, 1fr);
-            }
-          }
-          @media (max-width: 600px) {
-            .coupon-cards-grid {
-              grid-template-columns: 1fr;
-              gap: 1rem;
-            }
-            .coupon-sidebar.coupon-sidebar-grid {
-              grid-template-rows: auto auto;
-            }
-          }
-        `;
-        const styleTag = document.createElement('style');
-        styleTag.id = 'couponGridStyles';
-        styleTag.textContent = couponGridStyles;
-        document.head.appendChild(styleTag);
-      }
+      // Grid styles are now in the CSS section
       
       // Initialize coupon form
       initializeCouponForm();
