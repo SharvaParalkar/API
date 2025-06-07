@@ -5,6 +5,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FilamentBros Order Dashboard</title>
+  <link rel="manifest" href="/dashboard/manifest.json" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <style>
     body {
       font-family: "Roboto", sans-serif;
@@ -2182,6 +2186,24 @@
       .coupon-sidebar.coupon-sidebar-grid {
         grid-template-rows: auto auto;
       }
+    }
+
+    .notification-button {
+      position: absolute;
+      top: 1.5rem;
+      right: 2rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .notification-button:hover {
+      background-color: #164a49;
     }
   </style>
 </head>
@@ -6270,6 +6292,140 @@
     }
   </script>
 
+  <script>
+    const VAPID_PUBLIC_KEY = 'BLc8NFGoo-3SHvWUj7wn-UHS50TPWSCyYgx-uiYZhKTsXZDDa2unJcHNYAC09_ISi77ieRrPfOPxyYk2VQslPys';
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    async function subscribeToPush() {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        console.log('Service Worker is ready.');
+
+        // Request permission for notifications
+        const permission = await window.Notification.requestPermission();
+        if (permission === 'granted') {
+          console.log('Notification permission granted.');
+          
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+          });
+          console.log('Push subscription successful:', subscription);
+          
+          await fetch('/dashboard/api/subscribe', {
+            method: 'POST',
+            body: JSON.stringify(subscription),
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          console.log('Subscription sent to server.');
+          document.getElementById('enableNotifications').style.display = 'none'; // Hide button after success
+        } else {
+          console.warn('Notification permission denied.');
+        }
+      } catch (error) {
+        console.error('Push subscription failed:', error);
+      }
+    }
+
+    async function setupPush() {
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+          // Register the service worker
+          const registration = await navigator.serviceWorker.register('/dashboard/sw.js', { scope: '/dashboard/' });
+          console.log('Service Worker registered with scope:', registration.scope);
+
+          // Check if already subscribed
+          const subscription = await registration.pushManager.getSubscription();
+          const notificationButton = document.getElementById('enableNotifications');
+
+          if (Notification.permission === 'granted' && subscription) {
+            console.log('Already subscribed to push notifications.');
+            notificationButton.style.display = 'none';
+          } else if (Notification.permission !== 'denied') {
+            notificationButton.style.display = 'block';
+            notificationButton.onclick = subscribeToPush;
+          }
+        } catch (error) {
+          console.error('Service Worker registration failed:', error);
+        }
+      } else {
+        console.warn('Push messaging is not supported');
+      }
+    }
+
+    // We should only set up push notifications after a user is logged in.
+    document.addEventListener('DOMContentLoaded', () => {
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (event) => {
+                // We assume login is successful and then set up push.
+                // In a real app, you would wait for a success response from the server.
+                setTimeout(setupPush, 1000); 
+            });
+        }
+    });
+
+    // We should only set up push notifications after a user is logged in.
+    // This function checks the login status and then proceeds.
+    async function initializePush() {
+      try {
+        // A simple way to check if logged in is to see if the login overlay is hidden.
+        // This assumes the overlay is hidden on successful login.
+        const loginOverlay = document.getElementById('loginOverlay');
+        if (loginOverlay && loginOverlay.style.display === 'none') {
+          await setupPush();
+        } else {
+          // If the overlay is visible, we wait for the login form submission.
+          const loginForm = document.getElementById('loginForm');
+          if (loginForm) {
+              loginForm.addEventListener('submit', () => setTimeout(setupPush, 1000));
+          }
+        }
+      } catch (e) {
+        console.error("Could not initialize push notifications", e);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', initializePush);
+
+    // Also, since the login logic might just hide the overlay without a page reload,
+    // we can use a MutationObserver to detect when the login overlay is hidden.
+    const observer = new MutationObserver((mutationsList, observer) => {
+        for(const mutation of mutationsList) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                const loginOverlay = mutation.target;
+                if (loginOverlay.style.display === 'none') {
+                    setupPush();
+                    observer.disconnect(); // Stop observing once logged in.
+                }
+            }
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const loginOverlay = document.getElementById('loginOverlay');
+        if (loginOverlay) {
+            observer.observe(loginOverlay, { attributes: true });
+        }
+    });
+  </script>
+
   <div id="loginOverlay" class="login-overlay">
     <div class="login-box">
       <h2>FilamentBros Login</h2>
@@ -6285,6 +6441,9 @@
       </form>
     </div>
   </div>
+
+  <button id="enableNotifications" class="notification-button" style="display: none;">Enable Notifications</button>
+
 </body>
 
 </html>     

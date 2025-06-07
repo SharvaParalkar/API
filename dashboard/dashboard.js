@@ -7,6 +7,19 @@ const archiver = require("archiver");
 const session = require("express-session");
 const helmet = require("helmet");
 const http = require('http');
+const webpush = require('web-push');
+
+// VAPID keys - should be stored in environment variables
+const vapidKeys = {
+  publicKey: 'BLc8NFGoo-3SHvWUj7wn-UHS50TPWSCyYgx-uiYZhKTsXZDDa2unJcHNYAC09_ISi77ieRrPfOPxyYk2VQslPys',
+  privateKey: '9gRW6FjXoyff49NDUHSiZ5puqh1JjpiI531Bl9pGmNY'
+};
+
+webpush.setVapidDetails(
+  'mailto:contact@filamentbros.com',
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
 
 // Constants and Database setup
 const STLS_DIR = "C:/Users/Admin/Downloads/API/Order-Form/STLS";
@@ -17,6 +30,16 @@ let db;
 try {
   db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
+  // Initialize push subscriptions table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      endpoint TEXT UNIQUE NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
   console.log('✅ Database connected successfully');
 } catch (err) {
   console.error('❌ Database connection failed:', err);
@@ -96,6 +119,9 @@ app.use(cors({
 // Body parsers with size limits
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.json({ limit: '10mb' }));
+
+//  Static file serving for PWA assets
+app.use('/dashboard', express.static(path.join(__dirname, 'public')));
 
 // 🔒 Users (consider moving to environment variables or database)
 const USERS = {
@@ -461,7 +487,7 @@ app.get('/dashboard/updates', (req, res) => {
   req.session.touch();
 });
 
-// Enhanced broadcast function with targeted updates
+// Enhanced broadcast function with targeted updates and push notifications
 function broadcastUpdate(eventType, data) {
   const eventData = JSON.stringify({
     ...data,
@@ -471,16 +497,10 @@ function broadcastUpdate(eventType, data) {
 
   const deadClients = new Set();
   
-  console.log(`📡 Broadcasting ${eventType} to ${clients.size} clients`);
+  console.log(`📡 Broadcasting ${eventType} to ${clients.size} SSE clients`);
   
   clients.forEach(client => {
     try {
-      // For staff updates, send to ALL authenticated clients
-      // The client-side will decide if it needs to act on the update
-      if (eventType === 'orderUpdate' && data.type === 'staff') {
-        console.log(`📤 Sending staff update to client ${client.id} (${client.username})`);
-      }
-
       if (!client.res.writableEnded) {
         client.res.write(`event: ${eventType}\ndata: ${eventData}\n\n`);
         client.lastSeen = Date.now();
@@ -499,10 +519,79 @@ function broadcastUpdate(eventType, data) {
       clearInterval(client.heartbeat);
     }
     clients.delete(client);
-    console.log(`🧹 Removed dead client: ${client.id}`);
+    console.log(`🧹 Removed dead SSE client: ${client.id}`);
   });
   
-  console.log(`📊 Active clients after broadcast: ${clients.size}`);
+  console.log(`📊 Active SSE clients after broadcast: ${clients.size}`);
+
+  // Also send push notifications
+  sendPushNotifications(eventType, data);
+}
+
+// New function to send push notifications
+async function sendPushNotifications(eventType, data) {
+  try {
+    const subscriptions = db.prepare('SELECT endpoint, p256dh, auth FROM push_subscriptions').all();
+    console.log(`Found ${subscriptions.length} push subscriptions to notify.`);
+
+    const notificationPayload = JSON.stringify({
+      title: 'FilamentBros Dashboard Update',
+      body: getNotificationMessage(eventType, data),
+      url: '/dashboard/' // Directs to the dashboard on notification click
+    });
+
+    for (const row of subscriptions) {
+      const subscription = {
+        endpoint: row.endpoint,
+        keys: {
+          p256dh: row.p256dh,
+          auth: row.auth
+        }
+      };
+      
+      try {
+        await webpush.sendNotification(subscription, notificationPayload);
+        console.log(`✅ Push notification sent to ${subscription.endpoint.substring(0,20)}...`);
+      } catch (error) {
+        console.error(`❌ Error sending push notification to ${subscription.endpoint.substring(0,20)}...:`, error.body || error.message);
+        // If subscription is gone (410) or not found (404), remove it from DB
+        if (error.statusCode === 410 || error.statusCode === 404) {
+          console.log(`🗑️ Removing stale subscription: ${subscription.endpoint.substring(0,20)}...`);
+          db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(subscription.endpoint);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('❌ Failed to fetch subscriptions or send push notifications:', err);
+  }
+}
+
+function getNotificationMessage(eventType, data) {
+  // Gracefully handle missing data properties
+  const orderId = data.order?.order_id || data.orderId || data.order_id;
+  const status = data.order?.status;
+  const price = data.assigned_price;
+  const staff = data.assignedStaff?.join(', ');
+  const couponCode = data.coupon?.code;
+  
+  switch(eventType) {
+    case 'order_update':
+      return `Order #${orderId} has been updated. Status: ${status || 'N/A'}`;
+    case 'price_update':
+      return `Price for order #${orderId} was set to $${price}.`;
+    case 'staff_update':
+        return `Staff for order #${orderId} updated. Assigned: ${staff || 'N/A'}.`;
+    case 'coupon_update':
+        return `A coupon has been updated: ${couponCode || 'N/A'}`;
+    case 'orderUpdate': // Handle legacy event types if necessary
+        if (data.type === 'new') return `🆕 New order received: #${data.order.order_id}`;
+        if (data.type === 'status') return `Status for order #${data.order_id} is now ${data.status}`;
+        if (data.type === 'price') return `Price for order #${data.order_id} set to $${data.assigned_price}`;
+        if (data.type === 'staff') return `Order #${data.order_id} assigned to ${data.assigned_staff}`;
+        return 'An order has been updated.';
+    default:
+      return 'There is a new update in the dashboard.';
+  }
 }
 
 // Add connection keep-alive ping every 30 seconds
@@ -1339,4 +1428,43 @@ server.listen(PORT, () => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.post("/dashboard/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ error: "Could not log out" });
+    }
+    res.clearCookie('filamentbros.sid');
+    res.sendStatus(200);
+  });
+});
+
+app.post("/dashboard/api/subscribe", requireLogin, (req, res) => {
+  try {
+    const subscription = req.body;
+    console.log('Received push subscription:', subscription);
+
+    // Validate subscription
+    if (!subscription.endpoint || !subscription.keys.p256dh || !subscription.keys.auth) {
+      return res.status(400).json({ error: 'Invalid subscription object' });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO push_subscriptions (endpoint, p256dh, auth) 
+      VALUES (@endpoint, @p256dh, @auth)
+      ON CONFLICT(endpoint) DO NOTHING
+    `);
+    
+    stmt.run({
+      endpoint: subscription.endpoint,
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth
+    });
+    
+    res.status(201).json({ success: true });
+  } catch (err) {
+    console.error('❌ Failed to store push subscription:', err);
+    res.status(500).json({ error: 'Failed to store subscription' });
+  }
 });
