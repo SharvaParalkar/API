@@ -3459,8 +3459,10 @@
 
     // Add back the applyStatusColor function
     function applyStatusColor(dropdown, status) {
-      // Normalize the status - ensure we handle null/undefined/empty values properly
-      const normalizedStatus = (status || 'pending').toString().toLowerCase().replace(/\s+/g, "-");
+      // Normalize the status - ensure we handle null/undefined/empty/submitted values properly
+      let rawStatus = status || 'pending';
+      if (rawStatus === 'submitted') rawStatus = 'pending';
+      const normalizedStatus = rawStatus.toString().toLowerCase().replace(/\s+/g, "-");
       
       // Remove any existing status classes
       dropdown.className = 'status-dropdown';
@@ -3715,8 +3717,9 @@
           "printing pay later",
           "completed",
         ];
-        // Use the exact status value from the database, not lowercased
-        const currentStatus = order.status || "pending";
+        // Normalize status: convert submitted/null to pending
+        let rawStatus = order.status || "pending";
+        const currentStatus = rawStatus === "submitted" ? "pending" : rawStatus;
 
         const statusDropdown = document.createElement("select");
         statusDropdown.className = "status-dropdown";

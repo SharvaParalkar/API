@@ -223,7 +223,7 @@ app.get("/dashboard/data", requireLogin, (req, res) => {
   try {
     const { showOld, showCompleted, showClaimed } = req.query;
     const username = req.session.user;
-    let query = `SELECT *, COALESCE(status, 'pending') as status FROM orders`;
+    let query = `SELECT *, CASE WHEN status IS NULL OR status = 'submitted' THEN 'pending' ELSE status END as status FROM orders`;
     const params = [];
     const conditions = [];
 
@@ -351,7 +351,7 @@ app.post("/dashboard/update-price", requireLogin, (req, res) => {
     }
 
     // Fetch the updated order
-    const updatedOrder = db.prepare("SELECT *, COALESCE(status, 'pending') as status FROM orders WHERE id = ?").get(orderId);
+    const updatedOrder = db.prepare("SELECT *, CASE WHEN status IS NULL OR status = 'submitted' THEN 'pending' ELSE status END as status FROM orders WHERE id = ?").get(orderId);
 
     // Broadcast the update to all connected clients
     broadcastUpdate('orderUpdate', {
@@ -828,7 +828,7 @@ app.post("/dashboard/update-status", requireLogin, (req, res) => {
     // Fetch the updated order
     const updatedOrder = db.prepare(`
       SELECT *,
-             COALESCE(status, 'pending') as status,
+             CASE WHEN status IS NULL OR status = 'submitted' THEN 'pending' ELSE status END as status,
              updated_by,
              COALESCE(last_updated, submitted_at) as last_updated
       FROM orders 
@@ -896,7 +896,7 @@ app.post("/dashboard/update-staff-notes", requireLogin, (req, res) => {
     }
 
     // Fetch updated order
-    const updatedOrder = db.prepare("SELECT *, COALESCE(status, 'pending') as status FROM orders WHERE id = ?").get(orderId);
+    const updatedOrder = db.prepare("SELECT *, CASE WHEN status IS NULL OR status = 'submitted' THEN 'pending' ELSE status END as status FROM orders WHERE id = ?").get(orderId);
     
     // Broadcast the update
     broadcastUpdate('orderUpdate', {
@@ -1106,7 +1106,7 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
     // Fetch the updated order with all fields
     const updatedOrder = db.prepare(`
       SELECT *,
-             COALESCE(status, 'pending') as status,
+             CASE WHEN status IS NULL OR status = 'submitted' THEN 'pending' ELSE status END as status,
              updated_by,
              last_updated
       FROM orders 
@@ -1167,7 +1167,7 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
 
     // If not claimed at all, return success (idempotent operation)
     if (!current.claimed_by) {
-      const order = db.prepare("SELECT *, COALESCE(status, 'pending') as status FROM orders WHERE id = ?").get(orderId);
+      const order = db.prepare("SELECT *, CASE WHEN status IS NULL OR status = 'submitted' THEN 'pending' ELSE status END as status FROM orders WHERE id = ?").get(orderId);
       return res.json({ success: true, order });
     }
 
@@ -1196,7 +1196,7 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
       }
 
       // Fetch the updated order to confirm the changes
-      const updatedOrder = db.prepare("SELECT *, COALESCE(status, 'pending') as status FROM orders WHERE id = ?").get(orderId);
+      const updatedOrder = db.prepare("SELECT *, CASE WHEN status IS NULL OR status = 'submitted' THEN 'pending' ELSE status END as status FROM orders WHERE id = ?").get(orderId);
       
       if (!updatedOrder) {
         throw new Error("Failed to fetch updated order");
@@ -1210,7 +1210,7 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
     })();
 
     // Fetch the final state of the order
-    const finalOrder = db.prepare("SELECT *, COALESCE(status, 'pending') as status FROM orders WHERE id = ?").get(orderId);
+    const finalOrder = db.prepare("SELECT *, CASE WHEN status IS NULL OR status = 'submitted' THEN 'pending' ELSE status END as status FROM orders WHERE id = ?").get(orderId);
     
     // Broadcast the update with additional context
     broadcastUpdate('orderUpdate', {
