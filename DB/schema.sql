@@ -14,7 +14,11 @@ CREATE TABLE orders (
   order_notes TEXT,   -- staff-added internal notes
   updated_by TEXT,    -- track who last updated the order
   last_updated DATETIME,  -- timestamp of last update
-  claimed_by TEXT     -- track who claimed the order
+  claimed_by TEXT,    -- track who claimed the order
+  total_revenue REAL,
+  filament_grams REAL,
+  cost_of_goods REAL,
+  expected_profit REAL
 );
 
 -- files

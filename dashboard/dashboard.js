@@ -218,6 +218,88 @@ app.get("/dashboard/debug/cookies", (req, res) => {
   });
 });
 
+// 📈 Analytics API
+app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
+  const { metric } = req.params;
+  const { timeframe = 'daily', staff = 'all' } = req.query;
+
+  // Configuration for all available metrics
+  const metricsConfig = {
+    // Print Order Metrics
+    'orders': { table: 'orders', agg: 'COUNT(id)' },
+    'revenue': { table: 'orders', agg: 'SUM(COALESCE(assigned_price, 0))' },
+    'filament-use-grams': { table: 'orders', agg: 'SUM(COALESCE(assigned_price, 0) / 0.03)' },
+    'cost-of-goods': { table: 'orders', agg: 'SUM((COALESCE(assigned_price, 0) / 0.03) * 0.012)' },
+    'expected-profit': { table: 'orders', agg: 'SUM((COALESCE(assigned_price, 0) / 0.03) * 0.018)' },
+    'orders-completed': { table: 'orders', agg: 'COUNT(id)', where: `status = 'completed'` },
+    'average-order-value': { table: 'orders', agg: 'AVG(COALESCE(assigned_price, 0))', where: `status = 'completed' AND COALESCE(assigned_price, 0) > 0` },
+    // Filament Sales Metrics
+    'filament-sales-revenue': { table: 'filament_orders', agg: 'SUM(COALESCE(total_price, 0))' },
+    'filament-sales-order-volume': { table: 'filament_orders', agg: 'COUNT(id)' },
+    'filament-sales-profit': {
+        table: 'filament_orders fo JOIN filament_inventory fi ON fo.inventory_id = fi.id',
+        agg: 'SUM(COALESCE(fo.total_price, 0) - ( (fi.weight_grams / 1000.0) * fi.price_per_kg * fo.quantity) )',
+        isJoin: true
+    }
+  };
+
+  const metricConfig = metricsConfig[metric];
+
+  if (!metricConfig) {
+    return res.status(400).json({ error: "Invalid metric specified." });
+  }
+
+  const validTimeframes = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'];
+  if (!validTimeframes.includes(timeframe)) {
+    return res.status(400).json({ error: "Invalid timeframe specified." });
+  }
+
+  // Use the correct date column depending on the table (for joins)
+  const dateColumn = metricConfig.isJoin ? 'fo.submitted_at' : 'submitted_at';
+
+  let dateGroup;
+  switch (timeframe) {
+    case 'daily': dateGroup = `strftime('%Y-%m-%d', ${dateColumn})`; break;
+    case 'weekly': dateGroup = `strftime('%Y-%W', ${dateColumn})`; break;
+    case 'monthly': dateGroup = `strftime('%Y-%m', ${dateColumn})`; break;
+    case 'quarterly': dateGroup = `strftime('%Y', ${dateColumn}) || '-Q' || ((CAST(strftime('%m', ${dateColumn}) AS INTEGER) - 1) / 3 + 1)`; break;
+    case 'yearly': dateGroup = `strftime('%Y', ${dateColumn})`; break;
+  }
+
+  const params = [];
+  
+  // Use the correct staff column depending on the table (for joins)
+  const staffColumn = metricConfig.isJoin ? 'fo.assigned_staff' : 'assigned_staff';
+  let staffFilter = '1=1';
+  if (staff !== 'all') {
+    staffFilter = `(${staffColumn} = ? OR ${staffColumn} LIKE ? OR ${staffColumn} LIKE ? OR ${staffColumn} LIKE ?)`
+    params.push(staff, `${staff},%`, `%,${staff},%`, `%,${staff}`);
+  }
+  
+  let query = `
+    SELECT 
+      COALESCE(${metricConfig.agg}, 0) AS value, 
+      ${dateGroup} AS period 
+    FROM ${metricConfig.table} 
+    WHERE ${staffFilter} AND ${dateColumn} IS NOT NULL
+  `;
+
+  if (metricConfig.where) {
+    query += ` AND ${metricConfig.where}`;
+  }
+  
+  query += ` GROUP BY period ORDER BY period ASC`;
+
+  try {
+    const stmt = db.prepare(query);
+    const data = stmt.all(...params);
+    res.json(data);
+  } catch (err) {
+    console.error(`Error fetching analytics for metric '${metric}':`, err);
+    res.status(500).json({ error: "Failed to retrieve analytics data." });
+  }
+});
+
 // 🔐 Orders route
 app.get("/dashboard/data", requireLogin, (req, res) => {
   try {

@@ -4691,10 +4691,12 @@
           console.log(`✅ Status dropdown updated successfully for order ${updatedOrder.id}: ${newStatus}`);
         } else {
           console.error(`❌ Status option "${newStatus}" not found in dropdown for order ${updatedOrder.id}`);
+          console.log('Available options:', Array.from(statusDropdown.options).map(opt => opt.value));
           // Fallback to pending if status doesn't match any option
           statusDropdown.value = 'pending';
           statusDropdown.dataset.previousValue = 'pending';
           applyStatusColor(statusDropdown, 'pending');
+          console.log(`⚠️ Fallback to pending status for order ${updatedOrder.id} (displayed: "${statusDropdown.selectedOptions[0]?.textContent}")`);
         }
       }
 
@@ -6547,6 +6549,269 @@
   </div>
 
   <button id="enableNotifications" class="notification-button" style="display: none;">Enable Notifications</button>
+
+  <!-- Chart.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+  <script>
+    // ... existing code ...
+    // ... keep the existing script content for the dashboard UI ...
+    // ... existing code ...
+    
+    // Analytics Charting Functionality
+    (function() {
+      // A global variable to hold the chart instance, allowing updates and destruction.
+      let chartInstances = {}; // Use an object to manage multiple charts
+
+      // Configuration array for all charts
+      const chartConfigs = [
+        { metric: 'orders', canvasId: 'orderVolumeChart', chartType: 'line', label: 'Order Volume', yAxisLabel: 'Count' },
+        { metric: 'revenue', canvasId: 'revenueChart', chartType: 'area', label: 'Revenue', yAxisLabel: 'USD ($)' },
+        { metric: 'expected-profit', canvasId: 'expectedProfitChart', chartType: 'line', label: 'Expected Profit', yAxisLabel: 'USD ($)' },
+        { metric: 'average-order-value', canvasId: 'avgOrderValueChart', chartType: 'bar', label: 'Avg. Order Value', yAxisLabel: 'USD ($)' },
+        { metric: 'filament-use-grams', canvasId: 'filamentGramsChart', chartType: 'bar', label: 'Filament Use', yAxisLabel: 'Grams (g)' },
+        { metric: 'cost-of-goods', canvasId: 'costOfGoodsChart', chartType: 'bar', label: 'Cost of Goods', yAxisLabel: 'USD ($)' },
+        { metric: 'orders-completed', canvasId: 'ordersCompletedChart', chartType: 'line', label: 'Orders Completed', yAxisLabel: 'Count' },
+        { metric: 'filament-sales-revenue', canvasId: 'filamentRevenueChart', chartType: 'area', label: 'Filament Sales Revenue', yAxisLabel: 'USD ($)' },
+        { metric: 'filament-sales-profit', canvasId: 'filamentProfitChart', chartType: 'line', label: 'Filament Sales Profit', yAxisLabel: 'USD ($)' },
+        { metric: 'filament-sales-order-volume', canvasId: 'filamentVolumeChart', chartType: 'line', label: 'Filament Sales Volume', yAxisLabel: 'Count' },
+      ];
+
+      /**
+       * Renders a time-series chart on a given canvas element.
+       * @param {string} canvasId - The ID of the canvas element to render the chart on.
+       * @param {string} chartType - The type of chart to render ('line', 'bar', 'area').
+       * @param {Array<Object>} data - Array of data points, e.g., [{period: '2023-01-01', value: 100}]
+       * @param {string} label - The label for the dataset.
+       * @param {string} yAxisLabel - The label for the Y-axis.
+       */
+      function renderTimeSeriesChart(canvasId, chartType, data, label, yAxisLabel) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+
+        // If a chart instance already exists on this canvas, destroy it before rendering a new one.
+        if (chartInstances[canvasId]) {
+          chartInstances[canvasId].destroy();
+        }
+        
+        const labels = data.map(d => new Date(d.period));
+        const values = data.map(d => d.value);
+
+        let datasetOptions = {
+          label: label,
+          data: values,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+        };
+
+        if (chartType === 'area') {
+          datasetOptions.fill = 'start';
+          datasetOptions.backgroundColor = 'rgba(75, 192, 192, 0.2)';
+          datasetOptions.borderColor = 'rgba(75, 192, 192, 1)';
+          chartType = 'line'; // 'area' is a line chart with fill enabled
+        } else if (chartType === 'bar') {
+           datasetOptions.backgroundColor = 'rgba(54, 162, 235, 0.6)';
+           datasetOptions.borderColor = 'rgba(54, 162, 235, 1)';
+        } else { // line
+           datasetOptions.backgroundColor = 'rgba(255, 99, 132, 0.2)';
+           datasetOptions.borderColor = 'rgba(255, 99, 132, 1)';
+        }
+
+        chartInstances[canvasId] = new Chart(ctx, {
+          type: chartType,
+          data: {
+            labels: labels,
+            datasets: [datasetOptions]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                type: 'time',
+                time: {
+                  unit: 'day', // This will be adjusted based on timeframe
+                  tooltipFormat: 'MMM dd, yyyy'
+                },
+                title: {
+                  display: true,
+                  text: 'Date'
+                }
+              },
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: yAxisLabel
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+              },
+              tooltip: {
+                enabled: true,
+                mode: 'index',
+                intersect: false,
+              }
+            }
+          }
+        });
+      }
+
+      /**
+       * Fetches analytics data and renders the chart(s).
+       * This function is called when UI controls change.
+       */
+      async function updateCharts() {
+        const timeframe = document.getElementById('timeframeSelect').value;
+        const staff = document.getElementById('staffFilter').value;
+
+        // Use Promise.all to fetch data for all charts in parallel
+        const promises = chartConfigs.map(config =>
+          fetch(`/dashboard/api/analytics/${config.metric}?timeframe=${timeframe}&staff=${staff}`)
+            .then(res => {
+              if (!res.ok) {
+                throw new Error(`Failed to fetch ${config.metric} (status: ${res.status})`);
+              }
+              return res.json();
+            })
+            .then(data => ({ ...config, data }))
+            .catch(error => {
+              console.error(`Failed to load data for ${config.metric}:`, error);
+              return { ...config, data: [], error: true }; // Return config with error flag
+            })
+        );
+
+        const results = await Promise.all(promises);
+
+        results.forEach(result => {
+          const { canvasId, chartType, data, label, yAxisLabel, error } = result;
+          const canvas = document.getElementById(canvasId);
+          const ctx = canvas.getContext('2d');
+
+          // Clear previous content (like error messages)
+          if (chartInstances[canvasId]) {
+            chartInstances[canvasId].destroy();
+          }
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          if (error) {
+            ctx.font = "16px Arial";
+            ctx.fillStyle = "#8b0000";
+            ctx.textAlign = "center";
+            ctx.fillText(`Could not load '${label}' data.`, canvas.width / 2, canvas.height / 2);
+          } else {
+            renderTimeSeriesChart(canvasId, chartType, data, label, yAxisLabel);
+          }
+        });
+      }
+
+      /**
+       * Populates the staff filter dropdown.
+       */
+      function populateStaffFilter() {
+        const staff = ["sharva", "pablo", "peter", "nathan", "evan"];
+        const staffFilter = document.getElementById('staffFilter');
+        staff.forEach(name => {
+          const option = document.createElement('option');
+          option.value = name;
+          option.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+          staffFilter.appendChild(option);
+        });
+      }
+      
+      // --- INITIALIZATION ---
+      document.addEventListener('DOMContentLoaded', () => {
+        populateStaffFilter();
+
+        const timeframeSelect = document.getElementById('timeframeSelect');
+        const staffFilter = document.getElementById('staffFilter');
+        
+        // Add event listeners to controls to trigger re-rendering.
+        timeframeSelect.addEventListener('change', updateCharts);
+        staffFilter.addEventListener('change', updateCharts);
+
+        // Initial render when the analytics tab is shown.
+        const analyticsTabLink = document.querySelector('a[href="#" onclick="showTab(\'analytics\')"');
+        if (analyticsTabLink) {
+          analyticsTabLink.addEventListener('click', () => {
+            // Use a timeout to ensure the canvas is visible before rendering
+            setTimeout(updateCharts, 0);
+          });
+        }
+      });
+    })();
+  </script>
+
+  <div id="analytics" class="container" style="display: none;">
+    <h2>Analytics</h2>
+    <p>This is the analytics page. Charts and stats will go here.</p>
+
+    <!-- Filter controls -->
+    <div class="filter-controls">
+      <label for="timeframeSelect">Timeframe:</label>
+      <select id="timeframeSelect">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="quarterly">Quarterly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+      
+      <label for="staffFilter">Staff:</label>
+      <select id="staffFilter">
+        <option value="all">All</option>
+        <!-- Staff members will be populated here by script -->
+      </select>
+    </div>
+    
+    <div class="analytics-grid">
+      <div class="chart-container">
+        <h3>Order Volume</h3>
+        <canvas id="orderVolumeChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Revenue</h3>
+        <canvas id="revenueChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Expected Profit</h3>
+        <canvas id="expectedProfitChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Avg. Order Value</h3>
+        <canvas id="avgOrderValueChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Filament Use (grams)</h3>
+        <canvas id="filamentGramsChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Cost of Goods</h3>
+        <canvas id="costOfGoodsChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Orders Completed</h3>
+        <canvas id="ordersCompletedChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Filament Sales Revenue</h3>
+        <canvas id="filamentRevenueChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Filament Sales Profit</h3>
+        <canvas id="filamentProfitChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Filament Sales Volume</h3>
+        <canvas id="filamentVolumeChart"></canvas>
+      </div>
+    </div>
+  </div>
 
 </body>
 
