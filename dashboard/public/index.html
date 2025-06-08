@@ -3394,8 +3394,12 @@
         allTab.onclick = () => {
           console.log('🎯 All Orders tab clicked!');
           state.currentTab = "all";
-          console.log('Switching to All Orders tab');
           ui.updateTabStyles();
+          document.getElementById("analytics").style.display = "none";
+          document.getElementById("orderGrid").style.display = "grid";
+          document.querySelector(".search-bar-flex").style.display = "flex";
+          const couponContainer = document.getElementById("couponContainer");
+          if(couponContainer) couponContainer.style.display = "none";
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
@@ -3406,8 +3410,12 @@
         claimedTab.onclick = () => {
           console.log('🎯 Claimed Orders tab clicked!');
           state.currentTab = "claimed";
-          console.log('Switching to Claimed Orders tab');
           ui.updateTabStyles();
+          document.getElementById("analytics").style.display = "none";
+          document.getElementById("orderGrid").style.display = "grid";
+          document.querySelector(".search-bar-flex").style.display = "flex";
+          const couponContainer = document.getElementById("couponContainer");
+          if(couponContainer) couponContainer.style.display = "none";
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
@@ -3419,6 +3427,9 @@
           console.log('🎯 Coupon tab clicked!');
           state.currentTab = "coupon";
           ui.updateTabStyles();
+          document.getElementById("analytics").style.display = "none";
+          document.getElementById("orderGrid").style.display = "none";
+          document.querySelector(".search-bar-flex").style.display = "none";
           showCouponManagement();
         };
         console.log('✅ Coupon tab onclick handler set');
