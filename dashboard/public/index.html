@@ -3431,11 +3431,14 @@
           state.currentTab = "coupon";
           ui.updateTabStyles();
           
-          // Hide analytics and order grid, show coupon container
+          // Hide other views
           const analyticsContainer = document.getElementById("analytics");
           const orderGrid = document.getElementById("orderGrid");
+          const couponContainer = document.querySelector(".coupon-container");
+          
           if (analyticsContainer) analyticsContainer.style.display = 'none';
           if (orderGrid) orderGrid.style.display = 'none';
+          if (couponContainer) couponContainer.style.display = 'block';
           
           showCouponManagement();
         };
