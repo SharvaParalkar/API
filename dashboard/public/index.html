@@ -684,6 +684,18 @@
       border-color: #444;
     }
 
+    .dark-mode .status-dropdown {
+      background-color: #3d3d3d;
+      color: #fff;
+      border-color: #4d4d4d;
+    }
+
+    .dark-mode .staff-notes-editor {
+      background-color: #3d3d3d;
+      color: #fff;
+      border-color: #4d4d4d;
+    }
+
     .dark-mode-toggle {
       position: fixed;
       top: 1rem;
@@ -3135,44 +3147,6 @@
       }
     };
 
-    function showTab(tabName) {
-      state.currentTab = tabName;
-      ui.updateTabStyles();
-
-      // Hide all main containers
-      const orderGrid = document.getElementById("orderGrid");
-      const searchBar = document.querySelector(".search-bar-flex");
-      const couponContainer = document.getElementById("couponContainer");
-      const analyticsContainer = document.getElementById("analytics");
-
-      orderGrid.style.display = "none";
-      searchBar.style.display = "none";
-      if (couponContainer) couponContainer.style.display = "none";
-      if (analyticsContainer) analyticsContainer.style.display = "none";
-
-      // Show the correct container based on the tab
-      if (tabName === 'all' || tabName === 'claimed') {
-        orderGrid.style.display = "grid";
-        searchBar.style.display = "flex";
-        const query = document.getElementById("searchInput").value;
-        filterOrders(query);
-      } else if (tabName === 'coupon') {
-        if (couponContainer) {
-          couponContainer.style.display = "grid"; // Use grid for layout
-          if (typeof initializeCouponPage === "function") {
-            initializeCouponPage();
-          }
-        }
-      } else if (tabName === 'analytics') {
-        if (analyticsContainer) {
-          analyticsContainer.style.display = "block";
-          if (typeof window.initializeAnalytics === 'function') {
-            window.initializeAnalytics();
-          }
-        }
-      }
-    }
-
     // Initialize search functionality
     function initializeSearch() {
       const searchInput = document.getElementById("searchInput");
@@ -3418,19 +3392,49 @@
       });
 
       if (allTab) {
-        allTab.onclick = () => showTab('all');
+        allTab.onclick = () => {
+          console.log('🎯 All Orders tab clicked!');
+          state.currentTab = "all";
+          console.log('Switching to All Orders tab');
+          ui.updateTabStyles();
+          showOrdersView(); // Use the new view function
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
+        };
+        console.log('✅ All Orders tab onclick handler set');
       }
 
       if (claimedTab) {
-        claimedTab.onclick = () => showTab('claimed');
+        claimedTab.onclick = () => {
+          console.log('🎯 Claimed Orders tab clicked!');
+          state.currentTab = "claimed";
+          console.log('Switching to Claimed Orders tab');
+          ui.updateTabStyles();
+          showOrdersView(); // Use the new view function
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
+        };
+        console.log('✅ Claimed Orders tab onclick handler set');
       }
 
       if (couponTab) {
-        couponTab.onclick = () => showTab('coupon');
+        couponTab.onclick = () => {
+          console.log('🎯 Coupon tab clicked!');
+          state.currentTab = "coupon";
+          ui.updateTabStyles();
+          showCouponManagement();
+        };
+        console.log('✅ Coupon tab onclick handler set');
       }
 
       if (analyticsTab) {
-        analyticsTab.onclick = () => showTab('analytics');
+        analyticsTab.onclick = () => {
+          console.log('🎯 Analytics tab clicked!');
+          state.currentTab = "analytics";
+          ui.updateTabStyles();
+          showAnalytics();
+        };
+        console.log('✅ Analytics tab onclick handler set');
       }
 
       // Verify that the handlers are actually set
@@ -6008,18 +6012,81 @@
 
     // Show coupon management interface
     async function showCouponManagement() {
-      const analyticsContainer = document.getElementById("analytics");
-      if (analyticsContainer) analyticsContainer.style.display = "none";
-      document.getElementById("orderGrid").style.display = "none";
-      document.querySelector(".search-bar-flex").style.display = "none";
-
-      const couponContainer = document.getElementById("couponContainer");
-      if (couponContainer) {
-        couponContainer.style.display = "grid"; // Change to grid for correct layout
-        if (typeof initializeCouponPage === "function") {
-          initializeCouponPage();
-        }
-      }
+      console.log('🎫 Loading coupon management...');
+      
+      const orderGrid = document.getElementById("orderGrid");
+      orderGrid.innerHTML = `
+        <div class="coupon-container">
+          <div class="coupon-layout">
+            <div class="coupon-sidebar coupon-sidebar-grid">
+              <div class="coupon-form">
+                <h3>Create New Coupon</h3>
+                <form id="couponForm">
+                  <div class="form-group">
+                    <label for="couponCode">Coupon Code</label>
+                    <input type="text" id="couponCode" placeholder="e.g., SAVE20" required>
+                    <span class="form-help">Use uppercase letters and numbers</span>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="discountType">Discount Type</label>
+                      <select id="discountType" required>
+                        <option value="">Select type...</option>
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed Amount ($)</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="discountValue">Value</label>
+                      <input type="number" id="discountValue" step="0.01" min="0" placeholder="e.g., 20" required>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="maxUses">Usage Limit <span class="optional">(optional)</span></label>
+                    <input type="number" id="maxUses" min="0" placeholder="Leave empty for unlimited uses">
+                  </div>
+                  <button type="submit" class="create-coupon-btn">
+                    <span class="btn-icon">+</span>
+                    Create Coupon
+                  </button>
+                </form>
+              </div>
+              <div class="coupon-log-section">
+                <h3>Recent Usage <span class="coming-soon">(Coming Soon)</span></h3>
+                <div class="usage-log-placeholder">
+                  <p>Order usage tracking will appear here</p>
+                  <small>Track which orders used specific coupons</small>
+                </div>
+              </div>
+            </div>
+            <div class="coupon-main">
+              <div id="couponsGrid" class="coupon-cards-grid">
+                <div class="loading-placeholder">
+                  <div class="loading-spinner"></div>
+                  <p>Loading coupons...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="couponDeleteModal" class="delete-confirmation-overlay" style="display: none;">
+          <div class="delete-confirmation-box">
+            <h3>Delete Coupon</h3>
+            <p>Are you sure you want to delete the coupon <strong id="deleteCouponCode"></strong>? This action cannot be undone.</p>
+            <div class="delete-confirmation-buttons">
+              <button class="delete-cancel-btn" onclick="hideCouponDeleteModal()">Cancel</button>
+              <button class="delete-confirm-btn" id="confirmDeleteCoupon">Delete</button>
+            </div>
+          </div>
+        </div>
+      `;
+      // Grid styles are now in the CSS section
+      
+      // Initialize coupon form
+      initializeCouponForm();
+      
+      // Load existing coupons
+      await loadCoupons();
     }
 
     // Initialize coupon form handlers
@@ -6340,7 +6407,7 @@
           <p>Are you sure you want to delete the coupon <strong>${code}</strong>? This action cannot be undone.</p>
           <div class="delete-confirmation-buttons">
             <button class="delete-cancel-btn" onclick="hideCouponDeleteModal()">Cancel</button>
-            <button class="delete-confirm-btn" id="confirmDeleteCoupon">Delete</button>
+            <button class="delete-confirm-btn" onclick="deleteCoupon('${code}')">Delete</button>
           </div>
         </div>
       `;
@@ -6365,6 +6432,33 @@
         // This will be defined in the analytics script block
         if (typeof window.initializeAnalytics === 'function') {
             window.initializeAnalytics();
+        }
+    }
+
+    function showOrdersView() {
+        const analyticsContainer = document.getElementById("analytics");
+        if(analyticsContainer) analyticsContainer.style.display = "none";
+        const couponContainer = document.getElementById("couponContainer");
+        if(couponContainer) couponContainer.style.display = "none";
+
+        document.getElementById("orderGrid").style.display = "grid";
+        document.querySelector(".search-bar-flex").style.display = "flex";
+    }
+
+    // This function must exist somewhere in the user's code. I'll modify it to hide other views.
+    function showCouponManagement() {
+        document.getElementById("orderGrid").style.display = "none";
+        document.querySelector(".search-bar-flex").style.display = "none";
+        const analyticsContainer = document.getElementById("analytics");
+        if(analyticsContainer) analyticsContainer.style.display = "none";
+        
+        const couponContainer = document.getElementById("couponContainer");
+        if(couponContainer) {
+            couponContainer.style.display = "block";
+            // Assuming the logic to render coupons is called here
+            if(typeof window.renderCoupons === 'function') {
+                window.renderCoupons();
+            }
         }
     }
 
