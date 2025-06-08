@@ -3396,7 +3396,6 @@
         couponTab.onclick = () => {
           console.log('🎯 Coupon tab clicked!');
           state.currentTab = "coupon";
-          console.log('Switching to Coupon tab');
           ui.updateTabStyles();
           showCouponManagement();
         };
@@ -3407,9 +3406,8 @@
         analyticsTab.onclick = () => {
           console.log('🎯 Analytics tab clicked!');
           state.currentTab = "analytics";
-          console.log('Switching to Analytics tab');
           ui.updateTabStyles();
-          document.getElementById("orderGrid").innerHTML = '<div style="text-align: center; padding: 2rem;">Analytics Dashboard Coming Soon</div>';
+          showAnalytics();
         };
         console.log('✅ Analytics tab onclick handler set');
       }
@@ -4688,7 +4686,7 @@
           statusDropdown.value = newStatus;
           statusDropdown.dataset.previousValue = newStatus;
           applyStatusColor(statusDropdown, newStatus);
-          console.log(`✅ Status dropdown updated successfully for order ${updatedOrder.id}: ${newStatus}`);
+          console.log(`✅ Status updated successfully for order ${updatedOrder.id}: "${newStatus}" (displayed: "${statusDropdown.selectedOptions[0]?.textContent}")`);
         } else {
           console.error(`❌ Status option "${newStatus}" not found in dropdown for order ${updatedOrder.id}`);
           console.log('Available options:', Array.from(statusDropdown.options).map(opt => opt.value));
@@ -6395,6 +6393,75 @@
     function hideCouponDeleteModal() {
       const overlay = document.getElementById('couponDeleteModal');
       overlay.style.display = "none";
+    }
+
+    function showAnalytics() {
+        document.getElementById("orderGrid").style.display = "none";
+        document.querySelector(".search-bar-flex").style.display = "none";
+        const couponContainer = document.getElementById("couponContainer");
+        if(couponContainer) couponContainer.style.display = "none";
+        
+        const analyticsContainer = document.getElementById("analytics");
+        if(analyticsContainer) analyticsContainer.style.display = "block";
+
+        // This will be defined in the analytics script block
+        if (typeof window.updateCharts === 'function') {
+            window.updateCharts();
+        }
+    }
+
+    // Initialize search functionality
+    function initializeSearch() {
+      const searchInput = document.getElementById("searchInput");
+      if (!searchInput) {
+        console.error('Search input not found');
+        return;
+      }
+
+      // Clear any existing listeners
+      const newSearchInput = searchInput.cloneNode(true);
+      searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+
+      // Add new listener for immediate search
+      newSearchInput.addEventListener("input", (e) => {
+        const query = e.target.value;
+        console.log('🔍 Search input:', query);
+        filterOrders(query);
+      });
+
+      // Initialize toggle listeners
+      const oldOrdersToggle = document.getElementById("showOldToggle");
+      const completedToggle = document.getElementById("showCompletedToggle");
+      const staffFilter = document.getElementById("staffFilter");
+
+      // Initialize staff filter
+      if (staffFilter && state.staffMembers.length > 0) {
+        console.log('Initializing staff filter with members:', state.staffMembers);
+        staffFilter.innerHTML = '<option value="">All Staff</option>';
+        state.staffMembers.forEach(staff => {
+          const option = document.createElement("option");
+          option.value = staff.username;
+          option.textContent = staff.displayName;
+          staffFilter.appendChild(option);
+        });
+      }
+
+      [oldOrdersToggle, completedToggle, staffFilter].forEach(element => {
+        if (element) {
+          const newElement = element.cloneNode(true);
+          element.parentNode.replaceChild(newElement, element);
+          newElement.addEventListener("change", async () => {
+            try {
+              const data = await api.fetchOrders();
+              state.allOrders = Array.isArray(data) ? data : [];
+              const currentQuery = document.getElementById("searchInput").value;
+              filterOrders(currentQuery);
+            } catch (err) {
+              console.error("❌ Failed to update orders:", err);
+            }
+          });
+        }
+      });
     }
   </script>
 
