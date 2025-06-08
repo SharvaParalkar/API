@@ -650,7 +650,7 @@ function getNotificationMessage(eventType, data) {
     case 'unclaimed_order':
       return {
         title: 'Unclaimed Order',
-        body: `order ${orderId} is unclaimed`
+        body: `${orderId} is unclaimed`
       };
 
     default:
