@@ -3725,12 +3725,6 @@
           statusDropdown.appendChild(option);
         });
 
-        // Set the dropdown value explicitly to ensure it matches
-        statusDropdown.value = currentStatus;
-
-        // Apply initial status color
-        applyStatusColor(statusDropdown, currentStatus);
-
         // Single event handler for status changes
         statusDropdown.addEventListener("change", async () => {
           const newStatus = statusDropdown.value;
@@ -3768,6 +3762,15 @@
         statusWrapper.className = "status-wrapper";
         statusWrapper.appendChild(statusDropdown);
         card.appendChild(statusWrapper);
+
+        // Set the dropdown value AFTER it's added to the DOM
+        setTimeout(() => {
+          statusDropdown.value = currentStatus;
+          console.log(`🎯 Setting status dropdown for order ${order.id}: "${currentStatus}" (selected option: "${statusDropdown.selectedOptions[0]?.textContent}")`);
+          
+          // Apply status color after setting value
+          applyStatusColor(statusDropdown, currentStatus);
+        }, 0);
 
         // Show estimated price right under heading
         const price = document.createElement("p");
@@ -5518,14 +5521,15 @@
           statusDropdown.value = newStatus;
           statusDropdown.dataset.previousValue = newStatus;
           applyStatusColor(statusDropdown, newStatus);
-          console.log(`✅ Status updated successfully for order ${order.id}: ${newStatus}`);
+          console.log(`✅ Status updated successfully for order ${order.id}: "${newStatus}" (displayed: "${statusDropdown.selectedOptions[0]?.textContent}")`);
         } else {
           console.error(`❌ Status option "${newStatus}" not found in dropdown for order ${order.id}`);
+          console.log('Available options:', Array.from(statusDropdown.options).map(opt => opt.value));
           // Fallback to pending if status doesn't match any option
           statusDropdown.value = 'pending';
           statusDropdown.dataset.previousValue = 'pending';
           applyStatusColor(statusDropdown, 'pending');
-          console.log(`⚠️ Fallback to pending status for order ${order.id}`);
+          console.log(`⚠️ Fallback to pending status for order ${order.id} (displayed: "${statusDropdown.selectedOptions[0]?.textContent}")`);
         }
       }
     }
