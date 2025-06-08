@@ -58,6 +58,9 @@ try {
 
   // Add a column to track notification status for unclaimed orders
   addColumnIfNotExists('orders', 'unclaimed_notified', 'INTEGER DEFAULT 0');
+  
+  // Add a column to track which user each push subscription belongs to
+  addColumnIfNotExists('push_subscriptions', 'username', 'TEXT');
 
   console.log('✅ Database connected successfully');
 } catch (err) {
@@ -550,11 +553,6 @@ function broadcastUpdate(eventType, data) {
 // New function to send push notifications
 async function sendPushNotifications(eventType, data) {
   try {
-    const subscriptions = db.prepare('SELECT endpoint, p256dh, auth FROM push_subscriptions').all();
-    if (subscriptions.length === 0) return;
-
-    console.log(`Found ${subscriptions.length} push subscriptions to notify.`);
-
     const notification = getNotificationMessage(eventType, data);
 
     // If there's no notification, don't send anything
@@ -562,6 +560,23 @@ async function sendPushNotifications(eventType, data) {
       console.log(`No notification message for eventType: ${eventType}, skipping push.`);
       return;
     }
+
+    let subscriptions;
+    let targetUsers = null;
+
+    // For staff assignment notifications, only send to assigned users
+    if (eventType === 'orderUpdate' && data.type === 'staff' && notification.assignedStaff) {
+      targetUsers = notification.assignedStaff;
+      subscriptions = db.prepare('SELECT endpoint, p256dh, auth, username FROM push_subscriptions WHERE username IN (' + 
+        targetUsers.map(() => '?').join(',') + ')').all(...targetUsers);
+      console.log(`Found ${subscriptions.length} push subscriptions for assigned users: ${targetUsers.join(', ')}`);
+    } else {
+      // For other notifications (new orders, unclaimed orders), send to everyone
+      subscriptions = db.prepare('SELECT endpoint, p256dh, auth, username FROM push_subscriptions').all();
+      console.log(`Found ${subscriptions.length} push subscriptions to notify (all users).`);
+    }
+
+    if (subscriptions.length === 0) return;
 
     const notificationPayload = JSON.stringify({
       title: notification.title,
@@ -580,7 +595,8 @@ async function sendPushNotifications(eventType, data) {
       
       try {
         await webpush.sendNotification(subscription, notificationPayload);
-        console.log(`✅ Push notification sent to ${subscription.endpoint.substring(0,20)}...`);
+        const userInfo = row.username ? ` (${row.username})` : '';
+        console.log(`✅ Push notification sent to ${subscription.endpoint.substring(0,20)}...${userInfo}`);
       } catch (error) {
         console.error(`❌ Error sending push notification to ${subscription.endpoint.substring(0,20)}...:`, error.body || error.message);
         // If subscription is gone (410) or not found (404), remove it from DB
@@ -596,7 +612,7 @@ async function sendPushNotifications(eventType, data) {
 }
 
 function getNotificationMessage(eventType, data) {
-  const orderId = data.order?.order_id || data.orderId || data.order_id;
+  const orderId = data.order?.id || data.orderId || data.order_id;
   
   switch(eventType) {
     case 'orderUpdate':
@@ -605,6 +621,28 @@ function getNotificationMessage(eventType, data) {
           title: 'new print request received',
           body: 'A new print request has been received'
         };
+      }
+      if (data.type === 'staff') {
+        // Get the newly assigned staff members vs previously assigned
+        const newStaff = data.metadata?.newStaff || data.order?.assigned_staff;
+        const previousStaff = data.metadata?.previousStaff;
+        
+        if (newStaff && newStaff !== previousStaff) {
+          // Calculate who was newly assigned (in new but not in previous)
+          const newStaffList = newStaff ? newStaff.split(',').map(s => s.trim()).filter(Boolean) : [];
+          const previousStaffList = previousStaff ? previousStaff.split(',').map(s => s.trim()).filter(Boolean) : [];
+          
+          // Only notify users who are newly assigned (not previously assigned)
+          const newlyAssignedStaff = newStaffList.filter(user => !previousStaffList.includes(user));
+          
+          if (newlyAssignedStaff.length > 0) {
+            return {
+              title: 'Order Assignment',
+              body: `you've been assigned to order ${orderId}`,
+              assignedStaff: newlyAssignedStaff // Only newly assigned users
+            };
+          }
+        }
       }
       // Ignore all other order updates including deletes, status changes, etc.
       return null;
@@ -654,41 +692,62 @@ setInterval(() => {
   }
 }, 30000); // Every 30 seconds
 
-// Watch for new orders
+// Watch for new orders (with 5-second startup delay)
 let lastOrderId = null;
-setInterval(async () => {
+
+// Add a 5-second delay before starting order notifications to prevent startup false positives
+setTimeout(() => {
+  console.log('🚀 Starting order notification system...');
+  
+  // Initialize lastOrderId to the current most recent order to prevent false notifications
   try {
-    // Get the latest order
     const latestOrder = db.prepare("SELECT * FROM orders ORDER BY submitted_at DESC LIMIT 1").get();
-    
-    if (latestOrder && (!lastOrderId || latestOrder.id !== lastOrderId)) {
-      console.log('🆕 New order detected:', latestOrder.id);
+    if (latestOrder) {
       lastOrderId = latestOrder.id;
-      
-      // Ensure new orders have "pending" status if they don't have a status
-      if (!latestOrder.status || latestOrder.status === '') {
-        console.log('🔄 Setting status to "pending" for new order:', latestOrder.id);
-        db.prepare("UPDATE orders SET status = 'pending' WHERE id = ?").run(latestOrder.id);
-        // Refresh the order data to get the updated status
-        const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(latestOrder.id);
-        
-        // Broadcast to all connected clients with updated order
-        broadcastUpdate('orderUpdate', {
-          type: 'new',
-          order: updatedOrder
-        });
-      } else {
-        // Broadcast to all connected clients
-        broadcastUpdate('orderUpdate', {
-          type: 'new',
-          order: latestOrder
-        });
-      }
+      console.log(`📋 Initialized with most recent order: ${lastOrderId}`);
     }
   } catch (err) {
-    console.error('❌ Error checking for new orders:', err);
+    console.error('❌ Error initializing lastOrderId:', err);
   }
-}, 1000); // Check every second
+
+  setInterval(async () => {
+    try {
+      // Get the latest order
+      const latestOrder = db.prepare("SELECT * FROM orders ORDER BY submitted_at DESC LIMIT 1").get();
+      
+      if (latestOrder && (!lastOrderId || latestOrder.id !== lastOrderId)) {
+        console.log('🆕 New order detected:', latestOrder.id);
+        lastOrderId = latestOrder.id;
+        
+        // Always ensure new orders have "pending" status for consistency
+        let finalOrder = latestOrder;
+        if (!latestOrder.status || latestOrder.status === '' || latestOrder.status === null) {
+          console.log('🔄 Setting status to "pending" for new order:', latestOrder.id);
+          db.prepare("UPDATE orders SET status = 'pending' WHERE id = ?").run(latestOrder.id);
+          // Refresh the order data to get the updated status
+          finalOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(latestOrder.id);
+        }
+        
+        // Always broadcast the new order update with the correct status
+        broadcastUpdate('orderUpdate', {
+          type: 'new',
+          order: finalOrder
+        });
+        
+        // Also broadcast a status update to ensure all clients sync the status correctly
+        if (finalOrder.status === 'pending') {
+          console.log('📡 Broadcasting status sync for new order:', finalOrder.id);
+          broadcastUpdate('orderUpdate', {
+            type: 'status',
+            order: finalOrder
+          });
+        }
+      }
+    } catch (err) {
+      console.error('❌ Error checking for new orders:', err);
+    }
+  }, 1000); // Check every second
+}, 5000); // Wait 5 seconds before starting order notifications
 
 // Check for unclaimed orders periodically
 setInterval(async () => {
@@ -1053,12 +1112,18 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
       WHERE id = ?
     `).get(orderId);
     
-    // Broadcast the update
+    // Broadcast the claim update
     broadcastUpdate('orderUpdate', {
       type: 'claim',
       order: updatedOrder,
       timestamp: timestamp,
       claimedBy: username
+    });
+    
+    // Also broadcast a status update to ensure frontend syncs correctly
+    broadcastUpdate('orderUpdate', {
+      type: 'status',
+      order: updatedOrder
     });
 
     res.json({ success: true, order: updatedOrder });
@@ -1522,7 +1587,8 @@ app.post("/dashboard/logout", (req, res) => {
 app.post("/dashboard/api/subscribe", requireLogin, (req, res) => {
   try {
     const subscription = req.body;
-    console.log('Received push subscription:', subscription);
+    const username = req.session.user;
+    console.log('Received push subscription from user:', username, subscription);
 
     // Validate subscription
     if (!subscription.endpoint || !subscription.keys.p256dh || !subscription.keys.auth) {
@@ -1530,21 +1596,52 @@ app.post("/dashboard/api/subscribe", requireLogin, (req, res) => {
     }
 
     const stmt = db.prepare(`
-      INSERT INTO push_subscriptions (endpoint, p256dh, auth) 
-      VALUES (@endpoint, @p256dh, @auth)
-      ON CONFLICT(endpoint) DO NOTHING
+      INSERT INTO push_subscriptions (endpoint, p256dh, auth, username) 
+      VALUES (@endpoint, @p256dh, @auth, @username)
+      ON CONFLICT(endpoint) DO UPDATE SET username = @username
     `);
     
     stmt.run({
       endpoint: subscription.endpoint,
       p256dh: subscription.keys.p256dh,
-      auth: subscription.keys.auth
+      auth: subscription.keys.auth,
+      username: username
     });
     
+    console.log(`✅ Stored push subscription for user: ${username}`);
     res.status(201).json({ success: true });
   } catch (err) {
     console.error('❌ Failed to store push subscription:', err);
     res.status(500).json({ error: 'Failed to store subscription' });
+  }
+});
+
+// ADMIN: Clear all push notification subscriptions (DELETE THIS ENDPOINT WHEN NOT NEEDED)
+app.post("/dashboard/clear-subscriptions", requireLogin, (req, res) => {
+  try {
+    console.log('🧹 Clearing all push notification subscriptions...');
+    
+    // Get count before deletion
+    const countBefore = db.prepare('SELECT COUNT(*) as count FROM push_subscriptions').get().count;
+    
+    // Delete all subscriptions
+    const result = db.prepare('DELETE FROM push_subscriptions').run();
+    
+    console.log(`🗑️ Cleared ${result.changes} push notification subscriptions (was ${countBefore})`);
+    
+    res.json({ 
+      success: true, 
+      message: `Cleared ${result.changes} push notification subscriptions`,
+      previousCount: countBefore
+    });
+
+  } catch (err) {
+    console.error('❌ Failed to clear subscriptions:', err);
+    console.error('❌ Error stack:', err.stack);
+    res.status(500).json({ 
+      error: 'Failed to clear subscriptions',
+      details: err.message 
+    });
   }
 });
 
