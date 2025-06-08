@@ -3370,27 +3370,42 @@
     });
 
     // Initialize event listeners
-    function initializeEventListeners() {
-      console.log('🔧 Initializing event listeners...');
-      
-      // Tab click handlers
-      const allTab = document.getElementById("tabAll");
-      const claimedTab = document.getElementById("tabClaimed");
-      const couponTab = document.getElementById("tabCoupon");
-      const analyticsTab = document.getElementById("tabAnalytics");
-
-      // Helper to show the main order grid and hide other views
-      function showOrderGrid() {
-        const orderGrid = document.getElementById("orderGrid");
-        const couponContainer = document.querySelector(".coupon-container");
-        const analyticsContainer = document.getElementById("analytics");
+          function initializeEventListeners() {
+        console.log('🔧 Initializing event listeners...');
         
-        if (analyticsContainer) analyticsContainer.style.display = 'none';
-        if (couponContainer) couponContainer.style.display = 'none';
-        if (orderGrid) orderGrid.style.display = 'grid';
-      }
+        // Tab click handlers
+        const allTab = document.getElementById("tabAll");
+        const claimedTab = document.getElementById("tabClaimed");
+        const couponTab = document.getElementById("tabCoupon");
+        const analyticsTab = document.getElementById("tabAnalytics");
 
-      console.log('🔍 Found tab elements:', { 
+        // Helper to manage tab visibility
+        function showTab(tabName) {
+          const orderGrid = document.getElementById("orderGrid");
+          const couponContainer = document.querySelector(".coupon-container");
+          const analyticsContainer = document.getElementById("analytics");
+          
+          // Hide all containers first
+          if (orderGrid) orderGrid.style.display = 'none';
+          if (couponContainer) couponContainer.style.display = 'none';
+          if (analyticsContainer) analyticsContainer.style.display = 'none';
+          
+          // Show the selected container
+          switch(tabName) {
+            case "all":
+            case "claimed":
+              if (orderGrid) orderGrid.style.display = 'grid';
+              break;
+            case "coupon":
+              if (couponContainer) couponContainer.style.display = 'block';
+              break;
+            case "analytics":
+              if (analyticsContainer) analyticsContainer.style.display = 'block';
+              break;
+          }
+        }
+
+        console.log('🔍 Found tab elements:', {  
         allTab: !!allTab, 
         claimedTab: !!claimedTab,
         couponTab: !!couponTab,
@@ -3401,49 +3416,51 @@
         analyticsTabVisible: analyticsTab ? getComputedStyle(analyticsTab).display !== 'none' : false
       });
 
-      if (allTab) {
-        allTab.onclick = () => {
-          console.log('🎯 All Orders tab clicked!');
-          state.currentTab = "all";
-          ui.updateTabStyles();
-          showOrderGrid();
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
-        };
-        console.log('✅ All Orders tab onclick handler set');
-      }
+              if (allTab) {
+          allTab.onclick = () => {
+            console.log('🎯 All Orders tab clicked!');
+            state.currentTab = "all";
+            ui.updateTabStyles();
+            showTab("all");
+            const query = document.getElementById("searchInput").value;
+            filterOrders(query);
+          };
+          console.log('✅ All Orders tab onclick handler set');
+        }
 
-      if (claimedTab) {
-        claimedTab.onclick = () => {
-          console.log('🎯 Claimed Orders tab clicked!');
-          state.currentTab = "claimed";
-          ui.updateTabStyles();
-          showOrderGrid();
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
-        };
-        console.log('✅ Claimed Orders tab onclick handler set');
-      }
+        if (claimedTab) {
+          claimedTab.onclick = () => {
+            console.log('🎯 Claimed Orders tab clicked!');
+            state.currentTab = "claimed";
+            ui.updateTabStyles();
+            showTab("claimed");
+            const query = document.getElementById("searchInput").value;
+            filterOrders(query);
+          };
+          console.log('✅ Claimed Orders tab onclick handler set');
+        }
 
-      if (couponTab) {
-        couponTab.onclick = () => {
-          console.log('🎯 Coupon tab clicked!');
-          state.currentTab = "coupon";
-          ui.updateTabStyles();
-          showCouponManagement();
-        };
-        console.log('✅ Coupon tab onclick handler set');
-      }
+        if (couponTab) {
+          couponTab.onclick = () => {
+            console.log('🎯 Coupon tab clicked!');
+            state.currentTab = "coupon";
+            ui.updateTabStyles();
+            showTab("coupon");
+            showCouponManagement();
+          };
+          console.log('✅ Coupon tab onclick handler set');
+        }
 
-      if (analyticsTab) {
-        analyticsTab.onclick = () => {
-          console.log('🎯 Analytics tab clicked!');
-          state.currentTab = "analytics";
-          ui.updateTabStyles();
-          showAnalytics();
-        };
-        console.log('✅ Analytics tab onclick handler set');
-      }
+        if (analyticsTab) {
+          analyticsTab.onclick = () => {
+            console.log('🎯 Analytics tab clicked!');
+            state.currentTab = "analytics";
+            ui.updateTabStyles();
+            showTab("analytics");
+            showAnalytics();
+          };
+          console.log('✅ Analytics tab onclick handler set');
+        }
 
       // Verify that the handlers are actually set
       setTimeout(() => {
