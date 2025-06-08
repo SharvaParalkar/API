@@ -6646,87 +6646,92 @@
       ];
 
       /**
-       * Renders a time-series chart on a given canvas element.
+       * Creates a new chart instance or updates an existing one.
        * @param {string} canvasId - The ID of the canvas element to render the chart on.
        * @param {string} chartType - The type of chart to render ('line', 'bar', 'area').
        * @param {Array<Object>} data - Array of data points, e.g., [{period: '2023-01-01', value: 100}]
        * @param {string} label - The label for the dataset.
        * @param {string} yAxisLabel - The label for the Y-axis.
        */
-      function renderTimeSeriesChart(canvasId, chartType, data, label, yAxisLabel) {
-        const ctx = document.getElementById(canvasId).getContext('2d');
-
-        // If a chart instance already exists on this canvas, destroy it before rendering a new one.
-        if (chartInstances[canvasId]) {
-          chartInstances[canvasId].destroy();
-        }
-        
+      function createOrUpdateChart(canvasId, chartType, data, label, yAxisLabel) {
         const labels = data.map(d => new Date(d.period));
         const values = data.map(d => d.value);
 
-        let datasetOptions = {
-          label: label,
-          data: values,
-          borderWidth: 2,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-        };
+        const existingChart = chartInstances[canvasId];
 
-        if (chartType === 'area') {
-          datasetOptions.fill = 'start';
-          datasetOptions.backgroundColor = 'rgba(75, 192, 192, 0.2)';
-          datasetOptions.borderColor = 'rgba(75, 192, 192, 1)';
-          chartType = 'line'; // 'area' is a line chart with fill enabled
-        } else if (chartType === 'bar') {
-           datasetOptions.backgroundColor = 'rgba(54, 162, 235, 0.6)';
-           datasetOptions.borderColor = 'rgba(54, 162, 235, 1)';
-        } else { // line
-           datasetOptions.backgroundColor = 'rgba(255, 99, 132, 0.2)';
-           datasetOptions.borderColor = 'rgba(255, 99, 132, 1)';
-        }
-
-        chartInstances[canvasId] = new Chart(ctx, {
-          type: chartType,
-          data: {
-            labels: labels,
-            datasets: [datasetOptions]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              x: {
-                type: 'time',
-                time: {
-                  unit: 'day', // This will be adjusted based on timeframe
-                  tooltipFormat: 'MMM dd, yyyy'
-                },
-                title: {
-                  display: true,
-                  text: 'Date'
-                }
-              },
-              y: {
-                beginAtZero: true,
-                title: {
-                  display: true,
-                  text: yAxisLabel
-                }
-              }
+        if (existingChart) {
+          // If the chart already exists, just update its data and refresh.
+          existingChart.data.labels = labels;
+          existingChart.data.datasets[0].data = values;
+          existingChart.update();
+        } else {
+          // If the chart doesn't exist, create it for the first time.
+          const ctx = document.getElementById(canvasId).getContext('2d');
+          
+          let datasetOptions = {
+            label: label,
+            data: values,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+          };
+  
+          if (chartType === 'area') {
+            datasetOptions.fill = 'start';
+            datasetOptions.backgroundColor = 'rgba(75, 192, 192, 0.2)';
+            datasetOptions.borderColor = 'rgba(75, 192, 192, 1)';
+            chartType = 'line'; // 'area' is a line chart with fill enabled
+          } else if (chartType === 'bar') {
+             datasetOptions.backgroundColor = 'rgba(54, 162, 235, 0.6)';
+             datasetOptions.borderColor = 'rgba(54, 162, 235, 1)';
+          } else { // line
+             datasetOptions.backgroundColor = 'rgba(255, 99, 132, 0.2)';
+             datasetOptions.borderColor = 'rgba(255, 99, 132, 1)';
+          }
+  
+          chartInstances[canvasId] = new Chart(ctx, {
+            type: chartType,
+            data: {
+              labels: labels,
+              datasets: [datasetOptions]
             },
-            plugins: {
-              legend: {
-                display: true,
-                position: 'top',
+            options: {
+              responsive: true,
+              maintainAspectRatio: false, // This is key to respecting the container's height
+              scales: {
+                x: {
+                  type: 'time',
+                  time: {
+                    unit: 'day', // This will be adjusted based on timeframe
+                    tooltipFormat: 'MMM dd, yyyy'
+                  },
+                  title: {
+                    display: true,
+                    text: 'Date'
+                  }
+                },
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: yAxisLabel
+                  }
+                }
               },
-              tooltip: {
-                enabled: true,
-                mode: 'index',
-                intersect: false,
+              plugins: {
+                legend: {
+                  display: true,
+                  position: 'top',
+                },
+                tooltip: {
+                  enabled: true,
+                  mode: 'index',
+                  intersect: false,
+                }
               }
             }
-          }
-        });
+          });
+        }
       }
 
       /**
@@ -6774,7 +6779,7 @@
             ctx.textAlign = "center";
             ctx.fillText(`Could not load '${label}' data.`, canvas.width / 2, canvas.height / 2);
           } else {
-            renderTimeSeriesChart(canvasId, chartType, data, label, yAxisLabel);
+            createOrUpdateChart(canvasId, chartType, data, label, yAxisLabel);
           }
         });
       }
