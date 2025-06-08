@@ -3453,17 +3453,20 @@
 
     // Add back the applyStatusColor function
     function applyStatusColor(dropdown, status) {
-      // Normalize the status
-      const normalized = (status || 'pending').toLowerCase().replace(/\s+/g, "-");
+      // Normalize the status - ensure we handle null/undefined/empty values properly
+      const normalizedStatus = (status || 'pending').toString().toLowerCase().replace(/\s+/g, "-");
       
       // Remove any existing status classes
       dropdown.className = 'status-dropdown';
       
       // Add the new status class
-      dropdown.classList.add(`status-${normalized}`);
+      dropdown.classList.add(`status-${normalizedStatus}`);
+      
+      // Log for debugging
+      console.log(`🎨 Applying status color: "${status}" -> "${normalizedStatus}"`);
       
       // Apply the color based on status
-      switch (normalized) {
+      switch (normalizedStatus) {
         case 'pending':
           dropdown.style.backgroundColor = '#ff6e5f';
           dropdown.style.color = '#000';
@@ -3482,6 +3485,7 @@
           dropdown.style.color = '#000';
           break;
         default:
+          console.warn(`⚠️ Unknown status "${status}", defaulting to pending color`);
           dropdown.style.backgroundColor = '#ff6e5f'; // Default to pending color
           dropdown.style.color = '#000';
           break;
@@ -3699,7 +3703,8 @@
           "printing pay later",
           "completed",
         ];
-        const currentStatus = (order.status || "pending").toLowerCase();
+        // Use the exact status value from the database, not lowercased
+        const currentStatus = order.status || "pending";
 
         const statusDropdown = document.createElement("select");
         statusDropdown.className = "status-dropdown";
@@ -3713,11 +3718,15 @@
             .split(" ")
             .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
             .join(" ");
-          if (status.toLowerCase() === currentStatus.toLowerCase()) {
+          // Use exact string comparison to ensure proper selection
+          if (status === currentStatus) {
             option.selected = true;
           }
           statusDropdown.appendChild(option);
         });
+
+        // Set the dropdown value explicitly to ensure it matches
+        statusDropdown.value = currentStatus;
 
         // Apply initial status color
         applyStatusColor(statusDropdown, currentStatus);
@@ -4424,9 +4433,26 @@
                   const statusDropdown = card.querySelector('.status-dropdown');
                   if (statusDropdown) {
                     const newStatus = response.order.status || 'pending';
-                    statusDropdown.value = newStatus;
-                    statusDropdown.dataset.previousValue = newStatus;
-                    applyStatusColor(statusDropdown, newStatus);
+                    
+                    // Ensure the status option exists before setting it
+                    let optionExists = false;
+                    for (let option of statusDropdown.options) {
+                      if (option.value === newStatus) {
+                        optionExists = true;
+                        break;
+                      }
+                    }
+                    
+                    if (optionExists) {
+                      statusDropdown.value = newStatus;
+                      statusDropdown.dataset.previousValue = newStatus;
+                      applyStatusColor(statusDropdown, newStatus);
+                    } else {
+                      console.error(`❌ Status option "${newStatus}" not found in dropdown`);
+                      statusDropdown.value = 'pending';
+                      statusDropdown.dataset.previousValue = 'pending';
+                      applyStatusColor(statusDropdown, 'pending');
+                    }
                   }
                   
                   // Update staff tags
@@ -4611,9 +4637,28 @@
       if (statusDropdown) {
         const newStatus = updatedOrder.status || 'pending';
         console.log(`Updating status for order ${updatedOrder.id} to:`, newStatus);
-        statusDropdown.value = newStatus;
-        statusDropdown.dataset.previousValue = newStatus;
-        applyStatusColor(statusDropdown, newStatus);
+        
+        // Ensure the status value is set correctly and the option exists
+        let optionExists = false;
+        for (let option of statusDropdown.options) {
+          if (option.value === newStatus) {
+            optionExists = true;
+            break;
+          }
+        }
+        
+        if (optionExists) {
+          statusDropdown.value = newStatus;
+          statusDropdown.dataset.previousValue = newStatus;
+          applyStatusColor(statusDropdown, newStatus);
+          console.log(`✅ Status dropdown updated successfully for order ${updatedOrder.id}: ${newStatus}`);
+        } else {
+          console.error(`❌ Status option "${newStatus}" not found in dropdown for order ${updatedOrder.id}`);
+          // Fallback to pending if status doesn't match any option
+          statusDropdown.value = 'pending';
+          statusDropdown.dataset.previousValue = 'pending';
+          applyStatusColor(statusDropdown, 'pending');
+        }
       }
 
       // Update claim/unclaim button
@@ -5458,9 +5503,30 @@
       const statusDropdown = orderElement.querySelector('.status-dropdown');
       if (statusDropdown) {
         const newStatus = order.status || 'pending';
-        statusDropdown.value = newStatus;
-        statusDropdown.dataset.previousValue = newStatus;
-        applyStatusColor(statusDropdown, newStatus);
+        console.log(`🔄 Updating status for order ${order.id}: ${newStatus}`);
+        
+        // Ensure the status option exists before setting it
+        let optionExists = false;
+        for (let option of statusDropdown.options) {
+          if (option.value === newStatus) {
+            optionExists = true;
+            break;
+          }
+        }
+        
+        if (optionExists) {
+          statusDropdown.value = newStatus;
+          statusDropdown.dataset.previousValue = newStatus;
+          applyStatusColor(statusDropdown, newStatus);
+          console.log(`✅ Status updated successfully for order ${order.id}: ${newStatus}`);
+        } else {
+          console.error(`❌ Status option "${newStatus}" not found in dropdown for order ${order.id}`);
+          // Fallback to pending if status doesn't match any option
+          statusDropdown.value = 'pending';
+          statusDropdown.dataset.previousValue = 'pending';
+          applyStatusColor(statusDropdown, 'pending');
+          console.log(`⚠️ Fallback to pending status for order ${order.id}`);
+        }
       }
     }
 
