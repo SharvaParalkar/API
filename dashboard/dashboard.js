@@ -40,6 +40,25 @@ try {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Function to add a column if it doesn't exist
+  function addColumnIfNotExists(tableName, columnName, columnDefinition) {
+    try {
+      // Check if the column exists
+      const column = db.prepare(`SELECT 1 FROM pragma_table_info(?) WHERE name = ?`).get(tableName, columnName);
+      if (!column) {
+        console.log(`Adding column ${columnName} to ${tableName}...`);
+        db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
+        console.log(`✅ Column ${columnName} added successfully.`);
+      }
+    } catch (err) {
+      console.error(`❌ Failed to add column ${columnName} to ${tableName}:`, err);
+    }
+  }
+
+  // Add a column to track notification status for unclaimed orders
+  addColumnIfNotExists('orders', 'unclaimed_notified', 'INTEGER DEFAULT 0');
+
   console.log('✅ Database connected successfully');
 } catch (err) {
   console.error('❌ Database connection failed:', err);
@@ -532,11 +551,21 @@ function broadcastUpdate(eventType, data) {
 async function sendPushNotifications(eventType, data) {
   try {
     const subscriptions = db.prepare('SELECT endpoint, p256dh, auth FROM push_subscriptions').all();
+    if (subscriptions.length === 0) return;
+
     console.log(`Found ${subscriptions.length} push subscriptions to notify.`);
 
+    const notification = getNotificationMessage(eventType, data);
+
+    // If there's no notification, don't send anything
+    if (!notification) {
+      console.log(`No notification message for eventType: ${eventType}, skipping push.`);
+      return;
+    }
+
     const notificationPayload = JSON.stringify({
-      title: 'FilamentBros Dashboard Update',
-      body: getNotificationMessage(eventType, data),
+      title: notification.title,
+      body: notification.body,
       url: '/dashboard/' // Directs to the dashboard on notification click
     });
 
@@ -567,30 +596,28 @@ async function sendPushNotifications(eventType, data) {
 }
 
 function getNotificationMessage(eventType, data) {
-  // Gracefully handle missing data properties
   const orderId = data.order?.order_id || data.orderId || data.order_id;
-  const status = data.order?.status;
-  const price = data.assigned_price;
-  const staff = data.assignedStaff?.join(', ');
-  const couponCode = data.coupon?.code;
   
   switch(eventType) {
-    case 'order_update':
-      return `Order #${orderId} has been updated. Status: ${status || 'N/A'}`;
-    case 'price_update':
-      return `Price for order #${orderId} was set to $${price}.`;
-    case 'staff_update':
-        return `Staff for order #${orderId} updated. Assigned: ${staff || 'N/A'}.`;
-    case 'coupon_update':
-        return `A coupon has been updated: ${couponCode || 'N/A'}`;
-    case 'orderUpdate': // Handle legacy event types if necessary
-        if (data.type === 'new') return `🆕 New order received: #${data.order.order_id}`;
-        if (data.type === 'status') return `Status for order #${data.order_id} is now ${data.status}`;
-        if (data.type === 'price') return `Price for order #${data.order_id} set to $${data.assigned_price}`;
-        if (data.type === 'staff') return `Order #${data.order_id} assigned to ${data.assigned_staff}`;
-        return 'An order has been updated.';
+    case 'orderUpdate':
+      if (data.type === 'new') {
+        return {
+          title: 'new print request received',
+          body: 'A new print request has been received'
+        };
+      }
+      // Ignore all other order updates including deletes, status changes, etc.
+      return null;
+    
+    case 'unclaimed_order':
+      return {
+        title: 'Unclaimed Order',
+        body: `order ${orderId} is unclaimed`
+      };
+
     default:
-      return 'There is a new update in the dashboard.';
+      // Return null for any other event types to prevent notifications
+      return null;
   }
 }
 
@@ -638,16 +665,66 @@ setInterval(async () => {
       console.log('🆕 New order detected:', latestOrder.id);
       lastOrderId = latestOrder.id;
       
-      // Broadcast to all connected clients
-      broadcastUpdate('orderUpdate', {
-        type: 'new',
-        order: latestOrder
-      });
+      // Ensure new orders have "pending" status if they don't have a status
+      if (!latestOrder.status || latestOrder.status === '') {
+        console.log('🔄 Setting status to "pending" for new order:', latestOrder.id);
+        db.prepare("UPDATE orders SET status = 'pending' WHERE id = ?").run(latestOrder.id);
+        // Refresh the order data to get the updated status
+        const updatedOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(latestOrder.id);
+        
+        // Broadcast to all connected clients with updated order
+        broadcastUpdate('orderUpdate', {
+          type: 'new',
+          order: updatedOrder
+        });
+      } else {
+        // Broadcast to all connected clients
+        broadcastUpdate('orderUpdate', {
+          type: 'new',
+          order: latestOrder
+        });
+      }
     }
   } catch (err) {
     console.error('❌ Error checking for new orders:', err);
   }
 }, 1000); // Check every second
+
+// Check for unclaimed orders periodically
+setInterval(async () => {
+  try {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    
+    // Get only the most recently submitted unclaimed order older than 2 hours
+    const mostRecentUnclaimedOrder = db.prepare(`
+      SELECT id 
+      FROM orders 
+      WHERE 
+        (claimed_by IS NULL OR claimed_by = '') AND
+        (status IS NULL OR status != 'completed') AND
+        submitted_at <= ? AND
+        unclaimed_notified = 0
+      ORDER BY submitted_at DESC
+      LIMIT 1
+    `).get(twoHoursAgo);
+
+    if (mostRecentUnclaimedOrder) {
+      console.log(`📣 Found most recent unclaimed order over 2 hours old: ${mostRecentUnclaimedOrder.id}`);
+      
+      // Broadcast an update for the most recent unclaimed order
+      broadcastUpdate('unclaimed_order', {
+        orderId: mostRecentUnclaimedOrder.id,
+        order_id: mostRecentUnclaimedOrder.id // for compatibility with getNotificationMessage
+      });
+      
+      // Mark the order as notified to prevent duplicate notifications
+      db.prepare('UPDATE orders SET unclaimed_notified = 1 WHERE id = ?').run(mostRecentUnclaimedOrder.id);
+      console.log(`🔔 Notified for most recent unclaimed order #${mostRecentUnclaimedOrder.id}, and marked as notified.`);
+    }
+  } catch (err) {
+    console.error('❌ Error checking for unclaimed orders:', err);
+  }
+}, 60 * 60 * 1000); // Check every 60 minutes
 
 // 🔄 Update status
 app.post("/dashboard/update-status", requireLogin, (req, res) => {
@@ -956,7 +1033,8 @@ app.post("/dashboard/claim", requireLogin, (req, res) => {
           updated_by = ?, 
           last_updated = ?,
           assigned_staff = ?,
-          status = COALESCE(status, 'pending')
+          status = COALESCE(status, 'pending'),
+          unclaimed_notified = 0
       WHERE id = ?
     `);
     const result = stmt.run(username, username, timestamp, username, orderId);
@@ -1040,7 +1118,8 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
         SET claimed_by = NULL, 
             assigned_staff = ?,
             updated_by = ?, 
-            last_updated = ? 
+            last_updated = ?,
+            unclaimed_notified = 0
         WHERE id = ? AND (claimed_by IS NULL OR claimed_by = ?)
       `);
       
@@ -1466,5 +1545,60 @@ app.post("/dashboard/api/subscribe", requireLogin, (req, res) => {
   } catch (err) {
     console.error('❌ Failed to store push subscription:', err);
     res.status(500).json({ error: 'Failed to store subscription' });
+  }
+});
+
+// TEST BUTTON: Test unclaimed order notification (DELETE THIS ENDPOINT WHEN DONE TESTING)
+app.post("/dashboard/test-unclaimed-notification", requireLogin, (req, res) => {
+  try {
+    console.log('🧪 TEST: Starting unclaimed notification test...');
+    
+    // Find the most recently submitted unclaimed order within the past week
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const testOrder = db.prepare(`
+      SELECT id 
+      FROM orders 
+      WHERE 
+        (claimed_by IS NULL OR claimed_by = '') AND
+        (status IS NULL OR status != 'completed') AND
+        submitted_at >= ?
+      ORDER BY submitted_at DESC
+      LIMIT 1
+    `).get(oneWeekAgo);
+
+    console.log('🧪 TEST: Query result:', testOrder);
+
+    if (!testOrder) {
+      console.log('🧪 TEST: No unclaimed orders found');
+      return res.status(404).json({ error: "No unclaimed orders found for testing" });
+    }
+
+    console.log(`🧪 TEST: Found test order: ${testOrder.id}`);
+
+    // Broadcast the unclaimed order notification
+    try {
+      broadcastUpdate('unclaimed_order', {
+        orderId: testOrder.id,
+        order_id: testOrder.id
+      });
+      console.log(`🧪 TEST: broadcastUpdate completed for order #${testOrder.id}`);
+    } catch (broadcastErr) {
+      console.error('🧪 TEST: broadcastUpdate failed:', broadcastErr);
+      throw broadcastErr;
+    }
+
+    console.log(`🧪 TEST: Successfully sent unclaimed notification for order #${testOrder.id}`);
+    res.json({ 
+      success: true, 
+      message: `Test notification sent for order #${testOrder.id}` 
+    });
+
+  } catch (err) {
+    console.error('❌ Failed to send test notification:', err);
+    console.error('❌ Error stack:', err.stack);
+    res.status(500).json({ 
+      error: 'Failed to send test notification',
+      details: err.message 
+    });
   }
 });
