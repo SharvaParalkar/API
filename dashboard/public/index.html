@@ -6405,8 +6405,8 @@
         if(analyticsContainer) analyticsContainer.style.display = "block";
 
         // This will be defined in the analytics script block
-        if (typeof window.updateCharts === 'function') {
-            window.updateCharts();
+        if (typeof window.initializeAnalytics === 'function') {
+            window.initializeAnalytics();
         }
     }
 
@@ -6734,8 +6734,10 @@
        * This function is called when UI controls change.
        */
       async function updateCharts() {
-        const timeframe = document.getElementById('timeframeSelect').value;
-        const staff = document.getElementById('staffFilter').value;
+        // --- UI CONTROL HOOK ---
+        // Read the current values from the filter controls.
+        const timeframe = document.getElementById('analyticsTimeframeSelect').value;
+        const staff = document.getElementById('analyticsStaffFilter').value;
 
         // Use Promise.all to fetch data for all charts in parallel
         const promises = chartConfigs.map(config =>
@@ -6781,36 +6783,39 @@
        * Populates the staff filter dropdown.
        */
       function populateStaffFilter() {
-        const staff = ["sharva", "pablo", "peter", "nathan", "evan"];
-        const staffFilter = document.getElementById('staffFilter');
-        staff.forEach(name => {
-          const option = document.createElement('option');
-          option.value = name;
-          option.textContent = name.charAt(0).toUpperCase() + name.slice(1);
-          staffFilter.appendChild(option);
-        });
+        // Use the global state.staffMembers populated on login
+        if (window.state && window.state.staffMembers) {
+          const staffFilter = document.getElementById('analyticsStaffFilter');
+          // Clear any existing options except "All"
+          staffFilter.innerHTML = '<option value="all">All</option>';
+          window.state.staffMembers.forEach(staff => {
+            const option = document.createElement('option');
+            option.value = staff.username;
+            option.textContent = staff.displayName;
+            staffFilter.appendChild(option);
+          });
+        }
       }
       
       // --- INITIALIZATION ---
-      document.addEventListener('DOMContentLoaded', () => {
+      // This function is called by the main dashboard script when the tab is clicked.
+      // It's exposed to the global window object for this purpose.
+      window.initializeAnalytics = function() {
         populateStaffFilter();
 
-        const timeframeSelect = document.getElementById('timeframeSelect');
-        const staffFilter = document.getElementById('staffFilter');
+        const timeframeSelect = document.getElementById('analyticsTimeframeSelect');
+        const staffFilter = document.getElementById('analyticsStaffFilter');
         
         // Add event listeners to controls to trigger re-rendering.
+        // Remove old listeners to prevent duplicates
+        timeframeSelect.removeEventListener('change', updateCharts);
+        staffFilter.removeEventListener('change', updateCharts);
         timeframeSelect.addEventListener('change', updateCharts);
         staffFilter.addEventListener('change', updateCharts);
 
-        // Initial render when the analytics tab is shown.
-        const analyticsTabLink = document.querySelector('a[href="#" onclick="showTab(\'analytics\')"');
-        if (analyticsTabLink) {
-          analyticsTabLink.addEventListener('click', () => {
-            // Use a timeout to ensure the canvas is visible before rendering
-            setTimeout(updateCharts, 0);
-          });
-        }
-      });
+        // Trigger the initial chart render
+        updateCharts();
+      };
     })();
   </script>
 
@@ -6820,17 +6825,17 @@
 
     <!-- Filter controls -->
     <div class="filter-controls">
-      <label for="timeframeSelect">Timeframe:</label>
-      <select id="timeframeSelect">
-        <option value="daily">Daily</option>
+      <label for="analyticsTimeframeSelect">Timeframe:</label>
+      <select id="analyticsTimeframeSelect">
+        <option value="daily" selected>Daily</option>
         <option value="weekly">Weekly</option>
         <option value="monthly">Monthly</option>
         <option value="quarterly">Quarterly</option>
         <option value="yearly">Yearly</option>
       </select>
       
-      <label for="staffFilter">Staff:</label>
-      <select id="staffFilter">
+      <label for="analyticsStaffFilter">Staff:</label>
+      <select id="analyticsStaffFilter">
         <option value="all">All</option>
         <!-- Staff members will be populated here by script -->
       </select>
