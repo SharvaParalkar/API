@@ -10,6 +10,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: "Roboto", sans-serif;
       margin: 0;
@@ -2210,6 +2213,25 @@
 
     .notification-button:hover {
       background-color: #164a49;
+    }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .chart-container {
+      position: relative;
+      height: 300px; /* A bit smaller for grid view */
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      min-width: 0; /* Prevents stretching in grid/flex layouts */
+    }
+    .chart-container h3 {
+      text-align: center;
     }
   </style>
 </head>
