@@ -91,6 +91,12 @@
       cursor: pointer;
     }
 
+    .status-dropdown option {
+      color: #000 !important;
+      background-color: #fff !important;
+      padding: 0.25rem;
+    }
+
     .details-toggle {
       margin: 0;
       font-size: 0.85rem;
@@ -3490,6 +3496,12 @@
           dropdown.style.color = '#000';
           break;
       }
+      
+      // Ensure option text is visible by explicitly setting option colors
+      Array.from(dropdown.options).forEach(option => {
+        option.style.color = '#000';
+        option.style.backgroundColor = '#fff';
+      });
     }
 
     // Add back the autoEstimateOrder function
@@ -3714,15 +3726,26 @@
         statusOptions.forEach((status) => {
           const option = document.createElement("option");
           option.value = status;
-          option.textContent = status
+          const displayText = status
             .split(" ")
             .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
             .join(" ");
+          option.textContent = displayText;
+          option.text = displayText; // Set both textContent and text for better compatibility
+          
           // Use exact string comparison to ensure proper selection
           if (status === currentStatus) {
             option.selected = true;
           }
+          
+          // Ensure option styling
+          option.style.color = '#000';
+          option.style.backgroundColor = '#fff';
+          
           statusDropdown.appendChild(option);
+          
+          // Debug log for option creation
+          console.log(`📝 Created option for order ${order.id}: value="${status}", text="${displayText}"`);
         });
 
         // Single event handler for status changes
@@ -3764,12 +3787,20 @@
         card.appendChild(statusWrapper);
 
         // Set the dropdown value AFTER it's added to the DOM
+        statusDropdown.value = currentStatus;
+        
+        // Apply status color immediately
+        applyStatusColor(statusDropdown, currentStatus);
+        
+        // Double-check the value is set correctly and log for debugging
         setTimeout(() => {
-          statusDropdown.value = currentStatus;
-          console.log(`🎯 Setting status dropdown for order ${order.id}: "${currentStatus}" (selected option: "${statusDropdown.selectedOptions[0]?.textContent}")`);
-          
-          // Apply status color after setting value
-          applyStatusColor(statusDropdown, currentStatus);
+          // Ensure the correct option is selected
+          if (statusDropdown.value !== currentStatus) {
+            console.warn(`⚠️ Status dropdown value mismatch for order ${order.id}. Expected: "${currentStatus}", Actual: "${statusDropdown.value}"`);
+            statusDropdown.value = currentStatus;
+            applyStatusColor(statusDropdown, currentStatus);
+          }
+          console.log(`🎯 Status dropdown for order ${order.id}: "${currentStatus}" (selected option: "${statusDropdown.selectedOptions[0]?.textContent}")`);
         }, 0);
 
         // Show estimated price right under heading
