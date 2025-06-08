@@ -1294,13 +1294,19 @@ app.post("/dashboard/unclaim", requireLogin, (req, res) => {
     // Fetch the final state of the order
     const finalOrder = db.prepare("SELECT *, CASE WHEN status IS NULL OR status = 'submitted' THEN 'pending' ELSE status END as status FROM orders WHERE id = ?").get(orderId);
     
-    // Broadcast the update with additional context
+    // Broadcast the unclaim update
     broadcastUpdate('orderUpdate', {
       type: 'unclaim',
       order: finalOrder,
       timestamp: timestamp,
       previousClaimant: username,
       assignedStaff: finalOrder.assigned_staff
+    });
+
+    // Also broadcast an unclaimed_order event to trigger the animation
+    broadcastUpdate('unclaimed_order', {
+      orderId: orderId,
+      order_id: orderId // for compatibility with getNotificationMessage
     });
 
     res.json({ success: true, order: finalOrder });
