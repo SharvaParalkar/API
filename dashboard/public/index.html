@@ -3157,6 +3157,7 @@
         const query = document.getElementById("searchInput").value;
         filterOrders(query);
       } else if (tabName === 'coupon') {
+        const couponContainer = document.getElementById("couponContainer");
         if (couponContainer) {
           couponContainer.style.display = "block";
           if (typeof initializeCouponPage === "function") {
@@ -3171,6 +3172,10 @@
           }
         }
       }
+    }
+
+    function showCouponManagement() {
+      showTab('coupon');
     }
 
     // Initialize search functionality
