@@ -68,3 +68,16 @@ sqlite3 DB/db/filamentbros.sqlite "ALTER TABLE orders ADD COLUMN updated_by TEXT
 
 sqlite3 DB/db/filamentbros.sqlite "ALTER TABLE orders ADD COLUMN last_updated DATETIME;"
 
+fetch('/dashboard/clear-subscriptions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  credentials: 'include'
+})
+.then(response => response.json())
+.then(data => console.log('Cleared subscriptions:', data))
+.catch(error => console.error('Error:', error));
+
+clear subscriptions ^
+
