@@ -2250,37 +2250,109 @@
       style="background: #ccc; color: black;">Analytics</button>
   </div>
 
-  <div class="search-bar-flex">
-    <div class="left-toggles">
-      <div class="toggle-group">
-        <span class="toggle-label">Old Orders</span>
-        <label class="toggle-wrapper">
-          <input type="checkbox" id="showOldToggle" />
-          <span class="slider"></span>
-        </label>
+  <div id="ordersContainer" class="container">
+    <div class="search-bar-flex">
+      <div class="left-toggles">
+        <div class="toggle-group">
+          <span class="toggle-label">Old Orders</span>
+          <label class="toggle-wrapper">
+            <input type="checkbox" id="showOldToggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-group">
+          <span class="toggle-label">Completed</span>
+          <label class="toggle-wrapper">
+            <input type="checkbox" id="showCompletedToggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-group">
+          <select id="staffFilter" style="padding: 0.4rem; border-radius: 1rem; border: 1px solid #ccc;">
+            <option value="">All Staff</option>
+          </select>
+        </div>
       </div>
 
-      <div class="toggle-group">
-        <span class="toggle-label">Completed</span>
-        <label class="toggle-wrapper">
-          <input type="checkbox" id="showCompletedToggle" />
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div class="toggle-group">
-        <select id="staffFilter" style="padding: 0.4rem; border-radius: 1rem; border: 1px solid #ccc;">
-          <option value="">All Staff</option>
-        </select>
+      <div class="center-search">
+        <input type="text" id="searchInput" placeholder="Search by name, email, phone, or order ID..." />
       </div>
     </div>
 
-    <div class="center-search">
-      <input type="text" id="searchInput" placeholder="Search by name, email, phone, or order ID..." />
-    </div>
+    <div class="grid" id="orderGrid"></div>
   </div>
 
-  <div class="grid" id="orderGrid"></div>
+  <div id="couponManagement" class="container" style="display: none;">
+    <!-- Coupon management content -->
+  </div>
+
+  <div id="analytics" class="container" style="display: none;">
+    <h2>Analytics</h2>
+    <p>This is the analytics page. Charts and stats will go here.</p>
+
+    <!-- Filter controls -->
+    <div class="filter-controls">
+      <label for="analyticsTimeframeSelect">Timeframe:</label>
+      <select id="analyticsTimeframeSelect">
+        <option value="daily" selected>Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="quarterly">Quarterly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+      
+      <label for="analyticsStaffFilter">Staff:</label>
+      <select id="analyticsStaffFilter">
+        <option value="all">All</option>
+        <!-- Staff members will be populated here by script -->
+      </select>
+    </div>
+    
+    <div class="analytics-grid">
+      <div class="chart-container">
+        <h3>Order Volume</h3>
+        <canvas id="orderVolumeChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Revenue</h3>
+        <canvas id="revenueChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Expected Profit</h3>
+        <canvas id="expectedProfitChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Avg. Order Value</h3>
+        <canvas id="avgOrderValueChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Filament Use (grams)</h3>
+        <canvas id="filamentGramsChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Cost of Goods</h3>
+        <canvas id="costOfGoodsChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Orders Completed</h3>
+        <canvas id="ordersCompletedChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Filament Sales Revenue</h3>
+        <canvas id="filamentRevenueChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Filament Sales Profit</h3>
+        <canvas id="filamentProfitChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Filament Sales Volume</h3>
+        <canvas id="filamentVolumeChart"></canvas>
+      </div>
+    </div>
+  </div>
 
   <script>
     // Constants
@@ -3396,6 +3468,7 @@
           state.currentTab = "all";
           console.log('Switching to All Orders tab');
           ui.updateTabStyles();
+          showOrdersContainer();
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
@@ -3408,6 +3481,7 @@
           state.currentTab = "claimed";
           console.log('Switching to Claimed Orders tab');
           ui.updateTabStyles();
+          showOrdersContainer();
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
@@ -6418,21 +6492,50 @@
     }
 
     function showAnalytics() {
-        document.getElementById("orderGrid").style.display = "none";
-        document.querySelector(".search-bar-flex").style.display = "none";
-        const couponContainer = document.getElementById("couponContainer");
-        if(couponContainer) couponContainer.style.display = "none";
-        
-        const analyticsContainer = document.getElementById("analytics");
-        if(analyticsContainer) analyticsContainer.style.display = "block";
-
-        // This will be defined in the analytics script block
-        if (typeof window.initializeAnalytics === 'function') {
-            window.initializeAnalytics();
-        }
+      // Hide all other content containers
+      document.querySelectorAll('.container').forEach(container => {
+        container.style.display = 'none';
+      });
+      
+      // Show analytics container
+      const analyticsContainer = document.getElementById('analytics');
+      if (analyticsContainer) {
+        analyticsContainer.style.display = 'block';
+      }
+      
+      // Initialize analytics if needed
+      if (window.initializeAnalytics) {
+        window.initializeAnalytics();
+      }
     }
 
-    // Initialize search functionality
+    function showCouponManagement() {
+      // Hide all other content containers
+      document.querySelectorAll('.container').forEach(container => {
+        container.style.display = 'none';
+      });
+      
+      // Show coupon container
+      const couponContainer = document.getElementById('couponManagement');
+      if (couponContainer) {
+        couponContainer.style.display = 'block';
+      }
+    }
+
+    function showOrdersContainer() {
+      // Hide all other content containers
+      document.querySelectorAll('.container').forEach(container => {
+        container.style.display = 'none';
+      });
+      
+      // Show orders container
+      const ordersContainer = document.getElementById('ordersContainer');
+      if (ordersContainer) {
+        ordersContainer.style.display = 'block';
+      }
+    }
+
+    // Initialize event listeners
     function initializeSearch() {
       const searchInput = document.getElementById("searchInput");
       if (!searchInput) {
