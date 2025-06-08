@@ -3379,6 +3379,17 @@
       const couponTab = document.getElementById("tabCoupon");
       const analyticsTab = document.getElementById("tabAnalytics");
 
+      // Helper to show the main order grid and hide other views
+      function showOrderGrid() {
+        const orderGrid = document.getElementById("orderGrid");
+        const couponContainer = document.querySelector(".coupon-container");
+        const analyticsContainer = document.getElementById("analytics");
+        
+        if (analyticsContainer) analyticsContainer.style.display = 'none';
+        if (couponContainer) couponContainer.style.display = 'none';
+        if (orderGrid) orderGrid.style.display = 'grid';
+      }
+
       console.log('🔍 Found tab elements:', { 
         allTab: !!allTab, 
         claimedTab: !!claimedTab,
@@ -3394,8 +3405,8 @@
         allTab.onclick = () => {
           console.log('🎯 All Orders tab clicked!');
           state.currentTab = "all";
-          console.log('Switching to All Orders tab');
           ui.updateTabStyles();
+          showOrderGrid();
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
@@ -3406,8 +3417,8 @@
         claimedTab.onclick = () => {
           console.log('🎯 Claimed Orders tab clicked!');
           state.currentTab = "claimed";
-          console.log('Switching to Claimed Orders tab');
           ui.updateTabStyles();
+          showOrderGrid();
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
