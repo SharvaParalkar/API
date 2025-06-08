@@ -684,18 +684,6 @@
       border-color: #444;
     }
 
-    .dark-mode .status-dropdown {
-      background-color: #3d3d3d;
-      color: #fff;
-      border-color: #4d4d4d;
-    }
-
-    .dark-mode .staff-notes-editor {
-      background-color: #3d3d3d;
-      color: #fff;
-      border-color: #4d4d4d;
-    }
-
     .dark-mode-toggle {
       position: fixed;
       top: 1rem;
@@ -1824,6 +1812,11 @@
         margin: 0;
       }
       
+      .coupon-layout {
+        gap: 1rem;
+        display: block;
+      }
+      
       .coupon-header {
         margin-bottom: 1.5rem;
         text-align: center;
@@ -1836,11 +1829,6 @@
       
       .coupon-subtitle {
         font-size: 1rem;
-      }
-      
-      .coupon-layout {
-        gap: 1rem;
-        display: block;
       }
       
       .coupon-form,
@@ -3147,6 +3135,44 @@
       }
     };
 
+    function showTab(tabName) {
+      state.currentTab = tabName;
+      ui.updateTabStyles();
+
+      // Hide all main containers
+      const orderGrid = document.getElementById("orderGrid");
+      const searchBar = document.querySelector(".search-bar-flex");
+      const couponContainer = document.getElementById("couponContainer");
+      const analyticsContainer = document.getElementById("analytics");
+
+      orderGrid.style.display = "none";
+      searchBar.style.display = "none";
+      if (couponContainer) couponContainer.style.display = "none";
+      if (analyticsContainer) analyticsContainer.style.display = "none";
+
+      // Show the correct container based on the tab
+      if (tabName === 'all' || tabName === 'claimed') {
+        orderGrid.style.display = "grid";
+        searchBar.style.display = "flex";
+        const query = document.getElementById("searchInput").value;
+        filterOrders(query);
+      } else if (tabName === 'coupon') {
+        if (couponContainer) {
+          couponContainer.style.display = "block";
+          if (typeof initializeCouponPage === "function") {
+            initializeCouponPage();
+          }
+        }
+      } else if (tabName === 'analytics') {
+        if (analyticsContainer) {
+          analyticsContainer.style.display = "block";
+          if (typeof window.initializeAnalytics === 'function') {
+            window.initializeAnalytics();
+          }
+        }
+      }
+    }
+
     // Initialize search functionality
     function initializeSearch() {
       const searchInput = document.getElementById("searchInput");
@@ -3392,47 +3418,19 @@
       });
 
       if (allTab) {
-        allTab.onclick = () => {
-          console.log('🎯 All Orders tab clicked!');
-          state.currentTab = "all";
-          console.log('Switching to All Orders tab');
-          ui.updateTabStyles();
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
-        };
-        console.log('✅ All Orders tab onclick handler set');
+        allTab.onclick = () => showTab('all');
       }
 
       if (claimedTab) {
-        claimedTab.onclick = () => {
-          console.log('🎯 Claimed Orders tab clicked!');
-          state.currentTab = "claimed";
-          console.log('Switching to Claimed Orders tab');
-          ui.updateTabStyles();
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
-        };
-        console.log('✅ Claimed Orders tab onclick handler set');
+        claimedTab.onclick = () => showTab('claimed');
       }
 
       if (couponTab) {
-        couponTab.onclick = () => {
-          console.log('🎯 Coupon tab clicked!');
-          state.currentTab = "coupon";
-          ui.updateTabStyles();
-          showCouponManagement();
-        };
-        console.log('✅ Coupon tab onclick handler set');
+        couponTab.onclick = () => showTab('coupon');
       }
 
       if (analyticsTab) {
-        analyticsTab.onclick = () => {
-          console.log('🎯 Analytics tab clicked!');
-          state.currentTab = "analytics";
-          ui.updateTabStyles();
-          showAnalytics();
-        };
-        console.log('✅ Analytics tab onclick handler set');
+        analyticsTab.onclick = () => showTab('analytics');
       }
 
       // Verify that the handlers are actually set
