@@ -4473,8 +4473,6 @@
             const newClaimBtn = document.createElement('button');
             newClaimBtn.textContent = 'Claim Order';
             newClaimBtn.className = 'action-button';
-            newClaimBtn.style.backgroundColor = '#ccc';
-            newClaimBtn.style.cursor = 'pointer';
             
             // Add claim functionality
             newClaimBtn.addEventListener('click', async () => {
@@ -4487,7 +4485,37 @@
                 
                 if (response && response.order) {
                   Object.assign(order, response.order);
+                  
+                  // Update the status dropdown
+                  const statusDropdown = card.querySelector('.status-dropdown');
+                  if (statusDropdown) {
+                    const newStatus = response.order.status || 'pending';
+                    
+                    // Ensure the status option exists before setting it
+                    let optionExists = false;
+                    for (let option of statusDropdown.options) {
+                      if (option.value === newStatus) {
+                        optionExists = true;
+                        break;
+                      }
+                    }
+                    
+                    if (optionExists) {
+                      statusDropdown.value = newStatus;
+                      statusDropdown.dataset.previousValue = newStatus;
+                      applyStatusColor(statusDropdown, newStatus);
+                    } else {
+                      console.error(`❌ Status option "${newStatus}" not found in dropdown`);
+                      statusDropdown.value = 'pending';
+                      statusDropdown.dataset.previousValue = 'pending';
+                      applyStatusColor(statusDropdown, 'pending');
+                    }
+                  }
+                  
+                  // Update staff tags
                   updateStaffTagsForOrder(card, [state.currentUser]);
+                  
+                  // Replace with unclaim button
                   newClaimBtn.replaceWith(createUnclaimButton(order));
                 }
               } catch (err) {
@@ -4498,7 +4526,7 @@
                 newClaimBtn.classList.remove('claiming');
               }
             });
-            
+
             unclaimBtn.replaceWith(newClaimBtn);
           }
         } catch (err) {
@@ -4507,6 +4535,7 @@
           unclaimBtn.textContent = 'Unclaim';
           unclaimBtn.disabled = false;
           unclaimBtn.classList.remove('unclaiming');
+        } finally {
           isUnclaiming = false;
         }
       });
