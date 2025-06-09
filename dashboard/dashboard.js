@@ -1782,3 +1782,41 @@ app.post("/dashboard/test-unclaimed-notification", requireLogin, (req, res) => {
     });
   }
 });
+
+// Staff API endpoint
+app.get("/dashboard/api/staff", requireLogin, (req, res) => {
+  try {
+    // Get unique staff members from both orders and filament_orders tables
+    const query = `
+      SELECT DISTINCT name, username
+      FROM (
+        SELECT DISTINCT 
+          CASE 
+            WHEN assigned_staff LIKE '%,%' THEN 
+              substr(assigned_staff, 1, instr(assigned_staff, ',') - 1)
+            ELSE assigned_staff
+          END as name,
+          CASE 
+            WHEN assigned_staff LIKE '%,%' THEN 
+              substr(assigned_staff, 1, instr(assigned_staff, ',') - 1)
+            ELSE assigned_staff
+          END as username
+        FROM orders 
+        WHERE assigned_staff IS NOT NULL
+        UNION
+        SELECT DISTINCT assigned_staff as name, assigned_staff as username
+        FROM filament_orders
+        WHERE assigned_staff IS NOT NULL
+      )
+      WHERE name IS NOT NULL AND name != ''
+      ORDER BY name;
+    `;
+
+    const stmt = db.prepare(query);
+    const staffMembers = stmt.all();
+    res.json(staffMembers);
+  } catch (err) {
+    console.error("Error fetching staff members:", err);
+    res.status(500).json({ error: "Failed to retrieve staff members" });
+  }
+});
