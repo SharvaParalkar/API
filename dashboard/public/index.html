@@ -737,12 +737,10 @@
 
     .tab-container {
       display: flex;
-      justify-content: center;
       gap: 0.5rem;
-      margin-bottom: 0.75rem;
-      position: relative;
-      z-index: 100;
-      padding: 0 0.5rem;
+      margin-bottom: 1rem;
+      padding: 0 1rem;
+      flex-wrap: wrap;
     }
 
     .tab-button {
@@ -2254,6 +2252,119 @@
     canvas {
       width: 100% !important;
       height: 100% !important;
+    }
+
+    .analytics-toolbar {
+      background: white;
+      border-radius: 12px;
+      margin: 0 1rem 1rem 1rem;
+      padding: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .analytics-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex: 1;
+      min-width: 300px;
+    }
+
+    .analytics-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .analytics-filter {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 200px;
+    }
+
+    .analytics-filter label {
+      font-weight: 500;
+      color: #333;
+      white-space: nowrap;
+    }
+
+    .analytics-select {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      background-color: white;
+      font-size: 0.9rem;
+      color: #333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .analytics-select:hover {
+      border-color: #1f6463;
+    }
+
+    .analytics-select:focus {
+      outline: none;
+      border-color: #1f6463;
+      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
+    }
+
+    .analytics-refresh {
+      padding: 0.5rem 1rem;
+      background-color: #1f6463;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .analytics-refresh:hover {
+      background-color: #164a49;
+    }
+
+    .analytics-refresh svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .analytics-refresh:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 768px) {
+      .analytics-toolbar {
+        flex-direction: column;
+        gap: 1rem;
+        margin: 0 0.5rem 1rem 0.5rem;
+      }
+
+      .analytics-toolbar-left,
+      .analytics-toolbar-right {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .analytics-filter {
+        flex: 1;
+      }
+
+      .analytics-select {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -7121,33 +7232,32 @@
   </script>
 
   <div id="analytics" class="container" style="display: none;">
-    <div class="analytics-header">
-      <h2>Analytics Dashboard</h2>
-      <button class="analytics-refresh" onclick="window.initializeAnalytics()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        Refresh
-      </button>
-    </div>
-
-    <div class="analytics-controls">
-      <div class="analytics-filter-group">
-        <label for="analyticsTimeframeSelect">Time Range:</label>
-        <select id="analyticsTimeframeSelect" class="analytics-select">
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-          <option value="quarterly">Quarterly</option>
-          <option value="yearly">Yearly</option>
-        </select>
+    <div class="analytics-toolbar">
+      <div class="analytics-toolbar-left">
+        <div class="analytics-filter">
+          <label for="analyticsTimeframeSelect">Time Range:</label>
+          <select id="analyticsTimeframeSelect" class="analytics-select">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </div>
+        <div class="analytics-filter">
+          <label for="analyticsStaffFilter">Staff:</label>
+          <select id="analyticsStaffFilter" class="analytics-select">
+            <option value="all">All Staff</option>
+          </select>
+        </div>
       </div>
-      
-      <div class="analytics-filter-group">
-        <label for="analyticsStaffFilter">Staff Member:</label>
-        <select id="analyticsStaffFilter" class="analytics-select">
-          <option value="all">All Staff</option>
-        </select>
+      <div class="analytics-toolbar-right">
+        <button class="analytics-refresh" onclick="window.initializeAnalytics()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh Data
+        </button>
       </div>
     </div>
     
