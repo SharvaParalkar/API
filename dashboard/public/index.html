@@ -2272,6 +2272,7 @@
       gap: 1rem;
       flex: 1;
       min-width: 300px;
+      flex-wrap: wrap;
     }
 
     .analytics-toolbar-right {
@@ -2285,12 +2286,15 @@
       align-items: center;
       gap: 0.75rem;
       min-width: 200px;
+      flex: 1;
+      max-width: 300px;
     }
 
     .analytics-filter label {
       font-weight: 500;
       color: #333;
       white-space: nowrap;
+      min-width: 85px;
     }
 
     .analytics-select {
@@ -2303,17 +2307,55 @@
       cursor: pointer;
       transition: all 0.2s ease;
       flex: 1;
-      min-width: 150px;
+      min-width: 120px;
+      width: 100%;
     }
 
-    .analytics-select:hover {
-      border-color: #1f6463;
+    @media (max-width: 768px) {
+      .analytics-toolbar {
+        flex-direction: column;
+        gap: 1rem;
+        margin: 0.75rem;
+        padding: 0.75rem;
+      }
+
+      .analytics-toolbar-left,
+      .analytics-toolbar-right {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .analytics-filter {
+        width: 100%;
+        max-width: none;
+      }
+
+      .analytics-select {
+        min-width: 0;
+      }
+
+      .analytics-refresh {
+        width: 100%;
+        justify-content: center;
+      }
     }
 
-    .analytics-select:focus {
-      outline: none;
-      border-color: #1f6463;
-      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
+    @media (max-width: 480px) {
+      .analytics-toolbar {
+        margin: 0.5rem;
+        padding: 0.5rem;
+      }
+
+      .analytics-filter {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+
+      .analytics-filter label {
+        min-width: auto;
+      }
     }
 
     .analytics-refresh {
@@ -2343,28 +2385,6 @@
     .analytics-refresh:disabled {
       background-color: #ccc;
       cursor: not-allowed;
-    }
-
-    @media (max-width: 768px) {
-      .analytics-toolbar {
-        flex-direction: column;
-        gap: 1rem;
-        margin: 0 0.5rem 1rem 0.5rem;
-      }
-
-      .analytics-toolbar-left,
-      .analytics-toolbar-right {
-        width: 100%;
-        justify-content: space-between;
-      }
-
-      .analytics-filter {
-        flex: 1;
-      }
-
-      .analytics-select {
-        width: 100%;
-      }
     }
   </style>
 </head>
