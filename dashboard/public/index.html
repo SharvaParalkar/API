@@ -2222,6 +2222,20 @@
       gap: 24px;
       margin-top: 24px;
       padding: 0 24px;
+      width: 100%;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 350px;
+      background-color: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 20px;
+      min-width: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      transition: all 0.2s ease;
+      overflow: hidden;
     }
 
     @media (max-width: 768px) {
@@ -2231,118 +2245,15 @@
         gap: 16px;
       }
 
-      .analytics-controls {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
-        margin: 12px;
-        padding: 16px;
-      }
-
-      .analytics-filter-group {
-        width: 100%;
-      }
-
-      .analytics-select {
-        flex: 1;
-        width: 100%;
-      }
-
-      .analytics-header {
-        flex-direction: column;
-        gap: 16px;
-        padding: 0 12px;
-      }
-
       .chart-container {
         height: 300px;
         padding: 12px;
       }
     }
 
-    .analytics-controls {
-      display: flex;
-      gap: 24px;
-      align-items: flex-start;
-      padding: 16px 24px;
-      background-color: white;
-      border-radius: 12px;
-      margin: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .analytics-filter-group {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 250px;
-    }
-
-    .analytics-filter-group label {
-      font-weight: 500;
-      color: #333;
-      white-space: nowrap;
-      min-width: 100px;
-    }
-
-    .analytics-select {
-      padding: 8px 16px;
-      border-radius: 8px;
-      border: 1px solid #e0e0e0;
-      background-color: white;
-      font-size: 1rem;
-      color: #333;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      flex: 1;
-    }
-
-    .analytics-select:hover {
-      border-color: #1f6463;
-    }
-
-    .analytics-select:focus {
-      outline: none;
-      border-color: #1f6463;
-      box-shadow: 0 0 0 2px rgba(31, 100, 99, 0.1);
-    }
-
-    .analytics-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 24px;
-      margin-top: 24px;
-    }
-
-    .analytics-header h2 {
-      color: #1f6463;
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .analytics-refresh {
-      padding: 8px 16px;
-      background-color: #1f6463;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 1rem;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .analytics-refresh:hover {
-      background-color: #164a49;
-    }
-
-    .analytics-refresh svg {
-      width: 16px;
-      height: 16px;
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
     }
   </style>
 </head>
@@ -7243,43 +7154,63 @@
     <div class="analytics-grid">
       <div class="chart-container">
         <h3>Order Volume</h3>
-        <canvas id="orderVolumeChart"></canvas>
+        <div style="position: relative; height: calc(100% - 40px);">
+          <canvas id="orderVolumeChart"></canvas>
+        </div>
       </div>
       <div class="chart-container">
         <h3>Revenue</h3>
-        <canvas id="revenueChart"></canvas>
+        <div style="position: relative; height: calc(100% - 40px);">
+          <canvas id="revenueChart"></canvas>
+        </div>
       </div>
       <div class="chart-container">
         <h3>Expected Profit</h3>
-        <canvas id="expectedProfitChart"></canvas>
+        <div style="position: relative; height: calc(100% - 40px);">
+          <canvas id="expectedProfitChart"></canvas>
+        </div>
       </div>
       <div class="chart-container">
         <h3>Average Order Value</h3>
-        <canvas id="avgOrderValueChart"></canvas>
+        <div style="position: relative; height: calc(100% - 40px);">
+          <canvas id="avgOrderValueChart"></canvas>
+        </div>
       </div>
       <div class="chart-container">
         <h3>Filament Usage</h3>
-        <canvas id="filamentGramsChart"></canvas>
+        <div style="position: relative; height: calc(100% - 40px);">
+          <canvas id="filamentGramsChart"></canvas>
+        </div>
       </div>
       <div class="chart-container">
         <h3>Cost of Goods</h3>
-        <canvas id="costOfGoodsChart"></canvas>
+        <div style="position: relative; height: calc(100% - 40px);">
+          <canvas id="costOfGoodsChart"></canvas>
+        </div>
       </div>
       <div class="chart-container">
         <h3>Completed Orders</h3>
-        <canvas id="ordersCompletedChart"></canvas>
+        <div style="position: relative; height: calc(100% - 40px);">
+          <canvas id="ordersCompletedChart"></canvas>
+        </div>
       </div>
       <div class="chart-container">
         <h3>Filament Sales Revenue</h3>
-        <canvas id="filamentRevenueChart"></canvas>
+        <div style="position: relative; height: calc(100% - 40px);">
+          <canvas id="filamentRevenueChart"></canvas>
+        </div>
       </div>
       <div class="chart-container">
         <h3>Filament Sales Profit</h3>
-        <canvas id="filamentProfitChart"></canvas>
+        <div style="position: relative; height: calc(100% - 40px);">
+          <canvas id="filamentProfitChart"></canvas>
+        </div>
       </div>
       <div class="chart-container">
         <h3>Filament Sales Volume</h3>
-        <canvas id="filamentVolumeChart"></canvas>
+        <div style="position: relative; height: calc(100% - 40px);">
+          <canvas id="filamentVolumeChart"></canvas>
+        </div>
       </div>
     </div>
   </div>

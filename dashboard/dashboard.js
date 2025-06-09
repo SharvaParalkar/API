@@ -226,16 +226,48 @@ app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
   // Configuration for all available metrics
   const metricsConfig = {
     // Print Order Metrics
-    'orders': { table: 'orders', agg: 'COUNT(id)' },
-    'revenue': { table: 'orders', agg: 'SUM(COALESCE(assigned_price, 0))' },
-    'filament-use-grams': { table: 'orders', agg: 'SUM(COALESCE(filament_grams, 0))' },
-    'cost-of-goods': { table: 'orders', agg: 'SUM(COALESCE(cost_of_goods, 0))' },
-    'expected-profit': { table: 'orders', agg: 'SUM(COALESCE(expected_profit, 0))' },
-    'orders-completed': { table: 'orders', agg: 'COUNT(id)', where: `status = 'completed'` },
-    'average-order-value': { table: 'orders', agg: 'AVG(COALESCE(assigned_price, 0))', where: `status = 'completed' AND COALESCE(assigned_price, 0) > 0` },
+    'orders': { 
+      table: 'orders', 
+      agg: 'COUNT(id)' 
+    },
+    'revenue': { 
+      table: 'orders', 
+      agg: 'SUM(COALESCE(assigned_price, 0))' 
+    },
+    'filament-use-grams': { 
+      table: 'orders', 
+      agg: 'SUM(COALESCE(filament_grams, 0))',
+      fallback: 'SUM(COALESCE(assigned_price, 0) / 0.03)' // Fallback calculation if filament_grams is not available
+    },
+    'cost-of-goods': { 
+      table: 'orders', 
+      agg: 'SUM(COALESCE(cost_of_goods, 0))',
+      fallback: 'SUM((COALESCE(assigned_price, 0) / 0.03) * 0.012)' // Fallback calculation if cost_of_goods is not available
+    },
+    'expected-profit': { 
+      table: 'orders', 
+      agg: 'SUM(COALESCE(expected_profit, 0))',
+      fallback: 'SUM((COALESCE(assigned_price, 0) / 0.03) * 0.018)' // Fallback calculation if expected_profit is not available
+    },
+    'orders-completed': { 
+      table: 'orders', 
+      agg: 'COUNT(id)', 
+      where: `status = 'completed'` 
+    },
+    'average-order-value': { 
+      table: 'orders', 
+      agg: 'AVG(COALESCE(assigned_price, 0))', 
+      where: `status = 'completed' AND COALESCE(assigned_price, 0) > 0` 
+    },
     // Filament Sales Metrics
-    'filament-sales-revenue': { table: 'filament_orders', agg: 'SUM(COALESCE(total_price, 0))' },
-    'filament-sales-order-volume': { table: 'filament_orders', agg: 'COUNT(id)' },
+    'filament-sales-revenue': { 
+      table: 'filament_orders', 
+      agg: 'SUM(COALESCE(total_price, 0))' 
+    },
+    'filament-sales-order-volume': { 
+      table: 'filament_orders', 
+      agg: 'COUNT(id)' 
+    },
     'filament-sales-profit': {
       table: 'filament_orders fo JOIN filament_inventory fi ON fo.inventory_id = fi.id',
       agg: 'SUM(COALESCE(fo.total_price, 0) - ( (fi.weight_grams / 1000.0) * fi.price_per_kg * fo.quantity) )',
@@ -291,29 +323,38 @@ app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
     params.push(staff, `${staff},%`, `%,${staff},%`, `%,${staff}`);
   }
 
-  let query = `
-    WITH RECURSIVE dates(date) AS (
-      SELECT date('now', '-30 days')
-      UNION ALL
-      SELECT date(date, '+1 day')
-      FROM dates
-      WHERE date < date('now')
-    )
-    SELECT 
-      COALESCE(${metricConfig.agg}, 0) as value,
-      ${dateGroup} as period
-    FROM ${metricConfig.table}
-    WHERE ${staffFilter} 
-    AND ${dateFilter}
-  `;
-
-  if (metricConfig.where) {
-    query += ` AND ${metricConfig.where}`;
-  }
-
-  query += ` GROUP BY period ORDER BY period ASC`;
-
   try {
+    // Check if the metric's columns exist in the table
+    const tableInfo = db.prepare(`PRAGMA table_info(${metricConfig.table.split(' ')[0]})`).all();
+    const columns = tableInfo.map(col => col.name);
+    
+    // Use fallback calculation if the column doesn't exist
+    const aggregation = metricConfig.fallback && 
+      !columns.some(col => metricConfig.agg.includes(col)) ? 
+      metricConfig.fallback : metricConfig.agg;
+
+    let query = `
+      WITH dates(date) AS (
+        SELECT date('now', '-30 days')
+        UNION ALL
+        SELECT date(date, '+1 day')
+        FROM dates
+        WHERE date < date('now')
+      )
+      SELECT 
+        COALESCE(${aggregation}, 0) as value,
+        ${dateGroup} as period
+      FROM ${metricConfig.table}
+      WHERE ${staffFilter} 
+      AND ${dateFilter}
+    `;
+
+    if (metricConfig.where) {
+      query += ` AND ${metricConfig.where}`;
+    }
+
+    query += ` GROUP BY period ORDER BY period ASC`;
+
     const stmt = db.prepare(query);
     const data = stmt.all(...params);
     res.json(data);
