@@ -228,18 +228,18 @@ app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
     // Print Order Metrics
     'orders': { table: 'orders', agg: 'COUNT(id)' },
     'revenue': { table: 'orders', agg: 'SUM(COALESCE(assigned_price, 0))' },
-    'filament-use-grams': { table: 'orders', agg: 'SUM(COALESCE(assigned_price, 0) / 0.03)' },
-    'cost-of-goods': { table: 'orders', agg: 'SUM((COALESCE(assigned_price, 0) / 0.03) * 0.012)' },
-    'expected-profit': { table: 'orders', agg: 'SUM((COALESCE(assigned_price, 0) / 0.03) * 0.018)' },
+    'filament-use-grams': { table: 'orders', agg: 'SUM(COALESCE(filament_grams, 0))' },
+    'cost-of-goods': { table: 'orders', agg: 'SUM(COALESCE(cost_of_goods, 0))' },
+    'expected-profit': { table: 'orders', agg: 'SUM(COALESCE(expected_profit, 0))' },
     'orders-completed': { table: 'orders', agg: 'COUNT(id)', where: `status = 'completed'` },
     'average-order-value': { table: 'orders', agg: 'AVG(COALESCE(assigned_price, 0))', where: `status = 'completed' AND COALESCE(assigned_price, 0) > 0` },
     // Filament Sales Metrics
     'filament-sales-revenue': { table: 'filament_orders', agg: 'SUM(COALESCE(total_price, 0))' },
     'filament-sales-order-volume': { table: 'filament_orders', agg: 'COUNT(id)' },
     'filament-sales-profit': {
-        table: 'filament_orders fo JOIN filament_inventory fi ON fo.inventory_id = fi.id',
-        agg: 'SUM(COALESCE(fo.total_price, 0) - ( (fi.weight_grams / 1000.0) * fi.price_per_kg * fo.quantity) )',
-        isJoin: true
+      table: 'filament_orders fo JOIN filament_inventory fi ON fo.inventory_id = fi.id',
+      agg: 'SUM(COALESCE(fo.total_price, 0) - ( (fi.weight_grams / 1000.0) * fi.price_per_kg * fo.quantity) )',
+      isJoin: true
     }
   };
 
@@ -257,37 +257,60 @@ app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
   // Use the correct date column depending on the table (for joins)
   const dateColumn = metricConfig.isJoin ? 'fo.submitted_at' : 'submitted_at';
 
-  let dateGroup;
+  let dateGroup, dateFilter;
+  const now = new Date();
+  const params = [];
+
   switch (timeframe) {
-    case 'daily': dateGroup = `strftime('%Y-%m-%d', ${dateColumn})`; break;
-    case 'weekly': dateGroup = `strftime('%Y-%W', ${dateColumn})`; break;
-    case 'monthly': dateGroup = `strftime('%Y-%m', ${dateColumn})`; break;
-    case 'quarterly': dateGroup = `strftime('%Y', ${dateColumn}) || '-Q' || ((CAST(strftime('%m', ${dateColumn}) AS INTEGER) - 1) / 3 + 1)`; break;
-    case 'yearly': dateGroup = `strftime('%Y', ${dateColumn})`; break;
+    case 'daily':
+      dateGroup = `date(${dateColumn})`;
+      dateFilter = `date(${dateColumn}) >= date('now', '-30 days')`;
+      break;
+    case 'weekly':
+      dateGroup = `strftime('%Y-%W', ${dateColumn})`;
+      dateFilter = `date(${dateColumn}) >= date('now', '-12 weeks')`;
+      break;
+    case 'monthly':
+      dateGroup = `strftime('%Y-%m', ${dateColumn})`;
+      dateFilter = `date(${dateColumn}) >= date('now', '-12 months')`;
+      break;
+    case 'quarterly':
+      dateGroup = `strftime('%Y-Q') || ((cast(strftime('%m', ${dateColumn}) as integer) + 2) / 3)`;
+      dateFilter = `date(${dateColumn}) >= date('now', '-4 quarters')`;
+      break;
+    case 'yearly':
+      dateGroup = `strftime('%Y', ${dateColumn})`;
+      dateFilter = `date(${dateColumn}) >= date('now', '-5 years')`;
+      break;
   }
 
-  const params = [];
-  
-  // Use the correct staff column depending on the table (for joins)
-  const staffColumn = metricConfig.isJoin ? 'fo.assigned_staff' : 'assigned_staff';
+  // Staff filter with proper handling of comma-separated values
   let staffFilter = '1=1';
   if (staff !== 'all') {
-    staffFilter = `(${staffColumn} = ? OR ${staffColumn} LIKE ? OR ${staffColumn} LIKE ? OR ${staffColumn} LIKE ?)`
+    staffFilter = `(assigned_staff = ? OR assigned_staff LIKE ? OR assigned_staff LIKE ? OR assigned_staff LIKE ?)`;
     params.push(staff, `${staff},%`, `%,${staff},%`, `%,${staff}`);
   }
-  
+
   let query = `
+    WITH RECURSIVE dates(date) AS (
+      SELECT date('now', '-30 days')
+      UNION ALL
+      SELECT date(date, '+1 day')
+      FROM dates
+      WHERE date < date('now')
+    )
     SELECT 
-      COALESCE(${metricConfig.agg}, 0) AS value, 
-      ${dateGroup} AS period 
-    FROM ${metricConfig.table} 
-    WHERE ${staffFilter} AND ${dateColumn} IS NOT NULL
+      COALESCE(${metricConfig.agg}, 0) as value,
+      ${dateGroup} as period
+    FROM ${metricConfig.table}
+    WHERE ${staffFilter} 
+    AND ${dateFilter}
   `;
 
   if (metricConfig.where) {
     query += ` AND ${metricConfig.where}`;
   }
-  
+
   query += ` GROUP BY period ORDER BY period ASC`;
 
   try {
@@ -1788,26 +1811,33 @@ app.get("/dashboard/api/staff", requireLogin, (req, res) => {
   try {
     // Get unique staff members from both orders and filament_orders tables
     const query = `
-      SELECT DISTINCT name, username
-      FROM (
-        SELECT DISTINCT 
+      WITH RECURSIVE
+      split_staff(name, rest) AS (
+        SELECT 
+          NULL as name,
+          group_concat(assigned_staff, ',') as rest
+        FROM (
+          SELECT assigned_staff FROM orders WHERE assigned_staff IS NOT NULL
+          UNION ALL
+          SELECT assigned_staff FROM filament_orders WHERE assigned_staff IS NOT NULL
+        )
+        UNION ALL
+        SELECT
           CASE 
-            WHEN assigned_staff LIKE '%,%' THEN 
-              substr(assigned_staff, 1, instr(assigned_staff, ',') - 1)
-            ELSE assigned_staff
-          END as name,
+            WHEN instr(rest, ',') > 0 
+            THEN trim(substr(rest, 1, instr(rest, ',') - 1))
+            ELSE trim(rest)
+          END,
           CASE 
-            WHEN assigned_staff LIKE '%,%' THEN 
-              substr(assigned_staff, 1, instr(assigned_staff, ',') - 1)
-            ELSE assigned_staff
-          END as username
-        FROM orders 
-        WHERE assigned_staff IS NOT NULL
-        UNION
-        SELECT DISTINCT assigned_staff as name, assigned_staff as username
-        FROM filament_orders
-        WHERE assigned_staff IS NOT NULL
+            WHEN instr(rest, ',') > 0 
+            THEN substr(rest, instr(rest, ',') + 1)
+            ELSE NULL
+          END
+        FROM split_staff
+        WHERE rest IS NOT NULL
       )
+      SELECT DISTINCT name, name as username
+      FROM split_staff
       WHERE name IS NOT NULL AND name != ''
       ORDER BY name;
     `;

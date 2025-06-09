@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FilamentBros Order Dashboard</title>
   <link rel="manifest" href="/dashboard/manifest.json" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -2217,60 +2218,52 @@
 
     .analytics-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-      gap: 20px;
-      margin-top: 20px;
-    }
-    .chart-container {
-      position: relative;
-      height: 300px; /* A bit smaller for grid view */
-      background-color: #f9f9f9;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 10px;
-      min-width: 0; /* Prevents stretching in grid/flex layouts */
-    }
-    .chart-container h3 {
-      text-align: center;
-    }
-
-    .analytics-grid {
-      display: grid;
       grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
       gap: 24px;
       margin-top: 24px;
       padding: 0 24px;
     }
 
-    .chart-container {
-      position: relative;
-      height: 350px;
-      background-color: white;
-      border: 1px solid #e0e0e0;
-      border-radius: 12px;
-      padding: 20px;
-      min-width: 0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      transition: all 0.2s ease;
-    }
+    @media (max-width: 768px) {
+      .analytics-grid {
+        grid-template-columns: 1fr;
+        padding: 0 12px;
+        gap: 16px;
+      }
 
-    .chart-container:hover {
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      transform: translateY(-2px);
-    }
+      .analytics-controls {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        margin: 12px;
+        padding: 16px;
+      }
 
-    .chart-container h3 {
-      text-align: center;
-      color: #1f6463;
-      font-size: 1.2rem;
-      margin-bottom: 16px;
-      font-weight: 600;
+      .analytics-filter-group {
+        width: 100%;
+      }
+
+      .analytics-select {
+        flex: 1;
+        width: 100%;
+      }
+
+      .analytics-header {
+        flex-direction: column;
+        gap: 16px;
+        padding: 0 12px;
+      }
+
+      .chart-container {
+        height: 300px;
+        padding: 12px;
+      }
     }
 
     .analytics-controls {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      gap: 24px;
+      align-items: flex-start;
       padding: 16px 24px;
       background-color: white;
       border-radius: 12px;
@@ -2281,12 +2274,15 @@
     .analytics-filter-group {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
+      min-width: 250px;
     }
 
     .analytics-filter-group label {
       font-weight: 500;
       color: #333;
+      white-space: nowrap;
+      min-width: 100px;
     }
 
     .analytics-select {
@@ -2298,6 +2294,7 @@
       color: #333;
       cursor: pointer;
       transition: all 0.2s ease;
+      flex: 1;
     }
 
     .analytics-select:hover {
@@ -6861,10 +6858,10 @@
     
     // Analytics Charting Functionality
     (function() {
-      // A global variable to hold the chart instance, allowing updates and destruction.
-      let chartInstances = {}; // Use an object to manage multiple charts
-
-      // Configuration array for all charts
+      let chartInstances = {};
+      let updateTimeout = null;
+      
+      // Chart configuration array
       const chartConfigs = [
         { metric: 'orders', canvasId: 'orderVolumeChart', chartType: 'line', label: 'Order Volume', yAxisLabel: 'Count' },
         { metric: 'revenue', canvasId: 'revenueChart', chartType: 'area', label: 'Revenue', yAxisLabel: 'USD ($)' },
@@ -6875,186 +6872,341 @@
         { metric: 'orders-completed', canvasId: 'ordersCompletedChart', chartType: 'line', label: 'Orders Completed', yAxisLabel: 'Count' },
         { metric: 'filament-sales-revenue', canvasId: 'filamentRevenueChart', chartType: 'area', label: 'Filament Sales Revenue', yAxisLabel: 'USD ($)' },
         { metric: 'filament-sales-profit', canvasId: 'filamentProfitChart', chartType: 'line', label: 'Filament Sales Profit', yAxisLabel: 'USD ($)' },
-        { metric: 'filament-sales-order-volume', canvasId: 'filamentVolumeChart', chartType: 'line', label: 'Filament Sales Volume', yAxisLabel: 'Count' },
+        { metric: 'filament-sales-order-volume', canvasId: 'filamentVolumeChart', chartType: 'line', label: 'Filament Sales Volume', yAxisLabel: 'Count' }
       ];
-
-      /**
-       * Creates a new chart instance or updates an existing one.
-       * @param {string} canvasId - The ID of the canvas element to render the chart on.
-       * @param {string} chartType - The type of chart to render ('line', 'bar', 'area').
-       * @param {Array<Object>} data - Array of data points, e.g., [{period: '2023-01-01', value: 100}]
-       * @param {string} label - The label for the dataset.
-       * @param {string} yAxisLabel - The label for the Y-axis.
-       */
-      function createOrUpdateChart(canvasId, chartType, data, label, yAxisLabel) {
-        const labels = data.map(d => new Date(d.period));
-        const values = data.map(d => d.value);
-
-        const existingChart = chartInstances[canvasId];
-
-        if (existingChart) {
-          // If the chart already exists, just update its data and refresh.
-          existingChart.data.labels = labels;
-          existingChart.data.datasets[0].data = values;
-          existingChart.update();
-        } else {
-          // If the chart doesn't exist, create it for the first time.
-          const ctx = document.getElementById(canvasId).getContext('2d');
-          
-          let datasetOptions = {
-            label: label,
-            data: values,
-            borderWidth: 2,
-            pointRadius: 3,
-            pointHoverRadius: 5,
-          };
-  
-          if (chartType === 'area') {
-            datasetOptions.fill = 'start';
-            datasetOptions.backgroundColor = 'rgba(75, 192, 192, 0.2)';
-            datasetOptions.borderColor = 'rgba(75, 192, 192, 1)';
-            chartType = 'line'; // 'area' is a line chart with fill enabled
-          } else if (chartType === 'bar') {
-             datasetOptions.backgroundColor = 'rgba(54, 162, 235, 0.6)';
-             datasetOptions.borderColor = 'rgba(54, 162, 235, 1)';
-          } else { // line
-             datasetOptions.backgroundColor = 'rgba(255, 99, 132, 0.2)';
-             datasetOptions.borderColor = 'rgba(255, 99, 132, 1)';
-          }
-  
-          chartInstances[canvasId] = new Chart(ctx, {
-            type: chartType,
-            data: {
-              labels: labels,
-              datasets: [datasetOptions]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false, // This is key to respecting the container's height
-              scales: {
-                x: {
-                  type: 'time',
-                  time: {
-                    unit: 'day', // This will be adjusted based on timeframe
-                    tooltipFormat: 'MMM dd, yyyy'
-                  },
-                  title: {
-                    display: true,
-                    text: 'Date'
-                  }
-                },
-                y: {
-                  beginAtZero: true,
-                  title: {
-                    display: true,
-                    text: yAxisLabel
+      
+      // Chart.js default configuration
+      const defaultChartConfig = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            titleColor: '#333',
+            titleFont: { weight: '600' },
+            bodyColor: '#666',
+            borderColor: '#e0e0e0',
+            borderWidth: 1,
+            padding: 12,
+            boxPadding: 6,
+            usePointStyle: true,
+            callbacks: {
+              label: function(context) {
+                let value = context.raw;
+                if (typeof value === 'number') {
+                  if (context.chart.canvas.id.includes('Revenue') || 
+                      context.chart.canvas.id.includes('Profit') || 
+                      context.chart.canvas.id.includes('Value')) {
+                    return '$ ' + value.toFixed(2);
+                  } else if (context.chart.canvas.id.includes('Grams')) {
+                    return value.toFixed(0) + ' g';
                   }
                 }
-              },
-              plugins: {
-                legend: {
-                  display: true,
-                  position: 'top',
-                },
-                tooltip: {
-                  enabled: true,
-                  mode: 'index',
-                  intersect: false,
-                }
+                return value;
               }
             }
-          });   
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              maxRotation: 45,
+              minRotation: 45,
+              font: {
+                size: 11
+              }
+            }
+          },
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            },
+            ticks: {
+              callback: function(value) {
+                if (this.chart.canvas.id.includes('Revenue') || 
+                    this.chart.canvas.id.includes('Profit') || 
+                    this.chart.canvas.id.includes('Value')) {
+                  return '$ ' + value;
+                } else if (this.chart.canvas.id.includes('Grams')) {
+                  return value + ' g';
+                }
+                return value;
+              }
+            }
+          }
+        }
+      };
+
+      function getChartColors(chartType) {
+        const baseColor = '#1f6463';
+        const baseColorRGB = '31, 100, 99';
+        
+        switch(chartType) {
+          case 'line':
+            return {
+              borderColor: baseColor,
+              backgroundColor: 'transparent',
+              pointBackgroundColor: baseColor,
+              pointBorderColor: '#fff',
+              pointHoverBackgroundColor: '#fff',
+              pointHoverBorderColor: baseColor,
+              borderWidth: 2,
+              pointRadius: 3,
+              pointHoverRadius: 5
+            };
+          case 'area':
+            return {
+              borderColor: baseColor,
+              backgroundColor: `rgba(${baseColorRGB}, 0.1)`,
+              pointBackgroundColor: baseColor,
+              pointBorderColor: '#fff',
+              pointHoverBackgroundColor: '#fff',
+              pointHoverBorderColor: baseColor,
+              borderWidth: 2,
+              pointRadius: 3,
+              pointHoverRadius: 5,
+              fill: true
+            };
+          case 'bar':
+            return {
+              backgroundColor: `rgba(${baseColorRGB}, 0.6)`,
+              hoverBackgroundColor: baseColor,
+              borderWidth: 0
+            };
+          default:
+            return {
+              borderColor: baseColor,
+              backgroundColor: baseColor
+            };
         }
       }
 
-      /**
-       * Fetches analytics data and renders the chart(s).
-       * This function is called when UI controls change.
-       */
+      function formatPeriod(period, timeframe) {
+        try {
+          switch(timeframe) {
+            case 'daily':
+              return new Date(period).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric'
+              });
+            case 'weekly': {
+              const [year, week] = period.split('-');
+              return `Week ${week}`;
+            }
+            case 'monthly': {
+              const date = new Date(period + '-01');
+              return date.toLocaleDateString('en-US', { 
+                month: 'short',
+                year: 'numeric'
+              });
+            }
+            case 'quarterly': {
+              const [year, quarter] = period.split('-Q');
+              return `Q${quarter} ${year}`;
+            }
+            case 'yearly':
+              return period;
+            default:
+              return period;
+          }
+        } catch (err) {
+          console.error('Error formatting period:', err);
+          return period;
+        }
+      }
+
+      function createOrUpdateChart(canvasId, chartType, data, label, yAxisLabel) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) {
+          console.error(`Canvas element not found: ${canvasId}`);
+          return;
+        }
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          console.error(`Could not get 2D context for canvas: ${canvasId}`);
+          return;
+        }
+
+        const timeframe = document.getElementById('analyticsTimeframeSelect').value;
+        
+        // Cleanup existing chart
+        if (chartInstances[canvasId]) {
+          chartInstances[canvasId].destroy();
+          delete chartInstances[canvasId];
+        }
+
+        // Clear the canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Check for data
+        if (!data || !Array.isArray(data) || data.length === 0) {
+          ctx.font = "16px system-ui";
+          ctx.fillStyle = "#666";
+          ctx.textAlign = "center";
+          ctx.fillText("No data available", canvas.width / 2, canvas.height / 2);
+          return;
+        }
+
+        try {
+          const config = {
+            type: chartType === 'area' ? 'line' : chartType,
+            data: {
+              labels: data.map(d => formatPeriod(d.period, timeframe)),
+              datasets: [{
+                label: label,
+                data: data.map(d => d.value),
+                tension: 0.4,
+                ...getChartColors(chartType)
+              }]
+            },
+            options: defaultChartConfig
+          };
+
+          // Create new chart
+          chartInstances[canvasId] = new Chart(ctx, config);
+        } catch (err) {
+          console.error(`Error creating chart for ${canvasId}:`, err);
+          ctx.font = "16px system-ui";
+          ctx.fillStyle = "#dc2626";
+          ctx.textAlign = "center";
+          ctx.fillText("Error creating chart", canvas.width / 2, canvas.height / 2);
+        }
+      }
+
       async function updateCharts() {
-        // --- UI CONTROL HOOK ---
-        // Read the current values from the filter controls.
         const timeframe = document.getElementById('analyticsTimeframeSelect').value;
         const staff = document.getElementById('analyticsStaffFilter').value;
 
-        // Use Promise.all to fetch data for all charts in parallel
-        const promises = chartConfigs.map(config =>
-          fetch(`/dashboard/api/analytics/${config.metric}?timeframe=${timeframe}&staff=${staff}`)
-            .then(res => {
-              if (!res.ok) {
-                throw new Error(`Failed to fetch ${config.metric} (status: ${res.status})`);
-              }
-              return res.json();
-            })
-            .then(data => ({ ...config, data }))
-            .catch(error => {
-              console.error(`Failed to load data for ${config.metric}:`, error);
-              return { ...config, data: [], error: true }; // Return config with error flag
-            })
-        );
-
-        const results = await Promise.all(promises);
-
-        results.forEach(result => {
-          const { canvasId, chartType, data, label, yAxisLabel, error } = result;
-          const canvas = document.getElementById(canvasId);
-          const ctx = canvas.getContext('2d');
-
-          // Clear previous content (like error messages)
-          if (chartInstances[canvasId]) {
-            chartInstances[canvasId].destroy();
-          }
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-          if (error) {
-            ctx.font = "16px Arial";
-            ctx.fillStyle = "#8b0000";
-            ctx.textAlign = "center";
-            ctx.fillText(`Could not load '${label}' data.`, canvas.width / 2, canvas.height / 2);
-          } else {
-            createOrUpdateChart(canvasId, chartType, data, label, yAxisLabel);
+        // Show loading state
+        document.querySelectorAll('.chart-container').forEach(container => {
+          container.style.opacity = '0.5';
+          const canvas = container.querySelector('canvas');
+          if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.font = "16px system-ui";
+              ctx.fillStyle = "#666";
+              ctx.textAlign = "center";
+              ctx.fillText("Loading...", canvas.width / 2, canvas.height / 2);
+            }
           }
         });
-      }
 
-      /**
-       * Populates the staff filter dropdown.
-       */
-      function populateStaffFilter() {
-        // Use the global state.staffMembers populated on login
-        if (window.state && window.state.staffMembers) {
-          const staffFilter = document.getElementById('analyticsStaffFilter');
-          // Clear any existing options except "All"
-          staffFilter.innerHTML = '<option value="all">All Staff</option>';
-          window.state.staffMembers.forEach(staff => {
-            const option = document.createElement('option');
-            option.value = staff.username;
-            option.textContent = staff.displayName;
-            staffFilter.appendChild(option);
+        try {
+          const promises = chartConfigs.map(config =>
+            fetch(`/dashboard/api/analytics/${config.metric}?timeframe=${timeframe}&staff=${staff}`)
+              .then(res => {
+                if (!res.ok) throw new Error(`Failed to fetch ${config.metric}`);
+                return res.json();
+              })
+              .then(data => ({ ...config, data }))
+              .catch(error => {
+                console.error(`Failed to load data for ${config.metric}:`, error);
+                return { ...config, data: [], error: true };
+              })
+          );
+
+          const results = await Promise.all(promises);
+
+          results.forEach(result => {
+            const { canvasId, chartType, data, label, yAxisLabel, error } = result;
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            // Clear existing chart
+            if (chartInstances[canvasId]) {
+              chartInstances[canvasId].destroy();
+              delete chartInstances[canvasId];
+            }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (error) {
+              ctx.font = "16px system-ui";
+              ctx.fillStyle = "#dc2626";
+              ctx.textAlign = "center";
+              ctx.fillText(`Could not load ${label.toLowerCase()} data`, canvas.width / 2, canvas.height / 2);
+            } else {
+              createOrUpdateChart(canvasId, chartType, data, label, yAxisLabel);
+            }
+          });
+        } catch (err) {
+          console.error('Failed to update charts:', err);
+        } finally {
+          // Restore opacity
+          document.querySelectorAll('.chart-container').forEach(container => {
+            container.style.opacity = '1';
           });
         }
       }
-      
-      // --- INITIALIZATION ---
-      // This function is called by the main dashboard script when the tab is clicked.
-      // It's exposed to the global window object for this purpose.
+
+      function populateStaffFilter() {
+        const staffFilter = document.getElementById('analyticsStaffFilter');
+        staffFilter.innerHTML = '<option value="all">All Staff</option>';
+        
+        fetch('/dashboard/api/staff')
+          .then(res => {
+            if (!res.ok) throw new Error('Failed to fetch staff members');
+            return res.json();
+          })
+          .then(staffMembers => {
+            if (!Array.isArray(staffMembers) || staffMembers.length === 0) {
+              console.warn('No staff members found');
+              return;
+            }
+
+            staffMembers.forEach(staff => {
+              if (staff.name) {
+                const option = document.createElement('option');
+                option.value = staff.name;
+                option.textContent = staff.name;
+                staffFilter.appendChild(option);
+              }
+            });
+          })
+          .catch(error => {
+            console.error('Failed to load staff members:', error);
+          });
+      }
+
       window.initializeAnalytics = function() {
         populateStaffFilter();
 
         const timeframeSelect = document.getElementById('analyticsTimeframeSelect');
         const staffFilter = document.getElementById('analyticsStaffFilter');
         
-        // Add event listeners to controls to trigger re-rendering.
-        // Remove old listeners to prevent duplicates
-        timeframeSelect.removeEventListener('change', updateCharts);
-        staffFilter.removeEventListener('change', updateCharts);
-        timeframeSelect.addEventListener('change', updateCharts);
-        staffFilter.addEventListener('change', updateCharts);
+        [timeframeSelect, staffFilter].forEach(select => {
+          select.removeEventListener('change', onFilterChange);
+          select.addEventListener('change', onFilterChange);
+        });
 
-        // Trigger the initial chart render
         updateCharts();
       };
+
+      function onFilterChange() {
+        // Clear any pending update
+        if (updateTimeout) {
+          clearTimeout(updateTimeout);
+        }
+
+        // Debounce the update to prevent multiple rapid calls
+        updateTimeout = setTimeout(() => {
+          updateCharts();
+        }, 300);
+      }
     })();
+// ... existing code ...
   </script>
 
   <div id="analytics" class="container" style="display: none;">
