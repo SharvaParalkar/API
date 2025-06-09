@@ -7034,21 +7034,23 @@
         try {
           switch(timeframe) {
             case 'daily':
-              return new Date(period).toLocaleDateString('en-US', { 
+              return new Date(period + 'T00:00:00').toLocaleDateString('en-US', { 
                 month: 'short', 
                 day: 'numeric'
               });
             case 'weekly': {
-              const [year, week] = period.split('-');
-              const weekNum = parseInt(week, 10);
-              const startDate = new Date(year, 0, 1 + (weekNum * 7));
+              const startDate = new Date(period + 'T00:00:00');
               const endDate = new Date(startDate);
               endDate.setDate(startDate.getDate() + 6);
               
-              return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+              const startFormat = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              const endFormat = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              
+              return `${startFormat} - ${endFormat}`;
             }
             case 'monthly': {
-              const date = new Date(period + '-01');
+              const [year, month] = period.split('-');
+              const date = new Date(year, month - 1, 1);
               return date.toLocaleDateString('en-US', { 
                 month: 'short',
                 year: 'numeric'
@@ -7057,8 +7059,9 @@
             case 'quarterly': {
               const [year, quarter] = period.split('-Q');
               const quarterNum = parseInt(quarter, 10);
-              const monthNames = ['Jan', 'Apr', 'Jul', 'Oct'];
-              return `${monthNames[quarterNum - 1]} - ${monthNames[quarterNum - 1] === 'Oct' ? 'Dec' : monthNames[quarterNum]} ${year}`;
+              const startMonth = ['Jan', 'Apr', 'Jul', 'Oct'][quarterNum - 1];
+              const endMonth = ['Mar', 'Jun', 'Sep', 'Dec'][quarterNum - 1];
+              return `${startMonth} - ${endMonth} ${year}`;
             }
             case 'yearly':
               return period;
