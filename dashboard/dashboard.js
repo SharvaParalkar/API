@@ -334,19 +334,13 @@ app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
       metricConfig.fallback : metricConfig.agg;
 
     let query = `
-      WITH dates(date) AS (
-        SELECT date('now', '-30 days')
-        UNION ALL
-        SELECT date(date, '+1 day')
-        FROM dates
-        WHERE date < date('now')
-      )
       SELECT 
         COALESCE(${aggregation}, 0) as value,
         ${dateGroup} as period
       FROM ${metricConfig.table}
       WHERE ${staffFilter} 
       AND ${dateFilter}
+      AND ${dateColumn} IS NOT NULL
     `;
 
     if (metricConfig.where) {
