@@ -7169,6 +7169,7 @@
 
         const timeframe = document.getElementById('analyticsTimeframeSelect').value;
         const chartContainer = canvas.closest('.chart-container');
+        const canvasWrapper = canvas.parentElement;
         
         if (chartInstances[canvasId]) {
           chartInstances[canvasId].destroy();
@@ -7186,6 +7187,7 @@
 
         if (timeframe === 'all-time') {
           chartContainer.classList.add('is-all-time');
+          canvasWrapper.style.height = '100%';
           
           if (!data || !Array.isArray(data) || data.length === 0 || data[0].value === null) {
             allTimeMetricDiv.innerHTML = formatAllTimeValue('N/A', canvasId, label);
@@ -7197,6 +7199,7 @@
         }
         
         chartContainer.classList.remove('is-all-time');
+        canvasWrapper.style.height = 'calc(100% - 40px)';
 
         if (!data || !Array.isArray(data) || data.length === 0) {
           ctx.font = "16px system-ui";
