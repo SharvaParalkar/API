@@ -281,7 +281,7 @@ app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
     return res.status(400).json({ error: "Invalid metric specified." });
   }
 
-  const validTimeframes = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'];
+  const validTimeframes = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'all-time'];
   if (!validTimeframes.includes(timeframe)) {
     return res.status(400).json({ error: "Invalid timeframe specified." });
   }
@@ -292,28 +292,33 @@ app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
   let dateGroup, dateFilter;
   const now = new Date();
   const params = [];
+  const isAllTime = timeframe === 'all-time';
 
-  switch (timeframe) {
-    case 'daily':
-      dateGroup = `date(${dateColumn})`;
-      dateFilter = `date(${dateColumn}) >= date('now', '-30 days')`;
-      break;
-    case 'weekly':
-      dateGroup = `date(${dateColumn}, '-' || (CAST(strftime('%w', ${dateColumn}) AS INTEGER) + 6) % 7 || ' days')`;
-      dateFilter = `date(${dateColumn}) >= date('now', '-84 days')`;
-      break;
-    case 'monthly':
-      dateGroup = `strftime('%Y-%m', ${dateColumn})`;
-      dateFilter = `date(${dateColumn}) >= date('now', '-12 months')`;
-      break;
-    case 'quarterly':
-      dateGroup = `strftime('%Y', ${dateColumn}) || '-Q' || CAST((CAST(strftime('%m', ${dateColumn}) AS INTEGER) + 2) / 3 AS INTEGER)`;
-      dateFilter = `date(${dateColumn}) >= date('now', '-1 year')`;
-      break;
-    case 'yearly':
-      dateGroup = `strftime('%Y', ${dateColumn})`;
-      dateFilter = `date(${dateColumn}) >= date('now', '-5 years')`;
-      break;
+  if (isAllTime) {
+    dateFilter = '1=1';
+  } else {
+    switch (timeframe) {
+      case 'daily':
+        dateGroup = `date(${dateColumn})`;
+        dateFilter = `date(${dateColumn}) >= date('now', '-30 days')`;
+        break;
+      case 'weekly':
+        dateGroup = `date(${dateColumn}, '-' || (CAST(strftime('%w', ${dateColumn}) AS INTEGER) + 6) % 7 || ' days')`;
+        dateFilter = `date(${dateColumn}) >= date('now', '-84 days')`;
+        break;
+      case 'monthly':
+        dateGroup = `strftime('%Y-%m', ${dateColumn})`;
+        dateFilter = `date(${dateColumn}) >= date('now', '-12 months')`;
+        break;
+      case 'quarterly':
+        dateGroup = `strftime('%Y', ${dateColumn}) || '-Q' || CAST((CAST(strftime('%m', ${dateColumn}) AS INTEGER) + 2) / 3 AS INTEGER)`;
+        dateFilter = `date(${dateColumn}) >= date('now', '-1 year')`;
+        break;
+      case 'yearly':
+        dateGroup = `strftime('%Y', ${dateColumn})`;
+        dateFilter = `date(${dateColumn}) >= date('now', '-5 years')`;
+        break;
+    }
   }
 
   // Staff filter with proper handling of comma-separated values
@@ -333,21 +338,32 @@ app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
       !columns.some(col => metricConfig.agg.includes(col)) ? 
       metricConfig.fallback : metricConfig.agg;
 
-    let query = `
-      SELECT 
-        COALESCE(${aggregation}, 0) as value,
-        ${dateGroup} as period
-      FROM ${metricConfig.table}
-      WHERE ${staffFilter} 
-      AND ${dateFilter}
-      AND ${dateColumn} IS NOT NULL
-    `;
+    let query;
+    if (isAllTime) {
+      query = `
+        SELECT COALESCE(${aggregation}, 0) as value
+        FROM ${metricConfig.table}
+        WHERE ${staffFilter} AND ${dateColumn} IS NOT NULL
+      `;
+    } else {
+      query = `
+        SELECT 
+          COALESCE(${aggregation}, 0) as value,
+          ${dateGroup} as period
+        FROM ${metricConfig.table}
+        WHERE ${staffFilter} 
+        AND ${dateFilter}
+        AND ${dateColumn} IS NOT NULL
+      `;
+    }
 
     if (metricConfig.where) {
       query += ` AND ${metricConfig.where}`;
     }
 
-    query += ` GROUP BY period ORDER BY period ASC`;
+    if (!isAllTime) {
+      query += ` GROUP BY period ORDER BY period ASC`;
+    }
 
     const stmt = db.prepare(query);
     const data = stmt.all(...params);
