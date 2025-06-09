@@ -7040,7 +7040,12 @@
               });
             case 'weekly': {
               const [year, week] = period.split('-');
-              return `Week ${week}`;
+              const weekNum = parseInt(week, 10);
+              const startDate = new Date(year, 0, 1 + (weekNum * 7));
+              const endDate = new Date(startDate);
+              endDate.setDate(startDate.getDate() + 6);
+              
+              return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
             }
             case 'monthly': {
               const date = new Date(period + '-01');
@@ -7051,7 +7056,9 @@
             }
             case 'quarterly': {
               const [year, quarter] = period.split('-Q');
-              return `Q${quarter} ${year}`;
+              const quarterNum = parseInt(quarter, 10);
+              const monthNames = ['Jan', 'Apr', 'Jul', 'Oct'];
+              return `${monthNames[quarterNum - 1]} - ${monthNames[quarterNum - 1] === 'Oct' ? 'Dec' : monthNames[quarterNum]} ${year}`;
             }
             case 'yearly':
               return period;

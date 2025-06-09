@@ -299,7 +299,7 @@ app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
       dateFilter = `date(${dateColumn}) >= date('now', '-30 days')`;
       break;
     case 'weekly':
-      dateGroup = `strftime('%Y-%W', ${dateColumn})`;
+      dateGroup = `strftime('%Y-', ${dateColumn}) || printf('%02d', cast(strftime('%W', ${dateColumn}) as integer))`;
       dateFilter = `date(${dateColumn}) >= date('now', '-12 weeks')`;
       break;
     case 'monthly':
@@ -307,7 +307,7 @@ app.get("/dashboard/api/analytics/:metric", requireLogin, (req, res) => {
       dateFilter = `date(${dateColumn}) >= date('now', '-12 months')`;
       break;
     case 'quarterly':
-      dateGroup = `strftime('%Y-Q') || ((cast(strftime('%m', ${dateColumn}) as integer) + 2) / 3)`;
+      dateGroup = `strftime('%Y-Q', ${dateColumn}) || cast((cast(strftime('%m', ${dateColumn}) as integer) + 2) / 3 as integer)`;
       dateFilter = `date(${dateColumn}) >= date('now', '-4 quarters')`;
       break;
     case 'yearly':
