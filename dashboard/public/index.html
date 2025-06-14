@@ -1002,9 +1002,7 @@
       margin-top: 4px;
     }
     .color-info {
-      font-size: 0.9em;
-      margin-top: 4px;
-      color: #666;
+      display: none;
     }
     .assigned-staff {
       font-weight: bold;
@@ -2455,6 +2453,15 @@
       .all-time-metric .label {
         font-size: 0.9rem;
       }
+    }
+
+    .color-circle {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1px solid #ccc;
+      display: inline-block;
+      vertical-align: middle;
     }
   </style>
 </head>
@@ -4182,11 +4189,31 @@
 
         // Add customer notes
         const customerNotesRow = document.createElement("tr");
-        customerNotesRow.innerHTML = `
-          <td>Customer Notes:</td>
-          <td>${order.notes || '—'}</td>
-        `;
+        const customerNotesCell = document.createElement("td");
+        customerNotesCell.textContent = "Customer Notes:";
+        const customerNotesContentCell = document.createElement("td");
+        customerNotesContentCell.textContent = order.notes || 'None';
+        customerNotesRow.appendChild(customerNotesCell);
+        customerNotesRow.appendChild(customerNotesContentCell);
         table.appendChild(customerNotesRow);
+
+        // Add Selected Color row
+        const colorRow = document.createElement("tr");
+        const colorCell = document.createElement("td");
+        colorCell.textContent = "Selected Color:";
+        const colorContentCell = document.createElement("td");
+        const colorCircle = document.createElement("div");
+        colorCircle.className = "color-circle";
+        const colorValue = order.color || 'White';
+        if (colorValue.toLowerCase() === 'grey') {
+          colorCircle.style.backgroundColor = '#808080';
+        } else {
+          colorCircle.style.backgroundColor = '#ebebeb';
+        }
+        colorContentCell.appendChild(colorCircle);
+        colorRow.appendChild(colorCell);
+        colorRow.appendChild(colorContentCell);
+        table.appendChild(colorRow);
 
         // Add staff notes with edit functionality
         const staffNotesRow = document.createElement("tr");
