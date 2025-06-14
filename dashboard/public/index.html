@@ -3929,6 +3929,9 @@
       const grid = container || document.getElementById("orderGrid");
       if (!container) grid.innerHTML = "";
 
+      // Create document fragment for better performance
+      const fragment = document.createDocumentFragment();
+
       for (const order of orders) {
         const card = document.createElement("div");
         card.className = "card";
@@ -3968,6 +3971,7 @@
           "printing pay later",
           "completed",
         ];
+        
         // Normalize status: convert submitted/null to pending
         let rawStatus = order.status || "pending";
         const currentStatus = rawStatus === "submitted" ? "pending" : rawStatus;
@@ -3977,6 +3981,7 @@
         statusDropdown.dataset.previousValue = currentStatus;
 
         // Create and append status options
+        const optionsFragment = document.createDocumentFragment();
         statusOptions.forEach((status) => {
           const option = document.createElement("option");
           option.value = status;
@@ -3985,22 +3990,11 @@
             .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
             .join(" ");
           option.textContent = displayText;
-          option.text = displayText; // Set both textContent and text for better compatibility
-          
-          // Use exact string comparison to ensure proper selection
-          if (status === currentStatus) {
-            option.selected = true;
-          }
-          
-          // Ensure option styling
-          option.style.color = '#000';
-          option.style.backgroundColor = '#fff';
-          
-          statusDropdown.appendChild(option);
-          
-          // Debug log for option creation
-          console.log(`📝 Created option for order ${order.id}: value="${status}", text="${displayText}"`);
+          option.selected = status === currentStatus;
+          optionsFragment.appendChild(option);
         });
+        
+        statusDropdown.appendChild(optionsFragment);
 
         // Single event handler for status changes
         statusDropdown.addEventListener("change", async () => {
@@ -4012,11 +4006,8 @@
             applyStatusColor(statusDropdown, newStatus);
             statusDropdown.dataset.previousValue = newStatus;
 
-            console.log(`🔄 Initiating status change for ${order.id}: ${newStatus}`);
-
             // Send HTTP request
             const response = await api.updateStatus(order.id, newStatus);
-            console.log('✅ Status update response:', response);
 
             // Update order in state
             if (response && response.order) {
@@ -4026,7 +4017,6 @@
               }
             }
           } catch (err) {
-            console.error(`❌ Failed to update status:`, err);
             // Revert on error
             statusDropdown.value = previousValue;
             applyStatusColor(statusDropdown, previousValue);
@@ -4040,22 +4030,8 @@
         statusWrapper.appendChild(statusDropdown);
         card.appendChild(statusWrapper);
 
-        // Set the dropdown value AFTER it's added to the DOM
-        statusDropdown.value = currentStatus;
-        
         // Apply status color immediately
         applyStatusColor(statusDropdown, currentStatus);
-        
-        // Double-check the value is set correctly and log for debugging
-        setTimeout(() => {
-          // Ensure the correct option is selected
-          if (statusDropdown.value !== currentStatus) {
-            console.warn(`⚠️ Status dropdown value mismatch for order ${order.id}. Expected: "${currentStatus}", Actual: "${statusDropdown.value}"`);
-            statusDropdown.value = currentStatus;
-            applyStatusColor(statusDropdown, currentStatus);
-          }
-          console.log(`🎯 Status dropdown for order ${order.id}: "${currentStatus}" (selected option: "${statusDropdown.selectedOptions[0]?.textContent}")`);
-        }, 0);
 
         // Show estimated price right under heading
         const price = document.createElement("p");
@@ -4422,17 +4398,11 @@
             console.error(`❌ Failed to load STL files for ${order.id}`, err);
           });
 
-        grid.appendChild(card);
-
-        // Only auto-estimate if there's no price and no failed estimate note
-        if (!order.est_price && 
-            !(order.order_notes && order.order_notes.includes("Print estimate failed"))) {
-          console.log(`🔄 Running auto-estimate for order ${order.id} - no existing price found`);
-          autoEstimateOrder(order, card);
-        } else {
-          console.log(`⏭️ Skipping auto-estimate for order ${order.id} - price already exists: $${order.est_price}`);
-        }
+        fragment.appendChild(card);
       }
+
+      // Append all cards at once
+      grid.appendChild(fragment);
     }
 
     // Add back the renderClaimedOrders function
