@@ -362,19 +362,19 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.5rem 1rem;
-      margin: 0.5rem 0;
+      padding: 0.5rem 0.75rem;
+      margin: 0.35rem 0;
       background-color: #f8f9fa;
       border-radius: 0.5rem;
       transition: all 0.3s ease;
-      border: 1px solid rgba(31, 100, 99, 0.2);
+      border: 1px solid rgba(31, 100, 99, 0.1);
       cursor: pointer;
       max-width: 400px;
     }
 
     .file-list-item:hover {
-      background-color: #f0f0f0;
       border-color: var(--primary);
+      background-color: #f0f4f4;
     }
 
     .file-list-item span {
@@ -382,7 +382,9 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: calc(100% - 80px); /* Leave space for remove button */
+      max-width: calc(100% - 80px);
+      color: var(--primary);
+      font-weight: 500;
     }
 
     .file-list-item .remove-file {
@@ -394,7 +396,11 @@
       cursor: pointer;
       font-size: 0.8rem;
       transition: all 0.2s ease;
-      margin-left: auto;  /* Push to right */
+      margin-left: auto;
+    }
+
+    .file-list-item .remove-file:hover {
+      background-color: #ff2020;
     }
 
     /* Style the home button */
@@ -486,14 +492,14 @@
     .file-estimate {
       border: 1px solid rgba(31, 100, 99, 0.2);
       border-radius: 0.75rem;
-      padding: 1rem;
-      margin: 0.75rem 0;
+      padding: 0.75rem;
+      margin: 0.5rem 0;
       background-color: #ffffff;
       transition: all 0.3s ease;
     }
 
     .file-estimate p {
-      margin: 0.25rem 0;
+      margin: 0.15rem 0;
     }
 
     .file-estimate .dimensions {
@@ -502,11 +508,11 @@
       opacity: 0.9;
     }
 
-    /* Update total price section styling */
+    /* Total Price Section */
     #totalPriceSection {
       position: relative;
-      margin: 2rem 0;
-      padding: 1.5rem 0;
+      margin: 1.25rem 0;
+      padding: 1rem 0;
       text-align: center;
     }
 
@@ -830,23 +836,11 @@ if (hasError) return;
 
     document.getElementById("file").addEventListener("change", async (e) => {
       const isMobile = window.innerWidth <= 768;
-
-      // Reuse these only once
-      const fileList = document.getElementById("fileList");
       const mobileNotice = document.getElementById("mobileEstimateNote");
       const files = Array.from(e.target.files).slice(0, 5);
 
-      // Always update file list
-      fileList.innerHTML = "";
-      files.forEach((f, index) => {
-        const li = document.createElement("li");
-        li.className = "file-list-item";
-        li.innerHTML = `
-          <span>${f.name}</span>
-          <button class="remove-file" data-index="${index}">Remove</button>
-        `;
-        fileList.appendChild(li);
-      });
+      // Update file list with remove buttons
+      updateFileList(files);
 
       // Show notice on mobile
       if (isMobile) {
@@ -872,18 +866,15 @@ if (hasError) return;
         viewerContainer.classList.add("two-files");
       }
 
-      fileList.innerHTML = "";
       viewerContainer.innerHTML = "";
       document.getElementById("estimateDisclaimer").style.display = "block";
-
-
 
       for (let index = 0; index < files.length; index++) {
         const file = files[index];
 
         const li = document.createElement("li");
         li.textContent = file.name;
-        fileList.appendChild(li);
+        document.getElementById("fileList").appendChild(li);
 
         const viewerBlock = document.createElement("div");
         viewerBlock.style.display = "flex";
