@@ -18,7 +18,8 @@ CREATE TABLE orders (
   total_revenue REAL,
   filament_grams REAL,
   cost_of_goods REAL,
-  expected_profit REAL
+  expected_profit REAL,
+  color TEXT          -- selected print color
 );
 
 -- files

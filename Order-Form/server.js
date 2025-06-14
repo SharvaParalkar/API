@@ -41,15 +41,15 @@ const upload = multer({
 // Route
 app.post("/status/post", assignOrderId, upload.array("file", 5), (req, res) => {
   try {
-    const { name, email, phone, notes } = req.body;
+    const { name, email, phone, notes, color } = req.body;
     const orderId = req.orderId;
     const submittedAt = new Date().toISOString();
 
     // Insert order
     db.prepare(`
-      INSERT INTO orders (id, name, email, phone, submitted_at, status, notes)
-      VALUES (?, ?, ?, ?, ?, 'submitted', ?)
-    `).run(orderId, name, email, phone, submittedAt, notes || "");
+      INSERT INTO orders (id, name, email, phone, submitted_at, status, notes, color)
+      VALUES (?, ?, ?, ?, ?, 'submitted', ?, ?)
+    `).run(orderId, name, email, phone, submittedAt, notes || "", color || "White");
 
     // Insert each file
     for (const file of req.files) {

@@ -1001,6 +1001,11 @@
       font-size: 0.9em;
       margin-top: 4px;
     }
+    .color-info {
+      font-size: 0.9em;
+      margin-top: 4px;
+      color: #666;
+    }
     .assigned-staff {
       font-weight: bold;
       color: #2196F3;
@@ -3948,6 +3953,14 @@
         submissionTime.title = `Submitted: ${submittedAt ? submittedAt.toLocaleString() : 'Unknown'}`;
         card.appendChild(submissionTime);
 
+        // Add color information
+        const colorInfo = document.createElement("div");
+        colorInfo.className = "color-info";
+        colorInfo.textContent = `Color: ${order.color || 'White'}`;
+        colorInfo.style.marginTop = "4px";
+        colorInfo.style.color = "#666";
+        card.appendChild(colorInfo);
+
         const statusOptions = [
           "pending",
           "pre print",
@@ -6121,6 +6134,11 @@
         color: #666;
         font-size: 0.9em;
         margin-top: 4px;
+      }
+      .color-info {
+        font-size: 0.9em;
+        margin-top: 4px;
+        color: #666;
       }
       .assigned-staff {
         font-weight: bold;
