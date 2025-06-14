@@ -42,14 +42,29 @@ const upload = multer({
 app.post("/status/post", assignOrderId, upload.array("file", 5), (req, res) => {
   try {
     const { name, email, phone, notes, color } = req.body;
+    
+    // Add debug logging
+    console.log('Received form data:', {
+      name,
+      email,
+      phone,
+      notes,
+      color,
+      rawColor: req.body.color,
+      allFields: req.body
+    });
+    
     const orderId = req.orderId;
     const submittedAt = new Date().toISOString();
 
-    // Insert order
+    // Insert order - Modified to ensure color is properly handled
+    const orderColor = color || "White"; // Store in variable for debugging
+    console.log('Color being saved to database:', orderColor);
+    
     db.prepare(`
       INSERT INTO orders (id, name, email, phone, submitted_at, status, notes, color)
       VALUES (?, ?, ?, ?, ?, 'submitted', ?, ?)
-    `).run(orderId, name, email, phone, submittedAt, notes || "", color || "White");
+    `).run(orderId, name, email, phone, submittedAt, notes || "", orderColor);
 
     // Insert each file
     for (const file of req.files) {
