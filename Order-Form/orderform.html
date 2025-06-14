@@ -80,7 +80,7 @@
       display: flex;
       justify-content: flex-end;
       align-self: start;
-      margin-top: 11.3rem;
+      margin-top: 13.8rem;
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
@@ -362,8 +362,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.5rem 0.75rem;
-      margin: 0.35rem 0;
+      padding: 0.35rem 0.5rem;
+      margin: 0.25rem 0;
       background-color: #f8f9fa;
       border-radius: 0.5rem;
       transition: all 0.3s ease;
@@ -450,7 +450,7 @@
       justify-content: flex-start;
       align-items: flex-start;
       align-self: start;
-      margin-top: 11.3rem;
+      margin-top: 13.8rem;
     }
 
     #estimatesCard {
@@ -551,6 +551,52 @@
       font-weight: bold;
       color: var(--primary);
     }
+
+    /* Add styles for color selection */
+    .color-options {
+      display: flex;
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .color-option {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #ddd;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .color-option.selected {
+      border: 2px solid var(--primary);
+      transform: scale(1.1);
+    }
+
+    .color-option.selected::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: var(--primary);
+    }
+
+    .color-option:hover {
+      transform: scale(1.1);
+    }
+
+    #white-option {
+      background-color: #ebebeb;
+    }
+
+    #grey-option {
+      background-color: #808080;
+    }
   </style>
 </head>
 
@@ -600,6 +646,14 @@
             <label for="notes">Other Notes</label>
             <textarea id="notes" rows="4" autocomplete="off"></textarea>
 
+          </div>
+
+          <div class="card">
+            <h2>Color</h2>
+            <div class="color-options">
+              <div id="white-option" class="color-option selected" data-color="#dcdcdc" title="White"></div>
+              <div id="grey-option" class="color-option" data-color="#808080" title="Grey"></div>
+            </div>
           </div>
 
           <div class="card">
@@ -872,10 +926,6 @@ if (hasError) return;
       for (let index = 0; index < files.length; index++) {
         const file = files[index];
 
-        const li = document.createElement("li");
-        li.textContent = file.name;
-        document.getElementById("fileList").appendChild(li);
-
         const viewerBlock = document.createElement("div");
         viewerBlock.style.display = "flex";
         viewerBlock.style.flexDirection = "column";
@@ -938,12 +988,12 @@ if (hasError) return;
         rimLight.position.set(100, 350, -250);
         scene.add(rimLight);
 
-        const grid = new THREE.GridHelper(BUILD_PLATE_SIZE, 16, 0x444444, 0x666666);
+        const grid = new THREE.GridHelper(BUILD_PLATE_SIZE, 16, 0xaaaaaa, 0xaaaaaa);
         scene.add(grid);
 
         const cube = new THREE.LineSegments(
           new THREE.EdgesGeometry(new THREE.BoxGeometry(BUILD_PLATE_SIZE, BUILD_PLATE_SIZE, BUILD_PLATE_SIZE)),
-          new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 })
+          new THREE.LineBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.3 })
         );
         cube.position.set(0, BUILD_PLATE_SIZE / 2, 0);
         scene.add(cube);
@@ -957,8 +1007,13 @@ if (hasError) return;
 
         const modelMesh = new THREE.Mesh(
           geometry,
-          new THREE.MeshPhongMaterial({ color: 0x2194ce, specular: 0x111111, shininess: 200 })
+          new THREE.MeshPhongMaterial({ 
+            color: currentModelColor, 
+            specular: 0x111111, 
+            shininess: 200 
+          })
         );
+        currentMeshes.push(modelMesh);
         scene.add(modelMesh);
 
         const dims = getModelDimensions(geometry);
@@ -1061,6 +1116,8 @@ if (hasError) return;
         }
       }
 
+      document.getElementById("estimatesCard").style.display = files.length > 0 ? "block" : "none";
+      document.getElementById("estimateDisclaimer").style.display = files.length > 0 ? "block" : "none";
 
     });
 
@@ -1079,33 +1136,35 @@ if (hasError) return;
     });
 
     window.addEventListener("pageshow", (event) => {
-  if (event.persisted || performance.getEntriesByType("navigation")[0].type === "back_forward") {
-    // Clear text inputs and textareas
-    ["email", "name", "phone", "notes"].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = "";
+      if (event.persisted || performance.getEntriesByType("navigation")[0].type === "back_forward") {
+        // Clear text inputs and textareas
+        ["email", "name", "phone", "notes"].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = "";
+        });
+
+        // Clear radio buttons
+        document.querySelectorAll("input[type='radio']").forEach(r => r.checked = false);
+
+        // Clear file input
+        const fileInput = document.getElementById("file");
+        if (fileInput) fileInput.value = "";
+
+        // Clear dynamic elements
+        document.getElementById("fileList").innerHTML = "";
+        document.getElementById("fileEstimates").innerHTML = "";
+        document.getElementById("totalCost").textContent = "$0.00";
+        document.getElementById("viewerColumn").innerHTML = "";
+        document.getElementById("estimateDisclaimer").style.display = "none";
+        document.getElementById("errorDisclaimerCard").style.display = "none";
+        document.getElementById("estimatesCard").style.display = "none";
+        currentMeshes = [];
+      }
     });
 
-    // Clear radio buttons
-    document.querySelectorAll("input[type='radio']").forEach(r => r.checked = false);
-
-    // Clear file input
-    const fileInput = document.getElementById("file");
-    if (fileInput) fileInput.value = "";
-
-    // Clear dynamic elements
-    document.getElementById("fileList").innerHTML = "";
-    document.getElementById("fileEstimates").innerHTML = "";
-    document.getElementById("totalCost").textContent = "$0.00";
-    document.getElementById("viewerColumn").innerHTML = "";
-    document.getElementById("estimateDisclaimer").style.display = "none";
-    document.getElementById("errorDisclaimerCard").style.display = "none";
-  }
-});
-
-window.addEventListener("beforeunload", () => {
-  sessionStorage.removeItem("formSubmitted");
-});
+    window.addEventListener("beforeunload", () => {
+      sessionStorage.removeItem("formSubmitted");
+    });
 
     // Add drag and drop functionality
     const dropZone = document.getElementById('dropZone');
@@ -1199,6 +1258,15 @@ window.addEventListener("beforeunload", () => {
       
       // Update the file list
       updateFileList(fileInput.files);
+
+      // Hide estimates card if no files remain
+      if (fileInput.files.length === 0) {
+        document.getElementById("estimatesCard").style.display = "none";
+        document.getElementById("estimateDisclaimer").style.display = "none";
+      }
+
+      // Update meshes array
+      currentMeshes = currentMeshes.filter((_, i) => i !== index);
     }
 
     // Modified file input change handler
@@ -1215,11 +1283,30 @@ window.addEventListener("beforeunload", () => {
       // ... rest of your existing file handling code ...
     }
 
-    // Remove any duplicate list elements that might exist
-    const duplicateList = document.querySelector('ul:not(#fileList)');
-    if (duplicateList) {
-      duplicateList.remove();
-    }
+    // Add initial state for estimates card
+    document.getElementById("estimatesCard").style.display = "none";
+
+    // Add this near the top of your script section
+    let currentModelColor = '#ebebeb';
+    let currentMeshes = [];
+
+    // Add color selection handlers
+    document.querySelectorAll('.color-option').forEach(option => {
+      option.addEventListener('click', function() {
+        // Remove selected class from all options
+        document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+        // Add selected class to clicked option
+        this.classList.add('selected');
+        // Update color
+        currentModelColor = this.dataset.color;
+        // Update all current meshes
+        currentMeshes.forEach(mesh => {
+          if (mesh.material) {
+            mesh.material.color.setStyle(currentModelColor);
+          }
+        });
+      });
+    });
 
   </script>
 
