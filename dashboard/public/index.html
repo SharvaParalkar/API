@@ -3813,7 +3813,7 @@
         }
 
         if (totalEstimate > 0) {
-          // Update the price in the database
+          // Update the estimated price in the database
           const response = await fetch("/dashboard/update-price", {
             method: "POST",
             headers: { 
@@ -3944,7 +3944,7 @@
         card.className = "card";
         card.dataset.orderId = order.id;
 
-        // If est_price is missing, call auto-estimator
+        // Run auto-estimate for new orders that don't have an estimate yet
         if (order.status === 'submitted' && !order.est_price) {
           console.log(`💲 Triggering auto-estimate for new order: ${order.id}`);
           autoEstimateOrder(order, card);
@@ -4006,7 +4006,7 @@
           option.selected = status === currentStatus;
           optionsFragment.appendChild(option);
         });
-        
+          
         statusDropdown.appendChild(optionsFragment);
 
         // Single event handler for status changes
@@ -4042,7 +4042,7 @@
         statusWrapper.className = "status-wrapper";
         statusWrapper.appendChild(statusDropdown);
         card.appendChild(statusWrapper);
-
+        
         // Apply status color immediately
         applyStatusColor(statusDropdown, currentStatus);
 

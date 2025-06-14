@@ -878,36 +878,36 @@ setTimeout(() => {
 
         // Only consider it a new order if its timestamp is newer
         if (!lastOrderTimestamp || latestOrderTimestamp > lastOrderTimestamp) {
-          console.log('🆕 New order detected:', latestOrder.id);
-          lastOrderId = latestOrder.id;
+        console.log('🆕 New order detected:', latestOrder.id);
+        lastOrderId = latestOrder.id;
           lastOrderTimestamp = latestOrderTimestamp;
           
           // Fetch the full order details for broadcasting
           const fullOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(latestOrder.id);
-
-          // Always ensure new orders have "pending" status for consistency
+        
+        // Always ensure new orders have "pending" status for consistency
           let finalOrder = fullOrder;
           if (!fullOrder.status || fullOrder.status === '' || fullOrder.status === null) {
             console.log('🔄 Setting status to "pending" for new order:', fullOrder.id);
             db.prepare("UPDATE orders SET status = 'pending' WHERE id = ?").run(fullOrder.id);
-            // Refresh the order data to get the updated status
+          // Refresh the order data to get the updated status
             finalOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(fullOrder.id);
-          }
-          
-          // Always broadcast the new order update with the correct status
+        }
+        
+        // Always broadcast the new order update with the correct status
+        broadcastUpdate('orderUpdate', {
+          type: 'new',
+          order: finalOrder
+        });
+        
+        // Also broadcast a status update to ensure all clients sync the status correctly
+        if (finalOrder.status === 'pending') {
+          console.log('📡 Broadcasting status sync for new order:', finalOrder.id);
           broadcastUpdate('orderUpdate', {
-            type: 'new',
+            type: 'status',
             order: finalOrder
           });
-          
-          // Also broadcast a status update to ensure all clients sync the status correctly
-          if (finalOrder.status === 'pending') {
-            console.log('📡 Broadcasting status sync for new order:', finalOrder.id);
-            broadcastUpdate('orderUpdate', {
-              type: 'status',
-              order: finalOrder
-            });
-          }
+        }
         }
       } else if (!latestOrder && lastOrderId) {
         // This case handles when the last order is deleted and the table becomes empty

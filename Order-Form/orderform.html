@@ -770,47 +770,47 @@ const selectedColorElement = document.querySelector('.color-option.selected');
 const selectedColor = selectedColorElement ? selectedColorElement.getAttribute('title') : 'White';
 console.log('Selected color before form submission:', selectedColor);
 
-const formData = new FormData();
-formData.append("name", name);
-formData.append("email", email);
-formData.append("phone", phone);
-formData.append("notes", notes);
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("email", email);
+      formData.append("phone", phone);
+      formData.append("notes", notes);
 formData.append("color", selectedColor);
 
-for (let i = 0; i < files.length && i < 5; i++) {
-  formData.append("file", files[i]);
-}
+      for (let i = 0; i < files.length && i < 5; i++) {
+        formData.append("file", files[i]);
+      }
 
 // Log the FormData entries
 for (let [key, value] of formData.entries()) {
   console.log(`FormData entry - ${key}:`, value);
 }
 
-// Show loading overlay
-const loadingOverlay = document.createElement("div");
-loadingOverlay.style.position = "fixed";
-loadingOverlay.style.top = 0;
-loadingOverlay.style.left = 0;
-loadingOverlay.style.width = "100%";
-loadingOverlay.style.height = "100%";
-loadingOverlay.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
-loadingOverlay.style.display = "flex";
-loadingOverlay.style.justifyContent = "center";
-loadingOverlay.style.alignItems = "center";
-loadingOverlay.style.zIndex = 1000;
-loadingOverlay.innerHTML = `<div style="font-size: 1.5rem; color: #1f6463;">Uploading and submitting...</div>`;
-document.body.appendChild(loadingOverlay);
+      // Show loading overlay
+      const loadingOverlay = document.createElement("div");
+      loadingOverlay.style.position = "fixed";
+      loadingOverlay.style.top = 0;
+      loadingOverlay.style.left = 0;
+      loadingOverlay.style.width = "100%";
+      loadingOverlay.style.height = "100%";
+      loadingOverlay.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
+      loadingOverlay.style.display = "flex";
+      loadingOverlay.style.justifyContent = "center";
+      loadingOverlay.style.alignItems = "center";
+      loadingOverlay.style.zIndex = 1000;
+      loadingOverlay.innerHTML = `<div style="font-size: 1.5rem; color: #1f6463;">Uploading and submitting...</div>`;
+      document.body.appendChild(loadingOverlay);
 
-try {
-  const res = await fetch("https://api.filamentbros.com/status/post", {
-    method: "POST",
-    body: formData
-  });
+      try {
+        const res = await fetch("https://api.filamentbros.com/status/post", {
+          method: "POST",
+          body: formData
+        });
 
-  const result = await res.json();
-  loadingOverlay.remove();
+        const result = await res.json();
+        loadingOverlay.remove();
 
-  if (res.ok) {
+        if (res.ok) {
   sessionStorage.setItem("formSubmitted", "true");
   showSuccessOverlay(result.order_id, email || phone);
 } else {
