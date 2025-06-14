@@ -850,6 +850,7 @@ setInterval(() => {
 
 // Watch for new orders (with 5-second startup delay)
 let lastOrderId = null;
+let lastOrderTimestamp = null; // Track the timestamp of the last seen order
 
 // Add a 5-second delay before starting order notifications to prevent startup false positives
 setTimeout(() => {
@@ -857,47 +858,62 @@ setTimeout(() => {
   
   // Initialize lastOrderId to the current most recent order to prevent false notifications
   try {
-    const latestOrder = db.prepare("SELECT * FROM orders ORDER BY submitted_at DESC LIMIT 1").get();
+    const latestOrder = db.prepare("SELECT id, submitted_at FROM orders ORDER BY submitted_at DESC LIMIT 1").get();
     if (latestOrder) {
       lastOrderId = latestOrder.id;
+      lastOrderTimestamp = new Date(latestOrder.submitted_at).getTime();
       console.log(`📋 Initialized with most recent order: ${lastOrderId}`);
     }
   } catch (err) {
-    console.error('❌ Error initializing lastOrderId:', err);
+    console.error('❌ Error initializing last order tracking:', err);
   }
 
   setInterval(async () => {
     try {
-      // Get the latest order
-      const latestOrder = db.prepare("SELECT * FROM orders ORDER BY submitted_at DESC LIMIT 1").get();
+      // Get the latest order's ID and submission time
+      const latestOrder = db.prepare("SELECT id, submitted_at FROM orders ORDER BY submitted_at DESC LIMIT 1").get();
       
-      if (latestOrder && (!lastOrderId || latestOrder.id !== lastOrderId)) {
-        console.log('🆕 New order detected:', latestOrder.id);
-        lastOrderId = latestOrder.id;
-        
-        // Always ensure new orders have "pending" status for consistency
-        let finalOrder = latestOrder;
-        if (!latestOrder.status || latestOrder.status === '' || latestOrder.status === null) {
-          console.log('🔄 Setting status to "pending" for new order:', latestOrder.id);
-          db.prepare("UPDATE orders SET status = 'pending' WHERE id = ?").run(latestOrder.id);
-          // Refresh the order data to get the updated status
-          finalOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(latestOrder.id);
-        }
-        
-        // Always broadcast the new order update with the correct status
-        broadcastUpdate('orderUpdate', {
-          type: 'new',
-          order: finalOrder
-        });
-        
-        // Also broadcast a status update to ensure all clients sync the status correctly
-        if (finalOrder.status === 'pending') {
-          console.log('📡 Broadcasting status sync for new order:', finalOrder.id);
+      if (latestOrder && latestOrder.id !== lastOrderId) {
+        const latestOrderTimestamp = new Date(latestOrder.submitted_at).getTime();
+
+        // Only consider it a new order if its timestamp is newer
+        if (!lastOrderTimestamp || latestOrderTimestamp > lastOrderTimestamp) {
+          console.log('🆕 New order detected:', latestOrder.id);
+          lastOrderId = latestOrder.id;
+          lastOrderTimestamp = latestOrderTimestamp;
+          
+          // Fetch the full order details for broadcasting
+          const fullOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(latestOrder.id);
+
+          // Always ensure new orders have "pending" status for consistency
+          let finalOrder = fullOrder;
+          if (!fullOrder.status || fullOrder.status === '' || fullOrder.status === null) {
+            console.log('🔄 Setting status to "pending" for new order:', fullOrder.id);
+            db.prepare("UPDATE orders SET status = 'pending' WHERE id = ?").run(fullOrder.id);
+            // Refresh the order data to get the updated status
+            finalOrder = db.prepare("SELECT * FROM orders WHERE id = ?").get(fullOrder.id);
+          }
+          
+          // Always broadcast the new order update with the correct status
           broadcastUpdate('orderUpdate', {
-            type: 'status',
+            type: 'new',
             order: finalOrder
           });
+          
+          // Also broadcast a status update to ensure all clients sync the status correctly
+          if (finalOrder.status === 'pending') {
+            console.log('📡 Broadcasting status sync for new order:', finalOrder.id);
+            broadcastUpdate('orderUpdate', {
+              type: 'status',
+              order: finalOrder
+            });
+          }
         }
+      } else if (!latestOrder && lastOrderId) {
+        // This case handles when the last order is deleted and the table becomes empty
+        console.log('🗑️ The last order in the database was deleted. Resetting order tracking.');
+        lastOrderId = null;
+        lastOrderTimestamp = null;
       }
     } catch (err) {
       console.error('❌ Error checking for new orders:', err);

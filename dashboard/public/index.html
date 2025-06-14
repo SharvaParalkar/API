@@ -3944,6 +3944,12 @@
         card.className = "card";
         card.dataset.orderId = order.id;
 
+        // If est_price is missing, call auto-estimator
+        if (order.status === 'submitted' && !order.est_price) {
+          console.log(`💲 Triggering auto-estimate for new order: ${order.id}`);
+          autoEstimateOrder(order, card);
+        }
+
         // Add delete button
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "delete-btn";
@@ -4211,6 +4217,10 @@
           colorCircle.style.backgroundColor = '#ebebeb';
         }
         colorContentCell.appendChild(colorCircle);
+        
+        const colorName = document.createTextNode(` (${colorValue})`);
+        colorContentCell.appendChild(colorName);
+
         colorRow.appendChild(colorCell);
         colorRow.appendChild(colorContentCell);
         table.appendChild(colorRow);
@@ -4530,6 +4540,9 @@
                 break;
               case 'delete':
                 this.handleOrderDeletion(update);
+                break;
+              case 'price':
+                this.handleOrderUpdate(update);
                 break;
               case 'new':
                 // For new orders, add them to state and re-filter
@@ -5536,6 +5549,9 @@
                 break;
               case 'delete':
                 this.handleOrderDeletion(update);
+                break;
+              case 'price':
+                this.handleOrderUpdate(update);
                 break;
               case 'new':
                 // For new orders, add them to state and re-filter
