@@ -3769,6 +3769,10 @@
 
         const formData = new FormData();
         const fileNames = [];
+        let estimatesReceived = 0;
+        let totalEstimate = 0;
+        let failedFiles = [];
+        let hasUpdatedPrice = false;
 
         for (const fileUrl of files) {
           const response = await fetch(fileUrl);
@@ -3789,8 +3793,62 @@
         const reader = sseResponse.body.getReader();
         const decoder = new TextDecoder("utf-8");
         let buffer = "";
-        let totalEstimate = 0;
-        let failedFiles = [];
+
+        // Set a timeout for the entire estimation process
+        const estimationTimeout = setTimeout(() => {
+          reader.cancel();
+          if (!hasUpdatedPrice && failedFiles.length < files.length) {
+            console.log(`⚠️ Estimation timed out for order ${order.id} - updating with partial results`);
+            updateEstimatedPrice();
+          }
+        }, 30000); // 30 second timeout
+
+        async function updateEstimatedPrice() {
+          if (hasUpdatedPrice) return;
+          hasUpdatedPrice = true;
+
+          if (totalEstimate > 0) {
+            try {
+              const response = await fetch("/dashboard/update-price", {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json",
+                  credentials: 'include'
+                },
+                body: JSON.stringify({
+                  orderId: order.id,
+                  est_price: totalEstimate.toFixed(2),
+                }),
+              });
+
+              if (!response.ok) {
+                throw new Error(`Failed to update price: ${response.statusText}`);
+              }
+
+              const result = await response.json();
+              
+              // Update the order in state
+              const index = state.allOrders.findIndex(o => o.id === order.id);
+              if (index !== -1) {
+                state.allOrders[index] = result.order;
+              }
+
+              // Update UI
+              if (card) {
+                const priceLine = card.querySelector("p");
+                if (priceLine) {
+                  priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(2)}`;
+                }
+              }
+
+              console.log(
+                `✅ Updated order ${order.id} with estimate $${totalEstimate.toFixed(2)}`
+              );
+            } catch (err) {
+              console.error(`❌ Failed to update price for order ${order.id}:`, err);
+            }
+          }
+        }
 
         while (true) {
           const { value, done } = await reader.read();
@@ -3803,92 +3861,92 @@
           for (const event of events) {
             if (event.startsWith("data:")) {
               const data = JSON.parse(event.replace("data:", "").trim());
+              estimatesReceived++;
+              
               if (data.status === "success" && data.price) {
                 totalEstimate += parseFloat(data.price);
               } else if (data.status === "error") {
                 failedFiles.push(data.file || "Unknown file");
               }
+
+              // If we've received all estimates or if we have some successful estimates and some failures
+              if (estimatesReceived === files.length || 
+                  (totalEstimate > 0 && failedFiles.length > 0 && estimatesReceived === files.length)) {
+                clearTimeout(estimationTimeout);
+                await updateEstimatedPrice();
+              }
             }
           }
         }
 
-        if (totalEstimate > 0) {
-          // Update the estimated price in the database
-          const response = await fetch("/dashboard/update-price", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              credentials: 'include'
-            },
-            body: JSON.stringify({
-              orderId: order.id,
-              est_price: totalEstimate.toFixed(2),
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to update price: ${response.statusText}`);
-          }
-
-          const result = await response.json();
-          
-          // Update the order in state
-          const index = state.allOrders.findIndex(o => o.id === order.id);
-          if (index !== -1) {
-            state.allOrders[index] = result.order;
-          }
-
-          // Update UI
-          if (card) {
-            const priceLine = card.querySelector("p");
-            if (priceLine) {
-              priceLine.innerHTML = `<strong>Est. Price:</strong> $${totalEstimate.toFixed(2)}`;
-            }
-          }
-
-          console.log(
-            `✅ Updated order ${order.id} with estimate $${totalEstimate.toFixed(2)}`
-          );
-        }
-
+        // Handle failed files after all estimates are processed
         if (failedFiles.length > 0) {
           const message = `⚠️ Print estimate failed for: ${failedFiles.join(", ")}`;
           const existingNotes = order.order_notes ? order.order_notes + "\n\n" : "";
           const updatedNotes = existingNotes + message;
 
-          // Update notes in database
-          const notesResponse = await fetch("/dashboard/update-staff-notes", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              credentials: 'include'
-            },
-            body: JSON.stringify({
-              orderId: order.id,
-              staffNotes: updatedNotes,
-            }),
-          });
+          try {
+            // Update notes in database
+            const notesResponse = await fetch("/dashboard/update-staff-notes", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                credentials: 'include'
+              },
+              body: JSON.stringify({
+                orderId: order.id,
+                staffNotes: updatedNotes,
+              }),
+            });
 
-          if (!notesResponse.ok) {
-            throw new Error(`Failed to update notes: ${notesResponse.statusText}`);
-          }
-
-          // Update UI immediately
-          if (card) {
-            const staffNotesEditor = card.querySelector(".staff-notes-editor");
-            if (staffNotesEditor) {
-              staffNotesEditor.value = updatedNotes;
+            if (!notesResponse.ok) {
+              throw new Error(`Failed to update notes: ${notesResponse.statusText}`);
             }
-          }
 
-          // Update order in state
-          const index = state.allOrders.findIndex(o => o.id === order.id);
-          if (index !== -1) {
-            state.allOrders[index].order_notes = updatedNotes;
-          }
+            // Wait for the response data
+            const responseData = await notesResponse.json();
 
-          console.log(`⚠️ Added error message to staff notes for order ${order.id}`);
+            // Update UI immediately but properly
+            if (card) {
+              const staffNotesEditor = card.querySelector(".staff-notes-editor");
+              const saveNotesBtn = card.querySelector(".save-notes-btn");
+              
+              if (staffNotesEditor) {
+                // Only update if not being edited
+                const isEditorFocused = staffNotesEditor === document.activeElement;
+                if (!isEditorFocused) {
+                  staffNotesEditor.value = updatedNotes;
+                  staffNotesEditor.dataset.previousValue = updatedNotes;
+                }
+
+                // Update save button state
+                if (saveNotesBtn) {
+                  const hasChanges = staffNotesEditor.value !== staffNotesEditor.dataset.previousValue;
+                  saveNotesBtn.disabled = !hasChanges;
+                  saveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+                  saveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+                  saveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
+                }
+              }
+            }
+
+            // Update order in state with proper error tracking
+            const index = state.allOrders.findIndex(o => o.id === order.id);
+            if (index !== -1) {
+              state.allOrders[index] = {
+                ...state.allOrders[index],
+                order_notes: updatedNotes,
+                has_estimate_errors: true
+              };
+            }
+
+            console.log(`⚠️ Added error message to staff notes for order ${order.id}`);
+          } catch (notesErr) {
+            console.error(`Failed to update staff notes with error: ${notesErr.message}`);
+            ui.showError(`Failed to update staff notes: ${notesErr.message}`);
+          }
         }
+
       } catch (err) {
         console.error(`❌ Failed to auto-estimate for order ${order.id}:`, err);
         ui.showError(`Failed to estimate order: ${err.message}`);
@@ -3899,7 +3957,6 @@
         const updatedNotes = existingNotes + errorMessage;
 
         try {
-          // Update notes in database
           await fetch("/dashboard/update-staff-notes", {
             method: "POST",
             headers: { 
@@ -3916,14 +3973,22 @@
           if (card) {
             const staffNotesEditor = card.querySelector(".staff-notes-editor");
             if (staffNotesEditor) {
-              staffNotesEditor.value = updatedNotes;
+              const isEditorFocused = staffNotesEditor === document.activeElement;
+              if (!isEditorFocused) {
+                staffNotesEditor.value = updatedNotes;
+                staffNotesEditor.dataset.previousValue = updatedNotes;
+              }
             }
           }
 
           // Update order in state
           const index = state.allOrders.findIndex(o => o.id === order.id);
           if (index !== -1) {
-            state.allOrders[index].order_notes = updatedNotes;
+            state.allOrders[index] = {
+              ...state.allOrders[index],
+              order_notes: updatedNotes,
+              has_estimate_errors: true
+            };
           }
         } catch (notesErr) {
           console.error(`Failed to update staff notes with error: ${notesErr.message}`);
