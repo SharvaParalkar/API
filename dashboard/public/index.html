@@ -7641,8 +7641,10 @@
             return;
           }
 
+          const filamentId = (materialType + '-' + color).replace(/[^a-zA-Z0-9-_]/g, '');
           const card = document.createElement('div');
           card.className = 'card';
+          card.setAttribute('data-filament-id', filamentId);
 
           const weightKg = parseInt(weightGrams) / 1000;
 
@@ -7669,7 +7671,6 @@
           // Add inventory management card
           const inventoryContainer = document.getElementById('inventory-cards-container');
           if (inventoryContainer) {
-            const filamentId = (materialType + '-' + color).replace(/[^a-zA-Z0-9-_]/g, '');
             const totalStock = parseInt(stock) || 0;
 
             const inventoryCard = document.createElement('div');
@@ -7721,7 +7722,15 @@
         if (event.target && event.target.classList.contains('delete-filament-btn')) {
           const cardToRemove = event.target.closest('.card');
           if (cardToRemove) {
+            const filamentId = cardToRemove.dataset.filamentId;
             cardToRemove.remove();
+
+            if (filamentId) {
+              const inventoryCardToRemove = document.querySelector(`.inventory-card[data-filament-id="${filamentId}"]`);
+              if (inventoryCardToRemove) {
+                inventoryCardToRemove.remove();
+              }
+            }
           }
         }
       });
