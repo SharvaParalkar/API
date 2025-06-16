@@ -1,0 +1,36 @@
+tunnel: stl-api
+credentials-file: C:\Users\Admin\.cloudflared\stl-api.json
+
+ingress:
+  - hostname: api.filamentbros.com
+    path: /stl/*
+    service: http://localhost:3000
+
+  - hostname: api.filamentbros.com
+    path: /status/post
+    service: http://localhost:3200
+
+  - hostname: api.filamentbros.com
+    path: /status/*
+    service: http://localhost:3100
+
+  # ─── DASHBOARD ───────────────────────────────────────────────────────────────
+  - hostname: api.filamentbros.com
+    path: /dashboard/login
+    service: http://localhost:3300
+
+  - hostname: api.filamentbros.com
+    path: /dashboard
+    service: http://localhost:3300
+
+  - hostname: api.filamentbros.com
+    path: /dashboard/*
+    service: http://localhost:3300
+
+  # ─── FILAMENT INVENTORY ───────────────────────────────────────────────────────
+  - hostname: api.filamentbros.com
+    path: /filament/*
+    service: http://localhost:3400
+
+  # catch-all 404
+  - service: http_status:404
