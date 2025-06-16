@@ -3830,8 +3830,8 @@
 
       // Window event listeners
       window.addEventListener('beforeunload', () => {
-        if (window.dashboardEventSource) {
-          window.dashboardEventSource.close();
+        if (window.eventManager) {
+          window.eventManager.cleanup();
         }
         if (window.filamentEventSource) {
           window.filamentEventSource.close();
@@ -4660,136 +4660,7 @@
       await renderOrders(claimedOrders, expandDetails, grid);
     }
 
-    // Add back the initializeSSE function
-    function initializeSSE() {
-      let retryCount = 0;
-      const maxRetries = 5;
-      const retryDelay = 1000;
-
-      function connect() {
-        const eventSource = new EventSource('/dashboard/updates', { withCredentials: true });
-
-        eventSource.onopen = () => {
-          console.log('✅ SSE connection established');
-          retryCount = 0;
-        };
-
-        eventSource.onerror = (error) => {
-          console.error('❌ SSE connection error:', error);
-          eventSource.close();
-
-          if (retryCount < maxRetries) {
-            retryCount++;
-            setTimeout(connect, retryDelay * retryCount);
-          } else {
-            console.error('❌ Max SSE reconnection attempts reached');
-            ui.showError('Lost connection to server. Please refresh the page.');
-          }
-        };
-
-        // Store the eventSource in window for cleanup
-        window.dashboardEventSource = eventSource;
-
-        // Handle order updates
-        eventSource.addEventListener('orderUpdate', (e) => {
-          if (!this.connected || this.isRefreshing) return;
-          
-          // Don't process order updates if we're not on an order-related tab
-          if (state.currentTab === 'coupon') {
-            console.log('🎫 Ignoring order update while on coupon tab');
-            return;
-          }
-          
-          try {
-            const update = JSON.parse(e.data);
-            console.log('📦 Received order update:', update.type, update.order?.id);
-            
-            // Check sequence number
-            if (update.sequence && this.lastSequence && update.sequence !== this.lastSequence + 1) {
-              console.warn(`Sequence gap detected: expected ${this.lastSequence + 1}, got ${update.sequence}`);
-              this.refreshData();
-              return;
-            }
-            
-            this.lastSequence = update.sequence || this.lastSequence;
-            
-            // Handle the update based on type
-            switch (update.type) {
-              case 'staff':
-                handleStaffUpdate(update);
-                break;
-              case 'delete':
-                this.handleOrderDeletion(update);
-                break;
-              case 'price':
-                this.handleOrderUpdate(update);
-                break;
-              case 'new':
-                // For new orders, add them to state and re-filter
-                if (!state.allOrders.find(o => o.id === update.order.id)) {
-                  state.allOrders.unshift(update.order);
-                  const query = document.getElementById("searchInput")?.value || '';
-                  filterOrders(query);
-                }
-                break;
-              default:
-                this.handleOrderUpdate(update);
-            }
-          } catch (err) {
-            console.error('Error processing order update:', err);
-            // Don't refresh on processing errors to avoid cascading issues
-          }
-        });
-
-        eventSource.addEventListener('couponUpdate', (e) => {
-          if (!this.connected || this.isRefreshing) return;
-          
-          try {
-            const update = JSON.parse(e.data);
-            console.log('🎫 Received coupon update:', update.type, update.coupon?.code || update.code);
-            
-            // Prevent duplicate processing by checking sequence
-            const updateKey = `${update.type}-${update.coupon?.code || update.code}-${update.timestamp}`;
-            if (this.processedUpdates && this.processedUpdates.has(updateKey)) {
-              console.log('🔄 Skipping duplicate coupon update:', updateKey);
-              return;
-            }
-            
-            // Track processed updates (keep only last 100)
-            if (!this.processedUpdates) {
-              this.processedUpdates = new Set();
-            }
-            this.processedUpdates.add(updateKey);
-            if (this.processedUpdates.size > 100) {
-              const firstKey = this.processedUpdates.values().next().value;
-              this.processedUpdates.delete(firstKey);
-            }
-            
-            handleCouponUpdate(update);
-          } catch (err) {
-            console.error('Error processing coupon update:', err);
-          }
-        });
-
-        eventSource.onerror = (error) => {
-          console.error('❌ SSE Connection Error:', error);
-          this.connected = false;
-          this.eventSource.close();
-          
-          if (this.connectionAttempts < this.maxRetries) {
-            this.connectionAttempts++;
-            console.log(`🔄 Reconnecting in ${this.retryDelay * this.connectionAttempts}ms (attempt ${this.connectionAttempts}/${this.maxRetries})`);
-            clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = setTimeout(() => this.connect(), this.retryDelay * this.connectionAttempts);
-          } else {
-            console.error('❌ Max reconnection attempts reached');
-            this.showReconnectionError();
-          }
-        };
-      }
-
-      connect();
-    }
+    // Removed old initializeSSE function - using the new EventSourceManager implementation below
 
     // Start the app
     async function initialize() {
