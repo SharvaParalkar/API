@@ -770,105 +770,48 @@
     <script>
         // Cart functionality
         let cart = JSON.parse(localStorage.getItem('cart')) || [];
-        let products = []; // Will be populated from server
-
-        // Configuration
-        const API_CONFIG = {
-            // Base URL for API endpoints - automatically detects environment
-            baseUrl: window.location.hostname === 'filamentbros.com' || window.location.hostname === 'www.filamentbros.com'
-                ? 'https://api.filamentbros.com'  // Production API endpoint
-                : 'http://localhost:3400',        // Development API endpoint
-            
-            // API endpoints - matching Cloudflare tunnel paths
-            endpoints: {
-                inventory: '/filament/inventory',
-                updates: '/filament/updates'
+        const products = [
+            {
+                id: 1,
+                material: 'PLA',
+                color: 'White',
+                weight: '1kg',
+                price: 24.99,
+                stock: 12,
+                image: 'https://m.media-amazon.com/images/I/61vd1GHtF9L._AC_UF894,1000_QL80_.jpg'
+            },
+            {
+                id: 2,
+                material: 'PETG',
+                color: 'Black',
+                weight: '1kg',
+                price: 29.99,
+                stock: 8,
+                image: 'https://m.media-amazon.com/images/I/71ry6UzOZaL._AC_UF894,1000_QL80_.jpg'
+            },
+            {
+                id: 3,
+                material: 'PLA+',
+                color: 'Blue',
+                weight: '1kg',
+                price: 27.99,
+                stock: 15,
+                image: 'https://m.media-amazon.com/images/I/71cg4xwLAFL._AC_UF894,1000_QL80_.jpg'
+            },
+            {
+                id: 4,
+                material: 'TPU',
+                color: 'Clear',
+                weight: '0.5kg',
+                price: 34.99,
+                stock: 5,
+                image: 'https://m.media-amazon.com/images/I/61vd1GHtF9L._AC_UF894,1000_QL80_.jpg'
             }
-        };
-
-        // Initialize SSE connection for real-time updates
-        function initializeSSE() {
-            const eventSource = new EventSource(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.updates}`, {
-                withCredentials: true // Required for cross-origin SSE through Cloudflare tunnel
-            });
-            
-            eventSource.onmessage = function(event) {
-                const update = JSON.parse(event.data);
-                
-                if (update.type === 'add' || update.type === 'update') {
-                    // Refresh products when inventory changes
-                    fetchProducts();
-                } else if (update.type === 'delete') {
-                    // Remove product if it exists
-                    products = products.filter(p => p.id !== update.filamentId);
-                    initializeProducts();
-                    updateCartDisplay();
-                }
-            };
-
-            eventSource.onerror = function(error) {
-                console.error('SSE connection error:', error);
-                // Close the current connection
-                eventSource.close();
-                // Attempt to reconnect after 5 seconds
-                setTimeout(() => initializeSSE(), 5000);
-            };
-
-            // Add connection opened handler
-            eventSource.onopen = function() {
-                console.log('SSE connection established');
-            };
-        }
-
-        // Fetch products from server
-        async function fetchProducts() {
-            try {
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.inventory}`, {
-                    credentials: 'include', // Include credentials for CORS
-                    headers: {
-                        'Accept': 'application/json',
-                        'Cache-Control': 'no-cache'
-                    }
-                });
-                
-                if (!response.ok) throw new Error('Failed to fetch inventory');
-                
-                const inventory = await response.json();
-                products = inventory.map(item => ({
-                    id: item.id,
-                    material: item.material,
-                    color: item.color,
-                    weight: `${item.weight_grams}g`,
-                    price: item.price_per_kg * (item.weight_grams / 1000), // Convert to price per unit
-                    stock: item.allocated_sale || 0, // Use allocated_sale for available stock
-                    image: item.image_url || 'https://m.media-amazon.com/images/I/61vd1GHtF9L._AC_UF894,1000_QL80_.jpg' // Default image if none provided
-                }));
-                
-                initializeProducts();
-                updateCartDisplay();
-            } catch (error) {
-                console.error('Error fetching products:', error);
-                // Show error message to user
-                const productsGrid = document.querySelector('.products-grid');
-                productsGrid.innerHTML = `
-                    <div style="text-align: center; grid-column: 1/-1; color: #e74c3c;">
-                        <p>Unable to load products. Please try again later.</p>
-                        <button onclick="fetchProducts()" style="margin-top: 1rem; padding: 0.5rem 1rem; border-radius: 8px; background: var(--primary); color: white; border: none; cursor: pointer;">
-                            Retry
-                        </button>
-                    </div>
-                `;
-            }
-        }
+        ];
 
         // Initialize the products grid
         function initializeProducts() {
             const productsGrid = document.querySelector('.products-grid');
-            if (products.length === 0) {
-                productsGrid.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">No filament currently available.</p>';
-                return;
-            }
-            
             productsGrid.innerHTML = products.map(product => `
                 <div class="product-card">
                     ${product.image ? 
@@ -880,15 +823,13 @@
                         <p class="product-color">Color: ${product.color}</p>
                         <p class="product-weight">Weight: ${product.weight}</p>
                         <p class="product-price">$${product.price.toFixed(2)}</p>
-                        <p class="product-stock" style="color: ${product.stock > 0 ? '#2ecc71' : '#e74c3c'}">
-                            ${product.stock > 0 ? `In Stock: ${product.stock}` : 'Out of Stock'}
-                        </p>
+                        <p class="product-stock">In Stock: ${product.stock}</p>
                         <div class="quantity-selector">
-                            <button class="quantity-btn minus" onclick="updateQuantity('${product.id}', 'decrease')" ${product.stock === 0 ? 'disabled' : ''}>-</button>
+                            <button class="quantity-btn minus" onclick="updateQuantity(${product.id}, 'decrease')">-</button>
                             <span class="quantity-display" id="quantity-${product.id}">1</span>
-                            <button class="quantity-btn plus" onclick="updateQuantity('${product.id}', 'increase')" ${product.stock === 0 ? 'disabled' : ''}>+</button>
+                            <button class="quantity-btn plus" onclick="updateQuantity(${product.id}, 'increase')">+</button>
                         </div>
-                        <button class="add-to-cart-btn" onclick="addToCart('${product.id}')" ${product.stock === 0 ? 'disabled' : ''}>
+                        <button class="add-to-cart-btn" onclick="addToCart(${product.id})">
                             Add to Cart
                         </button>
                     </div>
@@ -1049,8 +990,7 @@
         }
 
         // Initialize the page
-        fetchProducts(); // Fetch initial products
-        initializeSSE(); // Start listening for updates
+        initializeProducts();
         updateCartDisplay();
         updateAddToCartButtons();
         initializeMobileCart();
