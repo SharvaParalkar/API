@@ -10,6 +10,15 @@ app.use(express.json());
 const dbPath = path.join(__dirname, "..", "DB", "db", "filamentbros.sqlite");
 const db = new Database(dbPath);
 
+const clients = new Set();
+
+function broadcastUpdate(data) {
+  const eventData = JSON.stringify(data);
+  clients.forEach(client => {
+    client.res.write(`data: ${eventData}\n\n`);
+  });
+}
+
 // Middleware to log all requests
 app.use((req, res, next) => {
   const start = Date.now();
@@ -18,6 +27,23 @@ app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
   });
   next();
+});
+
+// SSE endpoint for filament inventory updates
+app.get("/filament/updates", (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  const client = { res };
+  clients.add(client);
+  
+  console.log(`✅ New SSE client connected for filament updates. Total clients: ${clients.size}`);
+  
+  req.on('close', () => {
+    clients.delete(client);
+    console.log(`📡 SSE client disconnected for filament updates. Total clients: ${clients.size}`);
+  });
 });
 
 // Get all filament inventory
@@ -77,6 +103,7 @@ app.post("/filament/add", (req, res) => {
     );
 
     console.log('✅ Successfully added new filament with ID:', id);
+    broadcastUpdate({ type: 'add', filamentId: id });
     res.json({ success: true, id });
   } catch (err) {
     console.error('❌ Failed to add filament:', err);
@@ -135,6 +162,7 @@ app.put("/filament/update/:id", (req, res) => {
     }
 
     console.log('✅ Successfully updated filament:', id);
+    broadcastUpdate({ type: 'update', filamentId: id });
     res.json({ success: true });
   } catch (err) {
     console.error('❌ Failed to update filament:', err);
@@ -156,6 +184,7 @@ app.delete("/filament/delete/:id", (req, res) => {
     }
 
     console.log('✅ Successfully deleted filament:', id);
+    broadcastUpdate({ type: 'delete', filamentId: id });
     res.json({ success: true });
   } catch (err) {
     console.error('❌ Failed to delete filament:', err);
