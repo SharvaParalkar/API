@@ -7035,13 +7035,120 @@
               <p>Total Checked Out: <span id="total-checked-out-${filament.id}">0</span></p>
               <p><strong>Available For Printing Now: <span id="final-available-printing-${filament.id}">${totalStock}</span></strong></p>
             </div>
+            <div class="inventory-section">
+              <button class="save-inventory-btn" data-filament-id="${filament.id}" style="padding: 0.5rem 1rem; background-color: #1f6463; color: white; border: none; border-radius: 0.3rem; cursor: pointer; width: 100%;">Save Inventory Settings</button>
+            </div>
           `;
 
           inventoryContainer.appendChild(inventoryCard);
+
+          // Load saved inventory management data for this filament
+          loadInventoryManagementData(filament.id);
         });
       } catch (error) {
         console.error('Error loading filament inventory:', error);
         alert('Failed to load filament inventory. Please try refreshing the page.');
+      }
+    }
+
+    // Load saved inventory management data
+    async function loadInventoryManagementData(filamentId) {
+      try {
+        const response = await fetch(`/dashboard/inventory-management/${filamentId}`, {
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Populate the form fields with saved data
+          const printingSplitEl = document.getElementById(`printing-split-${filamentId}`);
+          const saleSplitEl = document.getElementById(`sale-split-${filamentId}`);
+          const allocatedPrintingEl = document.getElementById(`allocated-printing-${filamentId}`);
+          const allocatedSaleEl = document.getElementById(`allocated-sale-${filamentId}`);
+
+          if (printingSplitEl) printingSplitEl.value = data.print_split || 100;
+          if (saleSplitEl) saleSplitEl.value = data.sale_split || 0;
+          if (allocatedPrintingEl) allocatedPrintingEl.value = data.allocated_printing || 0;
+          if (allocatedSaleEl) allocatedSaleEl.value = data.allocated_sale || 0;
+
+          // Load checkout data
+          const users = ['Sharva', 'Nathan', 'Evan', 'Pablo', 'Peter'];
+          users.forEach(user => {
+            const checkoutInput = document.querySelector(`[data-user="${user}"]`);
+            if (checkoutInput) {
+              const columnName = `checked_out_${user.toLowerCase()}`;
+              checkoutInput.value = data[columnName] || 0;
+            }
+          });
+
+          // Recalculate totals
+          const inventoryCard = document.querySelector(`[data-filament-id="${filamentId}"]`);
+          if (inventoryCard) {
+            updateInventoryCalculations(inventoryCard, printingSplitEl);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading inventory management data:', error);
+      }
+    }
+
+    // Save inventory management data
+    async function saveInventoryManagementData(filamentId) {
+      try {
+        const printingSplitEl = document.getElementById(`printing-split-${filamentId}`);
+        const saleSplitEl = document.getElementById(`sale-split-${filamentId}`);
+        const allocatedPrintingEl = document.getElementById(`allocated-printing-${filamentId}`);
+        const allocatedSaleEl = document.getElementById(`allocated-sale-${filamentId}`);
+        const totalCheckedOutEl = document.getElementById(`total-checked-out-${filamentId}`);
+        const finalAvailablePrintingEl = document.getElementById(`final-available-printing-${filamentId}`);
+
+        // Get checkout values
+        const users = ['Sharva', 'Nathan', 'Evan', 'Pablo', 'Peter'];
+        const checkoutData = {};
+        users.forEach(user => {
+          const checkoutInput = document.querySelector(`[data-user="${user}"]`);
+          checkoutData[`checkedOut${user}`] = parseInt(checkoutInput?.value || 0);
+        });
+
+        const requestData = {
+          filamentId: filamentId,
+          printSplit: parseInt(printingSplitEl?.value || 100),
+          saleSplit: parseInt(saleSplitEl?.value || 0),
+          allocatedPrinting: parseInt(allocatedPrintingEl?.value || 0),
+          allocatedSale: parseInt(allocatedSaleEl?.value || 0),
+          availablePrinting: parseInt(finalAvailablePrintingEl?.textContent || 0),
+          ...checkoutData
+        };
+
+        const response = await fetch('/dashboard/update-inventory-management', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(requestData)
+        });
+
+        if (response.ok) {
+          // Show success notification
+          const button = document.querySelector(`[data-filament-id="${filamentId}"].save-inventory-btn`);
+          if (button) {
+            const originalText = button.textContent;
+            button.textContent = 'Saved!';
+            button.style.backgroundColor = '#28a745';
+            setTimeout(() => {
+              button.textContent = originalText;
+              button.style.backgroundColor = '#1f6463';
+            }, 2000);
+          }
+          console.log('✅ Inventory management data saved successfully');
+        } else {
+          throw new Error('Failed to save inventory management data');
+        }
+      } catch (error) {
+        console.error('❌ Error saving inventory management data:', error);
+        alert('Failed to save inventory management data. Please try again.');
       }
     }
 
@@ -7841,8 +7948,14 @@
                   <p>Total Checked Out: <span id="total-checked-out-${filamentId}">0</span></p>
                   <p><strong>Available For Printing Now: <span id="final-available-printing-${filamentId}">${totalStock}</span></strong></p>
                 </div>
+                <div class="inventory-section">
+                  <button class="save-inventory-btn" data-filament-id="${filamentId}" style="padding: 0.5rem 1rem; background-color: #1f6463; color: white; border: none; border-radius: 0.3rem; cursor: pointer; width: 100%;">Save Inventory Settings</button>
+                </div>
               `;
               inventoryContainer.appendChild(inventoryCard);
+
+              // Load saved inventory management data for the new filament
+              setTimeout(() => loadInventoryManagementData(filamentId), 100);
             }
 
             // Clear form
@@ -7893,6 +8006,19 @@
     });
   </script>
   <script>
+    // Add event listeners for save buttons
+    document.body.addEventListener('click', function(event) {
+        if (event.target && event.target.classList.contains('save-inventory-btn')) {
+            const filamentId = event.target.dataset.filamentId;
+            if (filamentId) {
+                saveInventoryManagementData(filamentId);
+            }
+        }
+    });
+
+    // Auto-save functionality with debouncing
+    let saveTimeouts = new Map();
+    
     document.body.addEventListener('input', function(event) {
         const changedInput = event.target;
         if (changedInput.classList.contains('inventory-split-input') || 
@@ -7902,6 +8028,24 @@
             const card = changedInput.closest('.inventory-card');
             if (card) {
                 updateInventoryCalculations(card, changedInput);
+                
+                // Auto-save after 2 seconds of no changes (debounced)
+                const filamentId = card.dataset.filamentId;
+                if (filamentId) {
+                    // Clear existing timeout for this filament
+                    if (saveTimeouts.has(filamentId)) {
+                        clearTimeout(saveTimeouts.get(filamentId));
+                    }
+                    
+                    // Set new timeout
+                    const timeoutId = setTimeout(() => {
+                        console.log(`Auto-saving inventory data for filament ${filamentId}`);
+                        saveInventoryManagementData(filamentId);
+                        saveTimeouts.delete(filamentId);
+                    }, 2000);
+                    
+                    saveTimeouts.set(filamentId, timeoutId);
+                }
             }
         }
     });

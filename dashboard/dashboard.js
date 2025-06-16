@@ -1719,6 +1719,105 @@ app.delete("/dashboard/order/:orderId", requireLogin, (req, res) => {
   }
 });
 
+// Inventory management API endpoints
+app.post("/dashboard/update-inventory-management", requireLogin, (req, res) => {
+  try {
+    const { 
+      filamentId, 
+      printSplit, 
+      saleSplit, 
+      allocatedPrinting, 
+      allocatedSale, 
+      checkedOutSharva,
+      checkedOutNathan,
+      checkedOutEvan,
+      checkedOutPablo,
+      checkedOutPeter,
+      availablePrinting
+    } = req.body;
+    
+    if (!filamentId) {
+      return res.status(400).json({ error: "Filament ID is required" });
+    }
+
+    // Update the inventory management data
+    const stmt = db.prepare(`
+      UPDATE filament_inventory 
+      SET 
+        print_split = ?,
+        sale_split = ?,
+        allocated_printing = ?,
+        allocated_sale = ?,
+        checked_out_sharva = ?,
+        checked_out_nathan = ?,
+        checked_out_evan = ?,
+        checked_out_pablo = ?,
+        checked_out_peter = ?,
+        available_for_printing = ?
+      WHERE id = ?
+    `);
+    
+    const result = stmt.run(
+      printSplit || 100,
+      saleSplit || 0,
+      allocatedPrinting || 0,
+      allocatedSale || 0,
+      checkedOutSharva || 0,
+      checkedOutNathan || 0,
+      checkedOutEvan || 0,
+      checkedOutPablo || 0,
+      checkedOutPeter || 0,
+      availablePrinting || 0,
+      filamentId
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Filament not found" });
+    }
+
+    console.log(`✅ Updated inventory management for filament ${filamentId}`);
+    res.json({ success: true, message: "Inventory management updated successfully" });
+
+  } catch (err) {
+    console.error("❌ Error updating inventory management:", err);
+    res.status(500).json({ error: "Failed to update inventory management" });
+  }
+});
+
+app.get("/dashboard/inventory-management/:filamentId", requireLogin, (req, res) => {
+  try {
+    const { filamentId } = req.params;
+    
+    const stmt = db.prepare(`
+      SELECT 
+        print_split,
+        sale_split,
+        allocated_printing,
+        allocated_sale,
+        checked_out_sharva,
+        checked_out_nathan,
+        checked_out_evan,
+        checked_out_pablo,
+        checked_out_peter,
+        available_for_printing
+      FROM filament_inventory 
+      WHERE id = ?
+    `);
+    
+    const data = stmt.get(filamentId);
+    
+    if (!data) {
+      return res.status(404).json({ error: "Filament not found" });
+    }
+
+    res.json(data);
+
+  } catch (err) {
+    console.error("❌ Error fetching inventory management:", err);
+    res.status(500).json({ error: "Failed to fetch inventory management" });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err);
