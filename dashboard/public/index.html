@@ -3864,10 +3864,6 @@
       // Log for debugging
       console.log(`🎨 Applying status color: "${status}" -> "${normalizedStatus}"`);
       
-      // Apply the color based on status
-      dropdown.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue(`--status-${normalizedStatus}-bg`) || '#eee';
-      dropdown.style.color = getComputedStyle(document.documentElement).getPropertyValue(`--status-${normalizedStatus}-text`) || '#333';
-      
       // Ensure option text is visible by explicitly setting option colors
       Array.from(dropdown.options).forEach(option => {
         option.style.color = '#000';
@@ -6754,12 +6750,6 @@
     // Handle coupon updates from SSE
     function handleCouponUpdate(update) {
       console.log('🎫 Processing coupon update:', update);
-      
-      // Only update if we're currently on the coupon tab
-      if (state.currentTab !== 'coupon') {
-        console.log('🎫 Ignoring coupon update - not on coupon tab');
-        return;
-      }
 
       switch (update.type) {
         case 'create':
@@ -6767,7 +6757,11 @@
           if (!state.coupons.find(c => c.code === update.coupon.code)) {
             console.log('✅ Adding new coupon to state:', update.coupon.code);
             state.coupons.unshift(update.coupon);
-            renderCoupons(state.coupons);
+            
+            // Only render if we're on the coupon tab
+            if (state.currentTab === 'coupon') {
+              renderCoupons(state.coupons);
+            }
             
             // Show notification if created by someone else
             if (update.createdBy !== state.currentUser) {
@@ -6783,7 +6777,11 @@
           const updateIndex = state.coupons.findIndex(c => c.code === update.coupon.code);
           if (updateIndex !== -1) {
             state.coupons[updateIndex] = update.coupon;
-            renderCoupons(state.coupons);
+            
+            // Only render if we're on the coupon tab
+            if (state.currentTab === 'coupon') {
+              renderCoupons(state.coupons);
+            }
             
             // Show notification if updated by someone else
             if (update.updatedBy !== state.currentUser) {
@@ -6793,9 +6791,13 @@
           break;
 
         case 'delete':
-          // Remove deleted coupon
+          // Remove deleted coupon from state (always update state)
           state.coupons = state.coupons.filter(c => c.code !== update.code);
-          renderCoupons(state.coupons);
+          
+          // Only render if we're on the coupon tab
+          if (state.currentTab === 'coupon') {
+            renderCoupons(state.coupons);
+          }
           
           // Show notification if deleted by someone else
           if (update.deletedBy !== state.currentUser) {
@@ -8097,43 +8099,6 @@
             finalAvailablePrintingEl.textContent = data.available_printing;
         }
 
-        // Show a subtle update indicator
-        showUpdateIndicator(inventoryCard);
-    }
-
-    function showUpdateIndicator(card) {
-        // Remove any existing indicators
-        const existingIndicator = card.querySelector('.update-indicator');
-        if (existingIndicator) {
-            existingIndicator.remove();
-        }
-
-        // Create new indicator
-        const indicator = document.createElement('div');
-        indicator.className = 'update-indicator';
-        indicator.style.cssText = `
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            z-index: 10;
-            background-color: #2196F3;
-            color: white;
-        `;
-        indicator.textContent = '⟳ Updated';
-        
-        card.style.position = 'relative';
-        card.appendChild(indicator);
-
-        // Remove indicator after 2 seconds
-        setTimeout(() => {
-            if (indicator.parentNode) {
-                indicator.remove();
-            }
-        }, 2000);
     }
 
     function updateInventoryCalculations(inventoryCard, changedInput) {
