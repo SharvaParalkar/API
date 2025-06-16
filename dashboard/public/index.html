@@ -2524,6 +2524,12 @@
 
   <div class="grid" id="orderGrid"></div>
 
+  <div id="filamentContainer" style="display: none;"></div>
+
+  <div id="couponContainer" style="display: none;">
+    <!-- Coupon management UI will be rendered here -->
+  </div>
+
   <script>
     // Constants
     const REFRESH_INTERVAL = 10000; // 10 seconds
@@ -3622,16 +3628,19 @@
       // Tab click handlers
       const allTab = document.getElementById("tabAll");
       const claimedTab = document.getElementById("tabClaimed");
+      const filamentTab = document.getElementById("tabFilament");
       const couponTab = document.getElementById("tabCoupon");
       const analyticsTab = document.getElementById("tabAnalytics");
 
       console.log('🔍 Found tab elements:', { 
         allTab: !!allTab, 
         claimedTab: !!claimedTab,
+        filamentTab: !!filamentTab,
         couponTab: !!couponTab,
         analyticsTab: !!analyticsTab,
         allTabVisible: allTab ? getComputedStyle(allTab).display !== 'none' : false,
         claimedTabVisible: claimedTab ? getComputedStyle(claimedTab).display !== 'none' : false,
+        filamentTabVisible: filamentTab ? getComputedStyle(filamentTab).display !== 'none' : false,
         couponTabVisible: couponTab ? getComputedStyle(couponTab).display !== 'none' : false,
         analyticsTabVisible: analyticsTab ? getComputedStyle(analyticsTab).display !== 'none' : false
       });
@@ -3694,6 +3703,7 @@
         console.log('🔍 Verifying onclick handlers after setup:', {
           allTabHandler: allTab ? typeof allTab.onclick : 'tab not found',
           claimedTabHandler: claimedTab ? typeof claimedTab.onclick : 'tab not found',
+          filamentTabHandler: filamentTab ? typeof filamentTab.onclick : 'tab not found',
           couponTabHandler: couponTab ? typeof couponTab.onclick : 'tab not found',
           analyticsTabHandler: analyticsTab ? typeof analyticsTab.onclick : 'tab not found'
         });
@@ -5122,91 +5132,23 @@
       if (staffNotesEditor && updatedOrder.order_notes !== undefined) {
         // Only update if the editor is not currently focused (being edited)
         const isEditorFocused = staffNotesEditor === document.activeElement;
-        const currentValue = staffNotesEditor.value;
         
         if (!isEditorFocused) {
-          staffNotesEditor.value = updatedOrder.order_notes || '';
-          staffNotesEditor.dataset.previousValue = updatedOrder.order_notes || '';
+          staffNotesEditor.value = order.order_notes || '';
+          staffNotesEditor.dataset.previousValue = order.order_notes || '';
         }
 
-        // Ensure the editor remains editable
-        staffNotesEditor.disabled = false;
-        staffNotesEditor.readOnly = false;
-
-        // Reset save button state
+        // Update save button state
+        const saveNotesBtn = orderCard.querySelector('.save-notes-btn');
         if (saveNotesBtn) {
-          const hasChanges = currentValue !== (updatedOrder.order_notes || '');
-          saveNotesBtn.disabled = !hasChanges;
+          const currentValue = staffNotesEditor.value;
+          const hasChanges = currentValue !== (order.order_notes || '');
           
-          if (hasChanges) {
-            saveNotesBtn.textContent = "Save Notes";
-            saveNotesBtn.style.backgroundColor = "#1f6463";
-            saveNotesBtn.style.cursor = "pointer";
-          } else {
-            saveNotesBtn.textContent = "No Changes";
-            saveNotesBtn.style.backgroundColor = "#ccc";
-            saveNotesBtn.style.cursor = "not-allowed";
-          }
+          saveNotesBtn.disabled = !hasChanges;
+          saveNotesBtn.textContent = hasChanges ? "Save Notes" : "No Changes";
+          saveNotesBtn.style.backgroundColor = hasChanges ? "#1f6463" : "#ccc";
+          saveNotesBtn.style.cursor = hasChanges ? "pointer" : "not-allowed";
         }
-
-        // Reattach event listeners
-        const reattachListeners = (editor, saveBtn) => {
-          // Clear existing listeners
-          const newEditor = editor.cloneNode(true);
-          editor.parentNode.replaceChild(newEditor, editor);
-
-          // Add input event listener
-          newEditor.addEventListener('input', () => {
-            const currentValue = newEditor.value;
-            const previousValue = newEditor.dataset.previousValue || '';
-            const hasChanges = currentValue !== previousValue;
-            
-            if (saveBtn) {
-              saveBtn.disabled = !hasChanges;
-              if (hasChanges) {
-                saveBtn.textContent = "Save Notes";
-                saveBtn.style.backgroundColor = "#1f6463";
-                saveBtn.style.cursor = "pointer";
-              } else {
-                saveBtn.textContent = "No Changes";
-                saveBtn.style.backgroundColor = "#ccc";
-                saveBtn.style.cursor = "not-allowed";
-              }
-            }
-          });
-
-          // Handle paste and cut events
-          ['paste', 'cut'].forEach(eventName => {
-            newEditor.addEventListener(eventName, () => {
-              setTimeout(() => newEditor.dispatchEvent(new Event('input')), 0);
-            });
-          });
-
-          // Add Ctrl+Enter / Cmd+Enter save shortcut
-          newEditor.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !saveNotesBtn.disabled) {
-              e.preventDefault();
-              saveNotesBtn.click();
-            }
-          });
-
-          // Update save button click handler
-          if (saveBtn) {
-            const newSaveBtn = saveBtn.cloneNode(true);
-            saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-            
-            newSaveBtn.addEventListener('click', () => {
-              if (newEditor.value !== newEditor.dataset.previousValue) {
-                saveStaffNotes(updatedOrder.id, newEditor.value, newEditor, newSaveBtn);
-              }
-            });
-          }
-
-          return newEditor;
-        };
-
-        // Reattach all listeners
-        staffNotesEditor = reattachListeners(staffNotesEditor, saveNotesBtn);
       }
 
       // Store the current state of the staff notes and details section
@@ -6873,19 +6815,15 @@
       if(analyticsContainer) analyticsContainer.style.display = "none";
       const couponContainer = document.getElementById("couponContainer");
       if(couponContainer) couponContainer.style.display = "none";
-      const orderGrid = document.getElementById("orderGrid");
-      if(orderGrid) orderGrid.style.display = "none";
-      const searchBar = document.querySelector(".search-bar-flex");
-      if(searchBar) searchBar.style.display = "none";
+      document.getElementById("orderGrid").style.display = "none";
+      document.querySelector(".search-bar-flex").style.display = "none";
       
       // Show filament container
       let filamentContainer = document.getElementById("filamentContainer");
-      if (!filamentContainer) {
-        filamentContainer = document.createElement("div");
-        filamentContainer.id = "filamentContainer";
-        document.body.appendChild(filamentContainer);
+      if (filamentContainer) {
+        filamentContainer.style.display = "block";
+        filamentContainer.innerHTML = '<h1>Filament</h1>';
       }
-      filamentContainer.style.display = "block";
     }
 
     // Update tab click handlers
