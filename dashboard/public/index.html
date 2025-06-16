@@ -2473,6 +2473,16 @@
       display: inline-block;
       vertical-align: middle;
     }
+
+    /* Styles specifically for the Filament Tab content */
+    #filament-cards-container .card {
+      border: 1px solid #e0e0e0;
+      padding: 1.5rem;
+      margin: 0; /* The grid gap will handle spacing */
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem; /* Space between items inside the card */
+    }
   </style>
 </head>
 
@@ -6788,7 +6798,26 @@
       const filamentContainer = document.getElementById("filamentContainer");
       if (filamentContainer) {
         filamentContainer.style.display = "block";
-        filamentContainer.innerHTML = '<h1>Filament</h1>'; // Placeholder content
+        filamentContainer.innerHTML = `
+          <h1>Filament Inventory</h1>
+          <div id="filament-form" style="margin-bottom: 2rem; background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+            <h3 style="margin-top: 0; color: #1f6463;">Add New Filament</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <input type="text" id="filament-image-url" placeholder="Image URL" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+              <input type="text" id="filament-material-type" placeholder="Material Type" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+              <input type="text" id="filament-color" placeholder="Filament Color" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+              <select id="filament-weight" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+                <option value="1000">1kg</option>
+                <option value="3000">3kg</option>
+                <option value="5000">5kg</option>
+              </select>
+              <input type="number" id="filament-price" placeholder="Price" step="0.01" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+              <input type="number" id="filament-stock" placeholder="Stock" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+            </div>
+            <button id="add-filament-card-btn" style="margin-top: 1rem; padding: 0.75rem 1.5rem; background-color: #1f6463; color: white; border: none; border-radius: 0.5rem; cursor: pointer;">Add Filament Card</button>
+          </div>
+          <div id="filament-cards-container" class="grid"></div>
+        `;
       }
     }
 
@@ -6827,7 +6856,26 @@
         case 'filament':
           if (filamentContainer) {
             filamentContainer.style.display = "block";
-            filamentContainer.innerHTML = '<h1>Filament</h1>'; // Placeholder content
+            filamentContainer.innerHTML = `
+              <h1>Filament Inventory</h1>
+              <div id="filament-form" style="margin-bottom: 2rem; background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                <h3 style="margin-top: 0; color: #1f6463;">Add New Filament</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                  <input type="text" id="filament-image-url" placeholder="Image URL" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+                  <input type="text" id="filament-material-type" placeholder="Material Type" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+                  <input type="text" id="filament-color" placeholder="Filament Color" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+                  <select id="filament-weight" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+                    <option value="1000">1kg</option>
+                    <option value="3000">3kg</option>
+                    <option value="5000">5kg</option>
+                  </select>
+                  <input type="number" id="filament-price" placeholder="Price" step="0.01" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+                  <input type="number" id="filament-stock" placeholder="Stock" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
+                </div>
+                <button id="add-filament-card-btn" style="margin-top: 1rem; padding: 0.75rem 1.5rem; background-color: #1f6463; color: white; border: none; border-radius: 0.5rem; cursor: pointer;">Add Filament Card</button>
+              </div>
+              <div id="filament-cards-container" class="grid"></div>
+            `;
           }
           break;
       }
@@ -7490,6 +7538,68 @@
     </div>
   </div>
 
+  <script>
+    // This script handles the functionality for the dynamic Filament tab
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.addEventListener('click', function(event) {
+        if (event.target && event.target.id === 'add-filament-card-btn') {
+          const imageUrl = document.getElementById('filament-image-url').value;
+          const materialType = document.getElementById('filament-material-type').value;
+          const color = document.getElementById('filament-color').value;
+          const weightGrams = document.getElementById('filament-weight').value;
+          const price = document.getElementById('filament-price').value;
+          const stock = document.getElementById('filament-stock').value;
+
+          if (!materialType || !color || !price || !stock) {
+            alert('Please fill out all fields except Image URL.');
+            return;
+          }
+
+          const container = document.getElementById('filament-cards-container');
+          if (!container) {
+            console.error('Filament cards container not found!');
+            return;
+          }
+
+          const card = document.createElement('div');
+          card.className = 'card';
+
+          const weightKg = parseInt(weightGrams) / 1000;
+
+          card.innerHTML = `
+            <img src="${imageUrl}" alt="${materialType} ${color}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 0.5rem; margin-bottom: 1rem;" onerror="this.style.display='none'">
+            <h2 style="margin-top:0;">${materialType} - ${color}</h2>
+            <div class="details-table" style="border-spacing: 0 0.5rem;">
+                <table>
+                    <tbody>
+                        <tr><td>Weight:</td><td><strong>${weightKg}kg</strong></td></tr>
+                        <tr><td>Price:</td><td><strong>$${parseFloat(price).toFixed(2)}</strong></td></tr>
+                        <tr><td>Stock:</td><td><strong>${stock} units</strong></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <button class="action-button delete-filament-btn" style="background-color: #ff4444; color: white; margin-top: 1rem;">Delete</button>
+          `;
+
+          container.appendChild(card);
+
+          document.getElementById('filament-image-url').value = '';
+          document.getElementById('filament-material-type').value = '';
+          document.getElementById('filament-color').value = '';
+          document.getElementById('filament-weight').value = '1000';
+          document.getElementById('filament-price').value = '';
+          document.getElementById('filament-stock').value = '';
+        }
+
+        if (event.target && event.target.classList.contains('delete-filament-btn')) {
+          const cardToRemove = event.target.closest('.card');
+          if (cardToRemove) {
+            cardToRemove.remove();
+          }
+        }
+      });
+    });
+  </script>
 </body>
 
 </html>      
