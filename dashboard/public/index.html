@@ -6809,7 +6809,8 @@
           </div>
         `;
 
-        // Load existing filament inventory
+        // Initialize SSE and load existing filament inventory
+        initializeFilamentSSE();
         loadFilamentInventory();
       }
     }
@@ -6855,7 +6856,7 @@
     // Function to load existing filament inventory
     async function loadFilamentInventory() {
       try {
-        const response = await fetch('https://api.filamentbros.com/filament/inventory');
+        const response = await fetch('/filament/inventory');
         if (!response.ok) {
           throw new Error('Failed to fetch filament inventory');
         }
