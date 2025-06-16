@@ -772,36 +772,65 @@
         let cart = JSON.parse(localStorage.getItem('cart')) || [];
         let products = []; // Will be populated from server
 
+        // Configure API endpoints
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3400'
+            : `${window.location.protocol}//${window.location.host}`; // This will work with Cloudflare Tunnels
+
         // Initialize SSE connection for real-time updates
         function initializeSSE() {
-            const eventSource = new EventSource('http://localhost:3400/filament/updates');
-            
-            eventSource.onmessage = function(event) {
-                const update = JSON.parse(event.data);
-                
-                if (update.type === 'add' || update.type === 'update') {
-                    // Refresh products when inventory changes
-                    fetchProducts();
-                } else if (update.type === 'delete') {
-                    // Remove product if it exists
-                    products = products.filter(p => p.id !== update.filamentId);
-                    initializeProducts();
-                    updateCartDisplay();
-                }
-            };
+            let retryCount = 0;
+            const maxRetries = 5;
+            const retryDelay = 5000; // 5 seconds
 
-            eventSource.onerror = function(error) {
-                console.error('SSE connection error:', error);
-                // Attempt to reconnect after 5 seconds
-                setTimeout(() => initializeSSE(), 5000);
-            };
+            function connect() {
+                const eventSource = new EventSource(`${API_BASE_URL}/filament/updates`);
+                
+                eventSource.onopen = function() {
+                    console.log('SSE connection established');
+                    retryCount = 0; // Reset retry count on successful connection
+                };
+                
+                eventSource.onmessage = function(event) {
+                    const update = JSON.parse(event.data);
+                    
+                    if (update.type === 'add' || update.type === 'update') {
+                        // Refresh products when inventory changes
+                        fetchProducts();
+                    } else if (update.type === 'delete') {
+                        // Remove product if it exists
+                        products = products.filter(p => p.id !== update.filamentId);
+                        initializeProducts();
+                        updateCartDisplay();
+                    }
+                };
+
+                eventSource.onerror = function(error) {
+                    console.warn('SSE connection error:', error);
+                    eventSource.close();
+                    
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        console.log(`Retrying SSE connection in ${retryDelay/1000} seconds... (Attempt ${retryCount}/${maxRetries})`);
+                        setTimeout(connect, retryDelay);
+                    } else {
+                        console.error('Max SSE connection retries reached. Real-time updates disabled.');
+                        // Fallback to periodic polling
+                        setInterval(fetchProducts, 30000); // Poll every 30 seconds
+                    }
+                };
+            }
+
+            connect();
         }
 
         // Fetch products from server
         async function fetchProducts() {
             try {
-                const response = await fetch('http://localhost:3400/filament/inventory');
-                if (!response.ok) throw new Error('Failed to fetch inventory');
+                const response = await fetch(`${API_BASE_URL}/filament/inventory`);
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
                 
                 const inventory = await response.json();
                 products = inventory.map(item => ({
@@ -818,6 +847,18 @@
                 updateCartDisplay();
             } catch (error) {
                 console.error('Error fetching products:', error);
+                // Show error message to user
+                const productsGrid = document.querySelector('.products-grid');
+                productsGrid.innerHTML = `
+                    <div style="text-align: center; grid-column: 1/-1; padding: 2rem;">
+                        <p style="color: #e74c3c; margin-bottom: 1rem;">
+                            Unable to load filament inventory. Please try again later.
+                        </p>
+                        <button onclick="fetchProducts()" style="padding: 0.5rem 1rem; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            Retry
+                        </button>
+                    </div>
+                `;
             }
         }
 
