@@ -6800,7 +6800,7 @@
         filamentContainer.style.display = "block";
         filamentContainer.innerHTML = `
           <h1>Filament Inventory</h1>
-          <div id="filament-form" style="margin-bottom: 2rem; background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+          <div id="filament-form" style="max-width: 800px; margin: 0 auto 2rem auto; background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
             <h3 style="margin-top: 0; color: #1f6463;">Add New Filament</h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
               <input type="text" id="filament-image-url" placeholder="Image URL" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
@@ -6858,7 +6858,7 @@
             filamentContainer.style.display = "block";
             filamentContainer.innerHTML = `
               <h1>Filament Inventory</h1>
-              <div id="filament-form" style="margin-bottom: 2rem; background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+              <div id="filament-form" style="max-width: 800px; margin: 0 auto 2rem auto; background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
                 <h3 style="margin-top: 0; color: #1f6463;">Add New Filament</h3>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                   <input type="text" id="filament-image-url" placeholder="Image URL" style="padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem;">
@@ -7567,18 +7567,19 @@
           const weightKg = parseInt(weightGrams) / 1000;
 
           card.innerHTML = `
-            <img src="${imageUrl}" alt="${materialType} ${color}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 0.5rem; margin-bottom: 1rem;" onerror="this.style.display='none'">
-            <h2 style="margin-top:0;">${materialType} - ${color}</h2>
+            <img src="${imageUrl}" alt="${materialType} ${color}" style="width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 0.5rem;" onerror="this.style.display='none'">
             <div class="details-table" style="border-spacing: 0 0.5rem;">
                 <table>
                     <tbody>
+                        <tr><td>Material:</td><td><strong>${materialType}</strong></td></tr>
+                        <tr><td>Color:</td><td><strong>${color}</strong></td></tr>
                         <tr><td>Weight:</td><td><strong>${weightKg}kg</strong></td></tr>
                         <tr><td>Price:</td><td><strong>$${parseFloat(price).toFixed(2)}</strong></td></tr>
                         <tr><td>Stock:</td><td><strong>${stock} units</strong></td></tr>
                     </tbody>
                 </table>
             </div>
-            <button class="action-button delete-filament-btn" style="background-color: #ff4444; color: white; margin-top: 1rem;">Delete</button>
+            <button class="action-button delete-filament-btn" style="background-color: #ff4444; color: white; margin-top: auto;">Delete</button>
           `;
 
           container.appendChild(card);
