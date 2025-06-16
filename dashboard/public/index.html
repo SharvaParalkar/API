@@ -2534,6 +2534,47 @@
       border-radius: 0.5rem;
       cursor: pointer;
     }
+
+    .inventory-management-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .inventory-card .inventory-section {
+      margin-bottom: 1rem;
+      border-top: 1px solid #eee;
+      padding-top: 1rem;
+    }
+
+    .inventory-card h3,
+    .inventory-card h4 {
+      color: #1f6463;
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+    }
+
+    .inventory-split-row,
+    .checkout-user-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .inventory-split-row input {
+      width: 60px;
+    }
+
+    .checkout-user-row label {
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .checkout-user-row input {
+      width: 60px;
+    }
   </style>
 </head>
 
@@ -6867,7 +6908,17 @@
             </div>
             <button id="add-filament-card-btn" class="add-filament-btn">Add Filament Card</button>
           </div>
-          <div id="filament-cards-container" class="grid"></div>
+          
+          <div class="inventory-management-container">
+            <div>
+              <h2 style="text-align: center;">Available Filaments</h2>
+              <div id="filament-cards-container" class="grid"></div>
+            </div>
+            <div>
+              <h2 style="text-align: center;">Inventory Management</h2>
+              <div id="inventory-cards-container" class="grid"></div>
+            </div>
+          </div>
         `;
       }
     }
@@ -7615,6 +7666,50 @@
 
           container.appendChild(card);
 
+          // Add inventory management card
+          const inventoryContainer = document.getElementById('inventory-cards-container');
+          if (inventoryContainer) {
+            const filamentId = (materialType + '-' + color).replace(/[^a-zA-Z0-9-_]/g, '');
+            const totalStock = parseInt(stock) || 0;
+
+            const inventoryCard = document.createElement('div');
+            inventoryCard.className = 'card inventory-card';
+            inventoryCard.setAttribute('data-filament-id', filamentId);
+            inventoryCard.setAttribute('data-total-stock', totalStock);
+
+            inventoryCard.innerHTML = `
+              <h3>${materialType} - ${color}</h3>
+              <div class="inventory-section">
+                <h4>Inventory Split (Total: ${totalStock} units)</h4>
+                <div class="inventory-split-row">
+                  <label for="internal-split-${filamentId}">Internal</label>
+                  <input type="number" id="internal-split-${filamentId}" class="inventory-split-input" data-pair-id="external-split-${filamentId}" min="0" max="100" value="100">%
+                  <label for="external-split-${filamentId}">External</label>
+                  <input type="number" id="external-split-${filamentId}" class="inventory-split-input" data-pair-id="internal-split-${filamentId}" min="0" max="100" value="0">%
+                </div>
+              </div>
+              <div class="inventory-section">
+                <h4>Availability</h4>
+                <p>Internal: <span id="available-internal-${filamentId}">${totalStock}</span> units</p>
+                <p>External: <span id="available-external-${filamentId}">0</span> units</p>
+              </div>
+              <div class="inventory-section">
+                <h4>Checked Out by User (Internal)</h4>
+                <div class="checkout-user-list">
+                  ${['Sharva', 'Nathan', 'Evan', 'Pablo', 'Peter'].map(user => `
+                    <div class="checkout-user-row">
+                      <label>${user}:</label>
+                      <input type="number" class="checkout-input" min="0" value="0" data-user="${user}">
+                    </div>
+                  `).join('')}
+                </div>
+                <p>Total Checked Out: <span id="total-checked-out-${filamentId}">0</span></p>
+              </div>
+            `;
+            inventoryContainer.appendChild(inventoryCard);
+          }
+
+
           document.getElementById('filament-image-url').value = '';
           document.getElementById('filament-material-type').value = '';
           document.getElementById('filament-color').value = '';
@@ -7631,6 +7726,72 @@
         }
       });
     });
+  </script>
+  <script>
+    document.body.addEventListener('input', function(event) {
+      if (event.target.classList.contains('inventory-split-input')) {
+        const input = event.target;
+        const pairedInput = document.getElementById(input.dataset.pairId);
+        let value = parseInt(input.value) || 0;
+        if (value > 100) value = 100;
+        if (value < 0) value = 0;
+        input.value = value;
+        if (document.activeElement === input) {
+            pairedInput.value = 100 - value;
+        }
+
+        const card = input.closest('.inventory-card');
+        if (card) {
+          updateInventoryCalculations(card);
+        }
+      }
+
+      if (event.target.classList.contains('checkout-input')) {
+        const input = event.target;
+        const card = input.closest('.inventory-card');
+        if (card) {
+          const filamentId = card.dataset.filamentId;
+          const totalStock = parseInt(card.dataset.totalStock);
+          const internalSplit = parseInt(document.getElementById(`internal-split-${filamentId}`).value) || 0;
+          const internalStock = Math.round(totalStock * (internalSplit / 100));
+
+          let totalCheckedOut = 0;
+          card.querySelectorAll('.checkout-input').forEach(i => {
+            totalCheckedOut += parseInt(i.value) || 0;
+          });
+
+          if (totalCheckedOut > internalStock) {
+            const oldValue = parseInt(input.value) || 0;
+            const diff = totalCheckedOut - internalStock;
+            input.value = oldValue - diff < 0 ? 0 : oldValue - diff;
+          }
+
+          updateInventoryCalculations(card);
+        }
+      }
+    });
+
+    function updateInventoryCalculations(inventoryCard) {
+      const filamentId = inventoryCard.dataset.filamentId;
+      const totalStock = parseInt(inventoryCard.dataset.totalStock);
+      const internalSplitInput = document.getElementById(`internal-split-${filamentId}`);
+      if (!internalSplitInput) return;
+
+      const internalSplit = parseInt(internalSplitInput.value) || 0;
+      const internalStock = Math.round(totalStock * (internalSplit / 100));
+      const externalStock = totalStock - internalStock;
+
+      let totalCheckedOut = 0;
+      inventoryCard.querySelectorAll('.checkout-input').forEach(input => {
+        totalCheckedOut += parseInt(input.value) || 0;
+      });
+
+      const availableInternal = internalStock - totalCheckedOut;
+
+      document.getElementById(`available-internal-${filamentId}`).textContent = availableInternal;
+      document.getElementById(`available-external-${filamentId}`).textContent = externalStock;
+      document.getElementById(`total-checked-out-${filamentId}`).textContent = totalCheckedOut;
+    }
   </script>
 </body>
 
