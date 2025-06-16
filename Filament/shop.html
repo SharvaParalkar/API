@@ -774,18 +774,26 @@
 
         // Initialize EventSource
         function initializeEventSource() {
+            console.log('Initializing EventSource connection...');
             const evtSource = new EventSource('https://api.filamentbros.com/filament/updates');
             
             evtSource.onmessage = function(event) {
+                console.log('Received update:', event.data);
                 const update = JSON.parse(event.data);
                 if (update.type === 'add' || update.type === 'update' || update.type === 'delete') {
+                    console.log('Processing update type:', update.type);
                     fetchProducts();
                 }
+            };
+
+            evtSource.onopen = function() {
+                console.log('EventSource connection established');
             };
 
             evtSource.onerror = function(err) {
                 console.error('EventSource failed:', err);
                 setTimeout(() => {
+                    console.log('Attempting to reconnect...');
                     evtSource.close();
                     initializeEventSource();
                 }, 5000);
@@ -797,10 +805,13 @@
         // Fetch products from API
         async function fetchProducts() {
             try {
+                console.log('Fetching products...');
                 const response = await fetch('https://api.filamentbros.com/filament/inventory');
                 if (!response.ok) throw new Error('Failed to fetch inventory');
                 
                 const inventory = await response.json();
+                console.log('Received inventory:', inventory);
+                
                 // Filter out items with zero stock
                 products = inventory
                     .filter(item => item.allocated_sale > 0)
@@ -814,6 +825,7 @@
                         image: item.image_url || null
                     }));
                 
+                console.log('Processed products:', products);
                 initializeProducts();
                 updateCartDisplay();
                 updateAddToCartButtons();
@@ -824,38 +836,74 @@
 
         // Initialize the products grid
         function initializeProducts() {
+            console.log('Initializing products grid...');
             const productsGrid = document.querySelector('.products-grid');
-            productsGrid.innerHTML = products.map(product => `
-                <div class="product-card" data-product-id="${product.id}">
-                    ${product.image ? 
-                        `<img src="${product.image}" alt="${product.material} ${product.color}" class="product-image" onerror="this.src='https://m.media-amazon.com/images/I/61vd1GHtF9L._AC_UF894,1000_QL80_.jpg'">` :
-                        `<img src="https://m.media-amazon.com/images/I/61vd1GHtF9L._AC_UF894,1000_QL80_.jpg" alt="${product.material} ${product.color}" class="product-image">`
-                    }
-                    <div class="product-info">
-                        <h3 class="product-material">${product.material}</h3>
-                        <p class="product-color">Color: ${product.color}</p>
-                        <p class="product-weight">Weight: ${product.weight}</p>
-                        <p class="product-price">$${product.price.toFixed(2)}</p>
-                        <p class="product-stock">In Stock: ${product.stock}</p>
-                        <div class="quantity-selector">
-                            <button class="quantity-btn minus" onclick="updateQuantity(${product.id}, 'decrease')">-</button>
-                            <span class="quantity-display" id="quantity-${product.id}">1</span>
-                            <button class="quantity-btn plus" onclick="updateQuantity(${product.id}, 'increase')">+</button>
+            productsGrid.innerHTML = products.map(product => {
+                console.log('Processing product:', product);
+                return `
+                    <div class="product-card" data-product-id="${product.id}">
+                        <div class="product-image-container" style="position: relative; width: 100%; padding-bottom: 100%; margin: 1rem;">
+                            <img 
+                                src="${product.image || 'https://m.media-amazon.com/images/I/61vd1GHtF9L._AC_UF894,1000_QL80_.jpg'}" 
+                                alt="${product.material} ${product.color}" 
+                                class="product-image" 
+                                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 16px;"
+                                onerror="this.src='https://m.media-amazon.com/images/I/61vd1GHtF9L._AC_UF894,1000_QL80_.jpg'"
+                            >
                         </div>
-                        <button class="add-to-cart-btn" onclick="addToCart(${product.id})">
-                            Add to Cart
-                        </button>
+                        <div class="product-info">
+                            <h3 class="product-material">${product.material}</h3>
+                            <p class="product-color">Color: ${product.color}</p>
+                            <p class="product-weight">Weight: ${product.weight}</p>
+                            <p class="product-price">$${product.price.toFixed(2)}</p>
+                            <p class="product-stock">In Stock: ${product.stock}</p>
+                            <div class="quantity-selector">
+                                <button class="quantity-btn minus" type="button" onclick="event.preventDefault(); updateQuantity(${product.id}, 'decrease');">-</button>
+                                <span class="quantity-display" id="quantity-${product.id}">1</span>
+                                <button class="quantity-btn plus" type="button" onclick="event.preventDefault(); updateQuantity(${product.id}, 'increase');">+</button>
+                            </div>
+                            <button class="add-to-cart-btn" type="button" onclick="event.preventDefault(); addToCart(${product.id});">
+                                Add to Cart
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
+            
+            // Add direct event listeners
+            document.querySelectorAll('.quantity-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const productId = parseInt(this.closest('.product-card').dataset.productId);
+                    const action = this.classList.contains('plus') ? 'increase' : 'decrease';
+                    updateQuantity(productId, action);
+                });
+            });
+
+            document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const productId = parseInt(this.closest('.product-card').dataset.productId);
+                    addToCart(productId);
+                });
+            });
         }
 
         // Update quantity
         function updateQuantity(productId, action) {
+            console.log('Updating quantity:', productId, action);
             const product = products.find(p => p.id === productId);
-            if (!product) return;
+            if (!product) {
+                console.error('Product not found:', productId);
+                return;
+            }
 
             const quantityElement = document.getElementById(`quantity-${productId}`);
+            if (!quantityElement) {
+                console.error('Quantity element not found for product:', productId);
+                return;
+            }
+
             let quantity = parseInt(quantityElement.textContent);
             
             if (action === 'increase' && quantity < product.stock) {
@@ -864,16 +912,26 @@
                 quantity--;
             }
             
+            console.log('New quantity:', quantity);
             quantityElement.textContent = quantity;
         }
 
         // Add to cart
         function addToCart(productId) {
+            console.log('Adding to cart:', productId);
             const product = products.find(p => p.id === productId);
-            if (!product) return;
+            if (!product) {
+                console.error('Product not found:', productId);
+                return;
+            }
 
-            const quantity = parseInt(document.getElementById(`quantity-${productId}`).textContent);
-            
+            const quantityElement = document.getElementById(`quantity-${productId}`);
+            if (!quantityElement) {
+                console.error('Quantity element not found for product:', productId);
+                return;
+            }
+
+            const quantity = parseInt(quantityElement.textContent);
             const existingItem = cart.find(item => item.id === productId);
             const totalQuantity = existingItem ? existingItem.quantity + quantity : quantity;
             
@@ -891,6 +949,7 @@
                 });
             }
             
+            console.log('Updated cart:', cart);
             localStorage.setItem('cart', JSON.stringify(cart));
             updateCartDisplay();
             updateAddToCartButtons();
