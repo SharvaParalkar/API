@@ -1839,6 +1839,11 @@
         margin: 0;
       }
       
+      .coupon-layout {
+        gap: 1rem;
+        display: block;
+      }
+      
       .coupon-header {
         margin-bottom: 1.5rem;
         text-align: center;
@@ -1851,11 +1856,6 @@
       
       .coupon-subtitle {
         font-size: 1rem;
-      }
-      
-      .coupon-layout {
-        gap: 1rem;
-        display: block;
       }
       
       .coupon-form,
@@ -6892,7 +6892,7 @@
         filamentContainer.style.display = "block";
         filamentContainer.innerHTML = `
           <h1>Filament Inventory</h1>
-          <div id="filament-form">
+          <div id="filament-form" class="filament-form">
             <h3 style="margin-top: 0; color: #1f6463;">Add New Filament</h3>
             <div class="filament-form-grid">
               <input type="text" id="filament-image-url" placeholder="Image URL" class="filament-form-input">
@@ -7655,8 +7655,7 @@
             <div class="details-table" style="border-spacing: 0 0.5rem;">
                 <table>
                     <tbody>
-                        <tr><td>Material:</td><td><strong>${materialType}</strong></td></tr>
-                        <tr><td>Color:</td><td><strong>${color}</strong></td></tr>
+                        <tr><td>Name:</td><td><strong>${materialType} - ${color}</strong></td></tr>
                         <tr><td>Weight:</td><td><strong>${weightKg}kg</strong></td></tr>
                         <tr><td>Price:</td><td><strong>$${parseFloat(price).toFixed(2)}</strong></td></tr>
                         <tr><td>Stock:</td><td><strong>${stock} units</strong></td></tr>
@@ -7683,19 +7682,23 @@
               <div class="inventory-section">
                 <h4>Inventory Split (Total: ${totalStock} units)</h4>
                 <div class="inventory-split-row">
-                  <label for="internal-split-${filamentId}">Internal</label>
-                  <input type="number" id="internal-split-${filamentId}" class="inventory-split-input" data-pair-id="external-split-${filamentId}" min="0" max="100" value="100">%
-                  <label for="external-split-${filamentId}">External</label>
-                  <input type="number" id="external-split-${filamentId}" class="inventory-split-input" data-pair-id="internal-split-${filamentId}" min="0" max="100" value="0">%
+                  <label for="printing-split-${filamentId}">For Printing</label>
+                  <input type="number" id="printing-split-${filamentId}" class="inventory-split-input" min="0" max="100" value="100">%
+                  <label for="sale-split-${filamentId}">For Sale</label>
+                  <input type="number" id="sale-split-${filamentId}" class="inventory-split-input" min="0" max="100" value="0">%
                 </div>
               </div>
               <div class="inventory-section">
-                <h4>Availability</h4>
-                <p>Internal: <span id="available-internal-${filamentId}">${totalStock}</span> units</p>
-                <p>External: <span id="available-external-${filamentId}">0</span> units</p>
+                <h4>Allocated Stock</h4>
+                <div class="inventory-split-row">
+                  <label for="allocated-printing-${filamentId}">For Printing</label>
+                  <input type="number" id="allocated-printing-${filamentId}" class="availability-input" min="0" value="${totalStock}">
+                  <label for="allocated-sale-${filamentId}">For Sale</label>
+                  <input type="number" id="allocated-sale-${filamentId}" class="availability-input" min="0" value="0">
+                </div>
               </div>
               <div class="inventory-section">
-                <h4>Checked Out by User (Internal)</h4>
+                <h4>Checked Out by User (For Printing)</h4>
                 <div class="checkout-user-list">
                   ${['Sharva', 'Nathan', 'Evan', 'Pablo', 'Peter'].map(user => `
                     <div class="checkout-user-row">
@@ -7705,6 +7708,7 @@
                   `).join('')}
                 </div>
                 <p>Total Checked Out: <span id="total-checked-out-${filamentId}">0</span></p>
+                <p><strong>Available For Printing Now: <span id="final-available-printing-${filamentId}">${totalStock}</span></strong></p>
               </div>
             `;
             inventoryContainer.appendChild(inventoryCard);
@@ -7738,68 +7742,101 @@
   </script>
   <script>
     document.body.addEventListener('input', function(event) {
-      if (event.target.classList.contains('inventory-split-input')) {
-        const input = event.target;
-        const pairedInput = document.getElementById(input.dataset.pairId);
-        let value = parseInt(input.value) || 0;
-        if (value > 100) value = 100;
-        if (value < 0) value = 0;
-        input.value = value;
-        if (document.activeElement === input) {
-            pairedInput.value = 100 - value;
+        const changedInput = event.target;
+        if (changedInput.classList.contains('inventory-split-input') || 
+            changedInput.classList.contains('checkout-input') ||
+            changedInput.classList.contains('availability-input')) {
+            
+            const card = changedInput.closest('.inventory-card');
+            if (card) {
+                updateInventoryCalculations(card, changedInput);
+            }
         }
-
-        const card = input.closest('.inventory-card');
-        if (card) {
-          updateInventoryCalculations(card);
-        }
-      }
-
-      if (event.target.classList.contains('checkout-input')) {
-        const input = event.target;
-        const card = input.closest('.inventory-card');
-        if (card) {
-          const filamentId = card.dataset.filamentId;
-          const totalStock = parseInt(card.dataset.totalStock);
-          const internalSplit = parseInt(document.getElementById(`internal-split-${filamentId}`).value) || 0;
-          const internalStock = Math.round(totalStock * (internalSplit / 100));
-
-          let totalCheckedOut = 0;
-          card.querySelectorAll('.checkout-input').forEach(i => {
-            totalCheckedOut += parseInt(i.value) || 0;
-          });
-
-          if (totalCheckedOut > internalStock) {
-            const oldValue = parseInt(input.value) || 0;
-            const diff = totalCheckedOut - internalStock;
-            input.value = oldValue - diff < 0 ? 0 : oldValue - diff;
-          }
-
-          updateInventoryCalculations(card);
-        }
-      }
     });
 
-    function updateInventoryCalculations(inventoryCard) {
+    function updateInventoryCalculations(inventoryCard, changedInput) {
       const filamentId = inventoryCard.dataset.filamentId;
       const totalStock = parseInt(inventoryCard.dataset.totalStock);
-      const internalSplitInput = document.getElementById(`internal-split-${filamentId}`);
-      if (!internalSplitInput) return;
+      if (!filamentId) return;
 
-      const internalSplit = parseInt(internalSplitInput.value) || 0;
-      const internalStock = Math.round(totalStock * (internalSplit / 100));
-      const externalStock = totalStock - internalStock;
+      const printingSplitEl = document.getElementById(`printing-split-${filamentId}`);
+      const saleSplitEl = document.getElementById(`sale-split-${filamentId}`);
+      const allocatedPrintingEl = document.getElementById(`allocated-printing-${filamentId}`);
+      const allocatedSaleEl = document.getElementById(`allocated-sale-${filamentId}`);
+      const checkoutInputs = inventoryCard.querySelectorAll('.checkout-input');
+      const totalCheckedOutEl = document.getElementById(`total-checked-out-${filamentId}`);
+      const finalAvailablePrintingEl = document.getElementById(`final-available-printing-${filamentId}`);
+
+      let allocatedPrinting, allocatedSale;
+
+      if (changedInput.classList.contains('inventory-split-input')) {
+          let splitValue = parseInt(changedInput.value) || 0;
+          if (splitValue > 100) splitValue = 100;
+          if (splitValue < 0) splitValue = 0;
+          changedInput.value = splitValue;
+          
+          if(document.activeElement === changedInput) {
+            const pairedInput = (changedInput === printingSplitEl) ? saleSplitEl : printingSplitEl;
+            pairedInput.value = 100 - splitValue;
+          }
+
+          allocatedPrinting = Math.round(totalStock * (parseInt(printingSplitEl.value) / 100));
+          allocatedSale = totalStock - allocatedPrinting;
+          allocatedPrintingEl.value = allocatedPrinting;
+          allocatedSaleEl.value = allocatedSale;
+
+      } else if (changedInput.classList.contains('availability-input')) {
+          let changedValue = parseInt(changedInput.value) || 0;
+          if (changedValue > totalStock) changedValue = totalStock;
+          if (changedValue < 0) changedValue = 0;
+          changedInput.value = changedValue;
+
+          if (document.activeElement === changedInput) {
+            if (changedInput === allocatedPrintingEl) {
+                allocatedPrinting = changedValue;
+                allocatedSale = totalStock - allocatedPrinting;
+                allocatedSaleEl.value = allocatedSale;
+            } else {
+                allocatedSale = changedValue;
+                allocatedPrinting = totalStock - allocatedSale;
+                allocatedPrintingEl.value = allocatedPrinting;
+            }
+
+            if (totalStock > 0) {
+                printingSplitEl.value = Math.round((allocatedPrinting / totalStock) * 100);
+                saleSplitEl.value = 100 - parseInt(printingSplitEl.value);
+            } else {
+                printingSplitEl.value = 0;
+                saleSplitEl.value = 0;
+            }
+          } else {
+             allocatedPrinting = parseInt(allocatedPrintingEl.value) || 0;
+          }
+
+      } else {
+          allocatedPrinting = parseInt(allocatedPrintingEl.value) || 0;
+          allocatedSale = parseInt(allocatedSaleEl.value) || 0;
+      }
 
       let totalCheckedOut = 0;
-      inventoryCard.querySelectorAll('.checkout-input').forEach(input => {
-        totalCheckedOut += parseInt(input.value) || 0;
+      checkoutInputs.forEach(input => {
+          totalCheckedOut += parseInt(input.value) || 0;
       });
 
-      const availableInternal = internalStock - totalCheckedOut;
+      if (changedInput.classList.contains('checkout-input')) {
+          if (totalCheckedOut > allocatedPrinting) {
+              const oldValue = parseInt(changedInput.value) || 0;
+              const diff = totalCheckedOut - allocatedPrinting;
+              changedInput.value = oldValue - diff < 0 ? 0 : oldValue - diff;
+              totalCheckedOut = 0;
+              checkoutInputs.forEach(input => { totalCheckedOut += parseInt(input.value) || 0; });
+          }
+      }
+      
+      totalCheckedOutEl.textContent = totalCheckedOut;
 
-      document.getElementById(`available-internal-${filamentId}`).textContent = availableInternal;
-      document.getElementById(`available-external-${filamentId}`).textContent = externalStock;
-      document.getElementById(`total-checked-out-${filamentId}`).textContent = totalCheckedOut;
+      const finalAvailable = allocatedPrinting - totalCheckedOut;
+      finalAvailablePrintingEl.textContent = finalAvailable;
     }
   </script>
 </body>
