@@ -795,6 +795,16 @@
       color: white;
     }
 
+    .tab-button.filament {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .tab-button.filament.active {
+      background-color: #1f6463;
+      color: white;
+    }
+
     /* Add consistent button styles */
     .action-button {
       border: none;
@@ -2474,6 +2484,8 @@
       style="background: #1f6463; color: white;">All Orders</button>
     <button id="tabClaimed" class="tab-button"
       style="background: #ccc; color: black;">Claimed Orders</button>
+    <button id="tabFilament" class="tab-button filament"
+      style="background: #ccc; color: black;">Filament</button>
     <button id="tabCoupon" class="tab-button coupon"
       style="background: #ccc; color: black;">Coupons</button>
     <button id="tabAnalytics" class="tab-button analytics"
@@ -3144,6 +3156,7 @@
       updateTabStyles() {
         const allTab = document.getElementById("tabAll");
         const claimedTab = document.getElementById("tabClaimed");
+        const filamentTab = document.getElementById("tabFilament");
         const couponTab = document.getElementById("tabCoupon");
         const analyticsTab = document.getElementById("tabAnalytics");
 
@@ -3152,6 +3165,9 @@
         
         if (claimedTab) claimedTab.style.background = state.currentTab === "claimed" ? "#1f6463" : "#ccc";
         if (claimedTab) claimedTab.style.color = state.currentTab === "claimed" ? "white" : "black";
+
+        if (filamentTab) filamentTab.style.background = state.currentTab === "filament" ? "#1f6463" : "#ccc";
+        if (filamentTab) filamentTab.style.color = state.currentTab === "filament" ? "white" : "black";
 
         if (couponTab) couponTab.style.background = state.currentTab === "coupon" ? "#1f6463" : "#ccc";
         if (couponTab) couponTab.style.color = state.currentTab === "coupon" ? "white" : "black";
@@ -3636,12 +3652,21 @@
         claimedTab.onclick = () => {
           console.log('🎯 Claimed Orders tab clicked!');
           state.currentTab = "claimed";
-          console.log('Switching to Claimed Orders tab');
           ui.updateTabStyles();
           const query = document.getElementById("searchInput").value;
           filterOrders(query);
         };
         console.log('✅ Claimed Orders tab onclick handler set');
+      }
+
+      if (filamentTab) {
+        filamentTab.onclick = () => {
+          console.log('🎯 Filament tab clicked!');
+          state.currentTab = "filament";
+          ui.updateTabStyles();
+          showFilamentTab();
+        };
+        console.log('✅ Filament tab onclick handler set');
       }
 
       if (couponTab) {
@@ -6827,6 +6852,8 @@
       if(analyticsContainer) analyticsContainer.style.display = "none";
       const couponContainer = document.getElementById("couponContainer");
       if(couponContainer) couponContainer.style.display = "none";
+      const filamentContainer = document.getElementById("filamentContainer");
+      if(filamentContainer) filamentContainer.style.display = "none";
       
       // Show orders UI elements
       document.getElementById("orderGrid").style.display = "grid";
@@ -6835,6 +6862,30 @@
       // Clear and reload orders
       const query = document.getElementById("searchInput")?.value || '';
       filterOrders(query);
+    }
+
+    // Show filament tab
+    function showFilamentTab() {
+      console.log('📋 Showing filament tab...');
+      
+      // Hide other UI elements
+      const analyticsContainer = document.getElementById("analytics");
+      if(analyticsContainer) analyticsContainer.style.display = "none";
+      const couponContainer = document.getElementById("couponContainer");
+      if(couponContainer) couponContainer.style.display = "none";
+      const orderGrid = document.getElementById("orderGrid");
+      if(orderGrid) orderGrid.style.display = "none";
+      const searchBar = document.querySelector(".search-bar-flex");
+      if(searchBar) searchBar.style.display = "none";
+      
+      // Show filament container
+      let filamentContainer = document.getElementById("filamentContainer");
+      if (!filamentContainer) {
+        filamentContainer = document.createElement("div");
+        filamentContainer.id = "filamentContainer";
+        document.body.appendChild(filamentContainer);
+      }
+      filamentContainer.style.display = "block";
     }
 
     // Update tab click handlers
