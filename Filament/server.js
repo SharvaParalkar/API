@@ -4,7 +4,23 @@ const cors = require("cors");
 const path = require("path");
 
 const app = express();
-app.use(cors());
+
+// Configure CORS for production
+const corsOptions = {
+  origin: [
+    'https://filamentbros.com',
+    'https://www.filamentbros.com',
+    'https://api.filamentbros.com',
+    // Include development URLs if needed
+    ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000', 'http://127.0.0.1:3000'] : [])
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache-Control'],
+  credentials: true,
+  maxAge: 86400 // Cache preflight requests for 24 hours
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 const dbPath = path.join(__dirname, "..", "DB", "db", "filamentbros.sqlite");
@@ -26,6 +42,13 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
   });
+  next();
+});
+
+// Add headers for SSE connections
+app.use('/filament/updates', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
   next();
 });
 

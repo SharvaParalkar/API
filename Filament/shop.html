@@ -772,65 +772,66 @@
         let cart = JSON.parse(localStorage.getItem('cart')) || [];
         let products = []; // Will be populated from server
 
-        // Configure API endpoints
-        const API_BASE_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3400'
-            : `${window.location.protocol}//${window.location.host}`; // This will work with Cloudflare Tunnels
+        // Configuration
+        const API_CONFIG = {
+            // Base URL for API endpoints - automatically detects environment
+            baseUrl: window.location.hostname === 'filamentbros.com' || window.location.hostname === 'www.filamentbros.com'
+                ? 'https://api.filamentbros.com'  // Production API endpoint
+                : 'http://localhost:3400',        // Development API endpoint
+            
+            // API endpoints - matching Cloudflare tunnel paths
+            endpoints: {
+                inventory: '/filament/inventory',
+                updates: '/filament/updates'
+            }
+        };
 
         // Initialize SSE connection for real-time updates
         function initializeSSE() {
-            let retryCount = 0;
-            const maxRetries = 5;
-            const retryDelay = 5000; // 5 seconds
-
-            function connect() {
-                const eventSource = new EventSource(`${API_BASE_URL}/filament/updates`);
+            const eventSource = new EventSource(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.updates}`, {
+                withCredentials: true // Required for cross-origin SSE through Cloudflare tunnel
+            });
+            
+            eventSource.onmessage = function(event) {
+                const update = JSON.parse(event.data);
                 
-                eventSource.onopen = function() {
-                    console.log('SSE connection established');
-                    retryCount = 0; // Reset retry count on successful connection
-                };
-                
-                eventSource.onmessage = function(event) {
-                    const update = JSON.parse(event.data);
-                    
-                    if (update.type === 'add' || update.type === 'update') {
-                        // Refresh products when inventory changes
-                        fetchProducts();
-                    } else if (update.type === 'delete') {
-                        // Remove product if it exists
-                        products = products.filter(p => p.id !== update.filamentId);
-                        initializeProducts();
-                        updateCartDisplay();
-                    }
-                };
+                if (update.type === 'add' || update.type === 'update') {
+                    // Refresh products when inventory changes
+                    fetchProducts();
+                } else if (update.type === 'delete') {
+                    // Remove product if it exists
+                    products = products.filter(p => p.id !== update.filamentId);
+                    initializeProducts();
+                    updateCartDisplay();
+                }
+            };
 
-                eventSource.onerror = function(error) {
-                    console.warn('SSE connection error:', error);
-                    eventSource.close();
-                    
-                    if (retryCount < maxRetries) {
-                        retryCount++;
-                        console.log(`Retrying SSE connection in ${retryDelay/1000} seconds... (Attempt ${retryCount}/${maxRetries})`);
-                        setTimeout(connect, retryDelay);
-                    } else {
-                        console.error('Max SSE connection retries reached. Real-time updates disabled.');
-                        // Fallback to periodic polling
-                        setInterval(fetchProducts, 30000); // Poll every 30 seconds
-                    }
-                };
-            }
+            eventSource.onerror = function(error) {
+                console.error('SSE connection error:', error);
+                // Close the current connection
+                eventSource.close();
+                // Attempt to reconnect after 5 seconds
+                setTimeout(() => initializeSSE(), 5000);
+            };
 
-            connect();
+            // Add connection opened handler
+            eventSource.onopen = function() {
+                console.log('SSE connection established');
+            };
         }
 
         // Fetch products from server
         async function fetchProducts() {
             try {
-                const response = await fetch(`${API_BASE_URL}/filament/inventory`);
-                if (!response.ok) {
-                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-                }
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.inventory}`, {
+                    credentials: 'include', // Include credentials for CORS
+                    headers: {
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch inventory');
                 
                 const inventory = await response.json();
                 products = inventory.map(item => ({
@@ -850,11 +851,9 @@
                 // Show error message to user
                 const productsGrid = document.querySelector('.products-grid');
                 productsGrid.innerHTML = `
-                    <div style="text-align: center; grid-column: 1/-1; padding: 2rem;">
-                        <p style="color: #e74c3c; margin-bottom: 1rem;">
-                            Unable to load filament inventory. Please try again later.
-                        </p>
-                        <button onclick="fetchProducts()" style="padding: 0.5rem 1rem; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                    <div style="text-align: center; grid-column: 1/-1; color: #e74c3c;">
+                        <p>Unable to load products. Please try again later.</p>
+                        <button onclick="fetchProducts()" style="margin-top: 1rem; padding: 0.5rem 1rem; border-radius: 8px; background: var(--primary); color: white; border: none; cursor: pointer;">
                             Retry
                         </button>
                     </div>
