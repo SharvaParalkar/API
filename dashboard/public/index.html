@@ -3166,20 +3166,21 @@
         const couponTab = document.getElementById("tabCoupon");
         const analyticsTab = document.getElementById("tabAnalytics");
 
-        if (allTab) allTab.style.background = state.currentTab === "all" ? "#1f6463" : "#ccc";
-        if (allTab) allTab.style.color = state.currentTab === "all" ? "white" : "black";
-        
-        if (claimedTab) claimedTab.style.background = state.currentTab === "claimed" ? "#1f6463" : "#ccc";
-        if (claimedTab) claimedTab.style.color = state.currentTab === "claimed" ? "white" : "black";
+        const tabs = {
+          all: allTab,
+          claimed: claimedTab,
+          filament: filamentTab,
+          coupon: couponTab,
+          analytics: analyticsTab,
+        };
 
-        if (filamentTab) filamentTab.style.background = state.currentTab === "filament" ? "#1f6463" : "#ccc";
-        if (filamentTab) filamentTab.style.color = state.currentTab === "filament" ? "white" : "black";
-
-        if (couponTab) couponTab.style.background = state.currentTab === "coupon" ? "#1f6463" : "#ccc";
-        if (couponTab) couponTab.style.color = state.currentTab === "coupon" ? "white" : "black";
-
-        if (analyticsTab) analyticsTab.style.background = state.currentTab === "analytics" ? "#1f6463" : "#ccc";
-        if (analyticsTab) analyticsTab.style.color = state.currentTab === "analytics" ? "white" : "black";
+        for (const [tabName, tabElement] of Object.entries(tabs)) {
+          if (tabElement) {
+            const isActive = state.currentTab === tabName;
+            tabElement.style.background = isActive ? "#1f6463" : "#ccc";
+            tabElement.style.color = isActive ? "white" : "black";
+          }
+        }
       },
 
       showLoginOverlay() {
@@ -3649,10 +3650,8 @@
         allTab.onclick = () => {
           console.log('🎯 All Orders tab clicked!');
           state.currentTab = "all";
-          console.log('Switching to All Orders tab');
           ui.updateTabStyles();
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
+          showTabContent('all');
         };
         console.log('✅ All Orders tab onclick handler set');
       }
@@ -3662,8 +3661,7 @@
           console.log('🎯 Claimed Orders tab clicked!');
           state.currentTab = "claimed";
           ui.updateTabStyles();
-          const query = document.getElementById("searchInput").value;
-          filterOrders(query);
+          showTabContent('claimed');
         };
         console.log('✅ Claimed Orders tab onclick handler set');
       }
@@ -3673,7 +3671,7 @@
           console.log('🎯 Filament tab clicked!');
           state.currentTab = "filament";
           ui.updateTabStyles();
-          showFilamentTab();
+          showTabContent('filament');
         };
         console.log('✅ Filament tab onclick handler set');
       }
@@ -3683,7 +3681,8 @@
           console.log('🎯 Coupon tab clicked!');
           state.currentTab = "coupon";
           ui.updateTabStyles();
-          showCouponManagement();
+          showTabContent('coupon');
+          showCouponManagement(); // This function should just populate the container
         };
         console.log('✅ Coupon tab onclick handler set');
       }
@@ -3693,7 +3692,8 @@
           console.log('🎯 Analytics tab clicked!');
           state.currentTab = "analytics";
           ui.updateTabStyles();
-          showAnalytics();
+          showTabContent('analytics');
+          showAnalytics(); // This function should just populate the container
         };
         console.log('✅ Analytics tab onclick handler set');
       }
@@ -6717,16 +6717,9 @@
     }
 
     function showAnalytics() {
-        document.getElementById("orderGrid").style.display = "none";
-        document.querySelector(".search-bar-flex").style.display = "none";
-        const couponContainer = document.getElementById("couponContainer");
-        if(couponContainer) couponContainer.style.display = "none";
-        
         const analyticsContainer = document.getElementById("analytics");
-        if(analyticsContainer) analyticsContainer.style.display = "block";
-
-        // This will be defined in the analytics script block
-        if (typeof window.initializeAnalytics === 'function') {
+        if(analyticsContainer) {
+            // The actual rendering logic for analytics should be here or called from here
             window.initializeAnalytics();
         }
     }
@@ -6787,103 +6780,57 @@
 
     // Show orders grid
     function showOrdersGrid() {
-      console.log('📋 Showing orders grid...');
-      
-      // Hide other UI elements
-      const analyticsContainer = document.getElementById("analytics");
-      if(analyticsContainer) analyticsContainer.style.display = "none";
-      const couponContainer = document.getElementById("couponContainer");
-      if(couponContainer) couponContainer.style.display = "none";
-      const filamentContainer = document.getElementById("filamentContainer");
-      if(filamentContainer) filamentContainer.style.display = "none";
-      
-      // Show orders UI elements
-      document.getElementById("orderGrid").style.display = "grid";
-      document.querySelector(".search-bar-flex").style.display = "flex";
-      
-      // Clear and reload orders
-      const query = document.getElementById("searchInput")?.value || '';
-      filterOrders(query);
+      showTabContent(state.currentTab);
     }
 
     // Show filament tab
     function showFilamentTab() {
-      console.log('📋 Showing filament tab...');
-      
-      // Hide other UI elements
-      const analyticsContainer = document.getElementById("analytics");
-      if(analyticsContainer) analyticsContainer.style.display = "none";
-      const couponContainer = document.getElementById("couponContainer");
-      if(couponContainer) couponContainer.style.display = "none";
-      document.getElementById("orderGrid").style.display = "none";
-      document.querySelector(".search-bar-flex").style.display = "none";
-      
-      // Show filament container
-      let filamentContainer = document.getElementById("filamentContainer");
+      const filamentContainer = document.getElementById("filamentContainer");
       if (filamentContainer) {
         filamentContainer.style.display = "block";
-        filamentContainer.innerHTML = '<h1>Filament</h1>';
+        filamentContainer.innerHTML = '<h1>Filament</h1>'; // Placeholder content
       }
     }
 
-    // Update tab click handlers
-    function initializeEventListeners() {
-      const allTab = document.getElementById("tabAll");
-      const claimedTab = document.getElementById("tabClaimed");
-      const couponTab = document.getElementById("tabCoupon");
-      const analyticsTab = document.getElementById("tabAnalytics");
+    // This is the single source of truth for showing/hiding main content areas
+    function showTabContent(tabName) {
+      const orderGrid = document.getElementById("orderGrid");
+      const searchBar = document.querySelector(".search-bar-flex");
+      const couponContainer = document.getElementById("couponContainer");
+      const analyticsContainer = document.getElementById("analytics");
+      const filamentContainer = document.getElementById("filamentContainer");
 
-      if (allTab) {
-        allTab.onclick = () => {
-          console.log('🎯 All orders tab clicked!');
-          state.currentTab = "all";
-          ui.updateTabStyles();
-          showOrdersGrid();
-        };
-        console.log('✅ All orders tab onclick handler set');
+      // Hide everything first
+      if (orderGrid) orderGrid.style.display = "none";
+      if (searchBar) searchBar.style.display = "none";
+      if (couponContainer) couponContainer.style.display = "none";
+      if (analyticsContainer) analyticsContainer.style.display = "none";
+      if (filamentContainer) filamentContainer.style.display = "none";
+      
+      // Show the content for the active tab
+      switch(tabName) {
+        case 'all':
+        case 'claimed':
+          if (orderGrid) orderGrid.style.display = "grid";
+          if (searchBar) searchBar.style.display = "flex";
+          const query = document.getElementById("searchInput").value;
+          filterOrders(query);
+          break;
+        case 'coupon':
+          if (couponContainer) couponContainer.style.display = "block";
+          // We assume showCouponManagement populates the container
+          break;
+        case 'analytics':
+          if (analyticsContainer) analyticsContainer.style.display = "block";
+           // We assume showAnalytics populates the container
+          break;
+        case 'filament':
+          if (filamentContainer) {
+            filamentContainer.style.display = "block";
+            filamentContainer.innerHTML = '<h1>Filament</h1>'; // Placeholder content
+          }
+          break;
       }
-
-      if (claimedTab) {
-        claimedTab.onclick = () => {
-          console.log('🎯 Claimed tab clicked!');
-          state.currentTab = "claimed";
-          ui.updateTabStyles();
-          showOrdersGrid();
-        };
-        console.log('✅ Claimed tab onclick handler set');
-      }
-
-      if (couponTab) {
-        couponTab.onclick = () => {
-          console.log('🎯 Coupon tab clicked!');
-          state.currentTab = "coupon";
-          ui.updateTabStyles();
-          showCouponManagement();
-        };
-        console.log('✅ Coupon tab onclick handler set');
-      }
-
-      if (analyticsTab) {
-        analyticsTab.onclick = () => {
-          console.log('🎯 Analytics tab clicked!');
-          state.currentTab = "analytics";
-          ui.updateTabStyles();
-          showAnalytics();
-        };
-        console.log('✅ Analytics tab onclick handler set');
-      }
-
-      // Verify that the handlers are actually set
-      setTimeout(() => {
-        console.log('🔍 Verifying onclick handlers after setup:', {
-          allTabHandler: allTab ? typeof allTab.onclick : 'tab not found',
-          claimedTabHandler: claimedTab ? typeof claimedTab.onclick : 'tab not found',
-          couponTabHandler: couponTab ? typeof couponTab.onclick : 'tab not found',
-          analyticsTabHandler: analyticsTab ? typeof analyticsTab.onclick : 'tab not found'
-        });
-      }, 50);
-
-      // ... existing code ...
     }
   </script>
 
