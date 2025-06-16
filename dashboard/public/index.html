@@ -6953,7 +6953,7 @@
 
     // NEW FUNCTION
     function initializeFilamentSSE() {
-      const eventSource = new EventSource('https://api.filamentbros.com/filament/updates');
+      const eventSource = new EventSource('/filament/updates');
       
       eventSource.onopen = () => {
         console.log('✅ SSE connection established for filament updates.');
@@ -6961,14 +6961,64 @@
 
       eventSource.onmessage = (event) => {
         console.log('📦 Received filament update:', event.data);
-        if (state.currentTab === 'filament') {
+        
+        try {
+          const update = JSON.parse(event.data);
+          console.log('📦 Parsed filament update:', update.type, update.filamentId);
+          
+          if (state.currentTab === 'filament') {
+            // Handle different update types
+            switch (update.type) {
+              case 'add':
+                // Reload inventory to show new filament
+                loadFilamentInventory();
+                console.log('✅ Reloaded inventory for new filament:', update.filamentId);
+                break;
+              case 'delete':
+                // Remove the filament card from UI
+                const filamentCard = document.querySelector(`[data-filament-id="${update.filamentId}"]`);
+                if (filamentCard) {
+                  filamentCard.style.transition = "all 0.3s ease";
+                  filamentCard.style.opacity = "0";
+                  filamentCard.style.transform = "scale(0.9)";
+                  setTimeout(() => {
+                    if (filamentCard.isConnected) {
+                      filamentCard.remove();
+                    }
+                  }, 300);
+                  console.log('✅ Removed filament card:', update.filamentId);
+                } else {
+                  // Fallback to full reload if card not found
+                  loadFilamentInventory();
+                }
+                break;
+              case 'update':
+                // Update existing filament (handled by main dashboard SSE)
+                console.log('🔄 Filament update handled by main dashboard SSE');
+                break;
+              default:
+                console.log('🔄 Unknown filament update type, reloading inventory');
+                loadFilamentInventory();
+            }
+          }
+        } catch (err) {
+          console.error('❌ Error processing filament update:', err);
+          // Fallback to reloading inventory
+          if (state.currentTab === 'filament') {
             loadFilamentInventory();
+          }
         }
       };
 
       eventSource.onerror = (error) => {
         console.error('❌ SSE connection error for filament updates:', error);
         eventSource.close();
+        
+        // Retry connection after 5 seconds
+        setTimeout(() => {
+          console.log('🔄 Retrying filament SSE connection...');
+          initializeFilamentSSE();
+        }, 5000);
       };
 
       window.filamentEventSource = eventSource;

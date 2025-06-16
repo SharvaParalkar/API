@@ -1739,7 +1739,13 @@ process.on('SIGTERM', () => {
 // ✅ Launch with health check
 const PORT = process.env.PORT || 3300;
 server.listen(PORT, () => {
-  console.log(`✅ Dashboard running at http://localhost:${PORT}`);
+  console.log(`
+🚀 Dashboard server running on port ${PORT}
+📁 Database path: ${dbPath}
+🔗 Filament server proxy: ${FILAMENT_SERVER_URL}
+⏰ Started at: ${new Date().toISOString()}
+📡 SSE connections: Dashboard + Filament proxy
+  `);
 });
 
 // Health check endpoint
@@ -2000,3 +2006,143 @@ app.put("/dashboard/inventory/:id", requireLogin, (req, res) => {
     res.status(500).json({ error: "Failed to update inventory management" });
   }
 });
+
+// Proxy routes for filament server (running on port 3400)
+const FILAMENT_SERVER_URL = 'http://localhost:3400';
+
+// Proxy filament SSE endpoint
+app.get("/filament/updates", (req, res) => {
+  console.log('🔄 Proxying filament SSE connection...');
+  
+  const http = require('http');
+  const proxyReq = http.request({
+    hostname: 'localhost',
+    port: 3400,
+    path: '/filament/updates',
+    method: 'GET',
+    headers: req.headers
+  }, (proxyRes) => {
+    // Forward headers
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    
+    // Pipe the response
+    proxyRes.pipe(res);
+    
+    console.log(`✅ Filament SSE proxy established (${proxyRes.statusCode})`);
+  });
+  
+  proxyReq.on('error', (err) => {
+    console.error('❌ Filament SSE proxy error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to connect to filament server" });
+    }
+  });
+  
+  // Handle client disconnect
+  req.on('close', () => {
+    console.log('📡 Filament SSE client disconnected');
+    proxyReq.destroy();
+  });
+  
+  proxyReq.end();
+});
+
+// Proxy filament inventory endpoint
+app.get("/filament/inventory", requireLogin, async (req, res) => {
+  try {
+    console.log('📦 Proxying filament inventory request...');
+    
+    const response = await fetch(`${FILAMENT_SERVER_URL}/filament/inventory`);
+    const data = await response.json();
+    
+    console.log(`✅ Proxied filament inventory (${data.length} items)`);
+    res.json(data);
+  } catch (err) {
+    console.error('❌ Failed to proxy filament inventory:', err);
+    res.status(500).json({ error: "Failed to fetch filament inventory" });
+  }
+});
+
+// Proxy filament add endpoint
+app.post("/filament/add", requireLogin, async (req, res) => {
+  try {
+    console.log('➕ Proxying filament add request...');
+    
+    const response = await fetch(`${FILAMENT_SERVER_URL}/filament/add`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(req.body)
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      console.log(`✅ Proxied filament add successfully: ${data.id}`);
+    } else {
+      console.error('❌ Filament add failed:', data);
+    }
+    
+    res.status(response.status).json(data);
+  } catch (err) {
+    console.error('❌ Failed to proxy filament add:', err);
+    res.status(500).json({ error: "Failed to add filament" });
+  }
+});
+
+// Proxy filament update endpoint
+app.put("/filament/update/:id", requireLogin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🔄 Proxying filament update request for:', id);
+    
+    const response = await fetch(`${FILAMENT_SERVER_URL}/filament/update/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(req.body)
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      console.log(`✅ Proxied filament update successfully: ${id}`);
+    } else {
+      console.error('❌ Filament update failed:', data);
+    }
+    
+    res.status(response.status).json(data);
+  } catch (err) {
+    console.error('❌ Failed to proxy filament update:', err);
+    res.status(500).json({ error: "Failed to update filament" });
+  }
+});
+
+// Proxy filament delete endpoint
+app.delete("/filament/delete/:id", requireLogin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🗑️ Proxying filament delete request for:', id);
+    
+    const response = await fetch(`${FILAMENT_SERVER_URL}/filament/delete/${id}`, {
+      method: 'DELETE'
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      console.log(`✅ Proxied filament delete successfully: ${id}`);
+    } else {
+      console.error('❌ Filament delete failed:', data);
+    }
+    
+    res.status(response.status).json(data);
+  } catch (err) {
+    console.error('❌ Failed to proxy filament delete:', err);
+    res.status(500).json({ error: "Failed to delete filament" });
+  }
+});
+
+
