@@ -32,5 +32,9 @@ ingress:
     path: /filament/*
     service: http://localhost:3400
 
+  - hostname: api.filamentbros.com
+    path: /filament/updates
+    service: http://localhost:3400
+
   # catch-all 404
   - service: http_status:404
