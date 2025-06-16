@@ -772,20 +772,27 @@
         let cart = JSON.parse(localStorage.getItem('cart')) || [];
         let products = []; // Will be populated from API
 
-        // Initialize EventSource for real-time updates
-        const evtSource = new EventSource('https://api.filamentbros.com/filament/updates');
-        
-        evtSource.onmessage = function(event) {
-            const update = JSON.parse(event.data);
-            if (update.type === 'add' || update.type === 'update' || update.type === 'delete') {
-                // Refresh the product list when we get an update
-                fetchProducts();
-            }
-        };
+        // Initialize EventSource
+        function initializeEventSource() {
+            const evtSource = new EventSource('https://api.filamentbros.com/filament/updates');
+            
+            evtSource.onmessage = function(event) {
+                const update = JSON.parse(event.data);
+                if (update.type === 'add' || update.type === 'update' || update.type === 'delete') {
+                    fetchProducts();
+                }
+            };
 
-        evtSource.onerror = function(err) {
-            console.error('EventSource failed:', err);
-        };
+            evtSource.onerror = function(err) {
+                console.error('EventSource failed:', err);
+                setTimeout(() => {
+                    evtSource.close();
+                    initializeEventSource();
+                }, 5000);
+            };
+
+            return evtSource;
+        }
 
         // Fetch products from API
         async function fetchProducts() {
@@ -794,15 +801,18 @@
                 if (!response.ok) throw new Error('Failed to fetch inventory');
                 
                 const inventory = await response.json();
-                products = inventory.map(item => ({
-                    id: item.id,
-                    material: item.material,
-                    color: item.color,
-                    weight: `${item.weight_grams/1000}kg`,
-                    price: item.price_per_kg * (item.weight_grams/1000),
-                    stock: item.allocated_sale, // Use allocated_sale for shop inventory
-                    image: item.image_url || 'https://m.media-amazon.com/images/I/61vd1GHtF9L._AC_UF894,1000_QL80_.jpg' // Default image if none provided
-                }));
+                // Filter out items with zero stock
+                products = inventory
+                    .filter(item => item.allocated_sale > 0)
+                    .map(item => ({
+                        id: item.id,
+                        material: item.material,
+                        color: item.color,
+                        weight: `${item.weight_grams/1000}kg`,
+                        price: item.price_per_kg * (item.weight_grams/1000),
+                        stock: item.allocated_sale,
+                        image: item.image_url || null
+                    }));
                 
                 initializeProducts();
                 updateCartDisplay();
@@ -816,10 +826,10 @@
         function initializeProducts() {
             const productsGrid = document.querySelector('.products-grid');
             productsGrid.innerHTML = products.map(product => `
-                <div class="product-card">
+                <div class="product-card" data-product-id="${product.id}">
                     ${product.image ? 
-                        `<img src="${product.image}" alt="${product.material} ${product.color}" class="product-image">` :
-                        `<div class="product-image-placeholder"></div>`
+                        `<img src="${product.image}" alt="${product.material} ${product.color}" class="product-image" onerror="this.src='https://m.media-amazon.com/images/I/61vd1GHtF9L._AC_UF894,1000_QL80_.jpg'">` :
+                        `<img src="https://m.media-amazon.com/images/I/61vd1GHtF9L._AC_UF894,1000_QL80_.jpg" alt="${product.material} ${product.color}" class="product-image">`
                     }
                     <div class="product-info">
                         <h3 class="product-material">${product.material}</h3>
@@ -842,14 +852,14 @@
 
         // Update quantity
         function updateQuantity(productId, action) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+
             const quantityElement = document.getElementById(`quantity-${productId}`);
             let quantity = parseInt(quantityElement.textContent);
             
-            if (action === 'increase') {
-                const product = products.find(p => p.id === productId);
-                if (quantity < product.stock) {
-                    quantity++;
-                }
+            if (action === 'increase' && quantity < product.stock) {
+                quantity++;
             } else if (action === 'decrease' && quantity > 1) {
                 quantity--;
             }
@@ -860,33 +870,30 @@
         // Add to cart
         function addToCart(productId) {
             const product = products.find(p => p.id === productId);
+            if (!product) return;
+
             const quantity = parseInt(document.getElementById(`quantity-${productId}`).textContent);
             
             const existingItem = cart.find(item => item.id === productId);
+            const totalQuantity = existingItem ? existingItem.quantity + quantity : quantity;
+            
+            if (totalQuantity > product.stock) {
+                alert(`Cannot add more than ${product.stock} items due to stock limitations.`);
+                return;
+            }
             
             if (existingItem) {
-                // For existing items, replace the quantity instead of adding
-                if (quantity <= product.stock) {
-                    existingItem.quantity = quantity;
-                } else {
-                    alert(`Cannot add more than ${product.stock} items due to stock limitations.`);
-                    return;
-                }
+                existingItem.quantity = quantity;
             } else {
-                if (quantity <= product.stock) {
-                    cart.push({
-                        ...product,
-                        quantity: quantity
-                    });
-                } else {
-                    alert(`Cannot add more than ${product.stock} items due to stock limitations.`);
-                    return;
-                }
+                cart.push({
+                    ...product,
+                    quantity: quantity
+                });
             }
             
             localStorage.setItem('cart', JSON.stringify(cart));
             updateCartDisplay();
-            updateAddToCartButtons(); // Update button states after cart changes
+            updateAddToCartButtons();
         }
 
         // Update "Add to Cart" button states
@@ -943,22 +950,17 @@
         function updateCartItemQuantity(productId, action) {
             const item = cart.find(item => item.id === productId);
             const product = products.find(p => p.id === productId);
+            if (!item || !product) return;
             
             if (action === 'increase' && item.quantity < product.stock) {
                 item.quantity++;
-            } else if (action === 'decrease') {
-                if (item.quantity > 1) {
-                    item.quantity--;
-                } else {
-                    // Remove item if quantity would go below 1
-                    removeFromCart(productId);
-                    return;
-                }
+            } else if (action === 'decrease' && item.quantity > 1) {
+                item.quantity--;
             }
             
             localStorage.setItem('cart', JSON.stringify(cart));
             updateCartDisplay();
-            updateAddToCartButtons(); // Update button states after quantity change
+            updateAddToCartButtons();
         }
 
         // Remove from cart
@@ -993,14 +995,25 @@
         }
 
         // Initialize the page
-        fetchProducts(); // Replace initializeProducts() with fetchProducts()
-        updateCartDisplay();
-        updateAddToCartButtons();
-        initializeMobileCart();
+        let evtSource;
+        document.addEventListener('DOMContentLoaded', () => {
+            evtSource = initializeEventSource();
+            fetchProducts();
+            updateCartDisplay();
+            updateAddToCartButtons();
+            initializeMobileCart();
 
-        // Add terms checkbox handler
-        document.getElementById('terms-checkbox').addEventListener('change', function() {
-            document.querySelector('.checkout-btn').disabled = !this.checked;
+            // Add terms checkbox handler
+            document.getElementById('terms-checkbox').addEventListener('change', function() {
+                document.querySelector('.checkout-btn').disabled = !this.checked;
+            });
+
+            // Clean up EventSource when page is unloaded
+            window.addEventListener('beforeunload', () => {
+                if (evtSource) {
+                    evtSource.close();
+                }
+            });
         });
     </script>
 </body>
