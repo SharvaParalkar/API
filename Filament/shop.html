@@ -869,16 +869,16 @@
                 const inventory = await response.json();
                 console.log('Received inventory:', inventory);
                 
-                // Filter out items with zero stock
+                // Filter out items with zero stock (check both stock and allocated_sale)
                 products = inventory
-                    .filter(item => item.allocated_sale > 0)
+                    .filter(item => (item.stock > 0 || item.allocated_sale > 0))
                     .map(item => ({
                         id: item.id,
                         material: item.material,
                         color: item.color,
                         weight: `${item.weight_grams/1000}kg`,
                         price: item.price_per_kg * (item.weight_grams/1000),
-                        stock: item.allocated_sale,
+                        stock: item.allocated_sale > 0 ? item.allocated_sale : item.stock,
                         image: item.image_url || null
                     }));
                 
