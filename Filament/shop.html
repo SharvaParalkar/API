@@ -777,34 +777,82 @@
             console.log('Initializing EventSource connection...');
             const evtSource = new EventSource('https://api.filamentbros.com/filament/updates');
             
+            // Add connection state logging
+            console.log('EventSource readyState:', evtSource.readyState);
+            
             evtSource.onmessage = function(event) {
-                console.log('Received update:', event.data);
+                const timestamp = new Date().toISOString();
+                console.log(`[${timestamp}] SSE Update Received:`, {
+                    data: event.data,
+                    lastEventId: event.lastEventId,
+                    origin: event.origin,
+                    type: event.type
+                });
+                
                 try {
+                    // First try to parse as JSON
                     const update = JSON.parse(event.data);
-                    if (update.type === 'add' || update.type === 'update' || update.type === 'delete') {
-                        console.log('Processing update type:', update.type);
-                        fetchProducts();
+                    console.log('Successfully parsed update as JSON:', update);
+                    
+                    // Handle both object-style and string-style updates
+                    if (update.type) {
+                        console.log('Update contains type field:', update.type);
+                        if (['add', 'update', 'delete'].includes(update.type)) {
+                            console.log('Valid update type detected, refreshing products');
+                            fetchProducts();
+                        }
+                    } else if (typeof update === 'string') {
+                        console.log('Update is a string type:', update);
+                        if (update.includes('add') || update.includes('update') || update.includes('delete')) {
+                            console.log('String contains valid action, refreshing products');
+                            fetchProducts();
+                        }
                     }
                 } catch (e) {
-                    // Fallback for non-json messages
-                    if (event.data.includes('update')) {
-                         fetchProducts();
+                    console.log('Failed to parse as JSON, treating as string:', e.message);
+                    const updateStr = event.data.toLowerCase();
+                    console.log('Lowercase update string:', updateStr);
+                    if (updateStr.includes('add') || updateStr.includes('update') || updateStr.includes('delete')) {
+                        console.log('Plain text update detected, refreshing products');
+                        fetchProducts();
                     }
                 }
             };
 
-            evtSource.onopen = function() {
-                console.log('EventSource connection established');
+            evtSource.onopen = function(event) {
+                const timestamp = new Date().toISOString();
+                console.log(`[${timestamp}] EventSource connection opened:`, {
+                    readyState: evtSource.readyState,
+                    url: evtSource.url
+                });
+                fetchProducts();
             };
 
             evtSource.onerror = function(err) {
-                console.error('EventSource failed:', err);
-                setTimeout(() => {
-                    console.log('Attempting to reconnect...');
-                    evtSource.close();
-                    initializeEventSource();
-                }, 5000);
+                const timestamp = new Date().toISOString();
+                console.error(`[${timestamp}] EventSource error:`, {
+                    readyState: evtSource.readyState,
+                    error: err
+                });
+                
+                if (evtSource.readyState === EventSource.CLOSED) {
+                    console.log('Connection was closed, attempting to reconnect...');
+                    setTimeout(() => {
+                        console.log('Reconnecting to EventSource...');
+                        evtSource.close();
+                        initializeEventSource();
+                    }, 5000);
+                }
             };
+
+            // Add diagnostic ping every 30 seconds to verify connection
+            setInterval(() => {
+                if (evtSource.readyState === EventSource.OPEN) {
+                    console.log(`[${new Date().toISOString()}] EventSource connection is alive`);
+                } else {
+                    console.warn(`[${new Date().toISOString()}] EventSource connection state:`, evtSource.readyState);
+                }
+            }, 30000);
 
             return evtSource;
         }
@@ -814,7 +862,9 @@
             try {
                 console.log('Fetching products...');
                 const response = await fetch('https://api.filamentbros.com/filament/inventory');
-                if (!response.ok) throw new Error('Failed to fetch inventory');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch inventory: ${response.status}`);
+                }
                 
                 const inventory = await response.json();
                 console.log('Received inventory:', inventory);
@@ -838,6 +888,7 @@
                 updateAddToCartButtons();
             } catch (error) {
                 console.error('Failed to fetch products:', error);
+                // Optionally add user-facing error handling here
             }
         }
 

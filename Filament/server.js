@@ -4,7 +4,11 @@ const cors = require("cors");
 const path = require("path");
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 
 const dbPath = path.join(__dirname, "..", "DB", "db", "filamentbros.sqlite");
@@ -14,10 +18,35 @@ const clients = new Set();
 
 function broadcastUpdate(data) {
   const eventData = JSON.stringify(data);
+  console.log('🔄 Broadcasting update to clients:', eventData);
   clients.forEach(client => {
-    client.res.write(`data: ${eventData}\n\n`);
+    try {
+      client.res.write(`data: ${eventData}\n\n`);
+    } catch (err) {
+      console.error('❌ Failed to send update to client:', err);
+      clients.delete(client);
+    }
   });
+  console.log(`✅ Broadcast complete. Active clients: ${clients.size}`);
 }
+
+// Keep-alive ping to prevent connection timeouts
+function sendKeepAlive() {
+  if (clients.size > 0) {
+    console.log(`📡 Sending keep-alive ping to ${clients.size} clients`);
+    clients.forEach(client => {
+      try {
+        client.res.write(': ping\n\n');
+      } catch (err) {
+        console.error('❌ Failed to send keep-alive to client:', err);
+        clients.delete(client);
+      }
+    });
+  }
+}
+
+// Send keep-alive ping every 30 seconds
+setInterval(sendKeepAlive, 30000);
 
 // Middleware to log all requests
 app.use((req, res, next) => {
@@ -31,18 +60,29 @@ app.use((req, res, next) => {
 
 // SSE endpoint for filament inventory updates
 app.get("/filament/updates", (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
+  // Set headers for SSE
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
   
-  const client = { res };
+  // Send initial connection message
+  res.write('data: {"type":"connected"}\n\n');
+  
+  const client = { 
+    id: Date.now(),
+    res 
+  };
   clients.add(client);
   
-  console.log(`✅ New SSE client connected for filament updates. Total clients: ${clients.size}`);
+  console.log(`✅ New SSE client connected (ID: ${client.id}). Total clients: ${clients.size}`);
   
+  // Handle client disconnect
   req.on('close', () => {
     clients.delete(client);
-    console.log(`📡 SSE client disconnected for filament updates. Total clients: ${clients.size}`);
+    console.log(`📡 SSE client disconnected (ID: ${client.id}). Total clients: ${clients.size}`);
   });
 });
 
