@@ -143,11 +143,12 @@
 
         .product-image {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
             border-radius: 16px;
         }
 
@@ -873,17 +874,25 @@
             document.querySelectorAll('.quantity-btn').forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const productId = parseInt(this.closest('.product-card').dataset.productId);
-                    const action = this.classList.contains('plus') ? 'increase' : 'decrease';
-                    updateQuantity(productId, action);
+                    e.stopPropagation();
+                    const productCard = this.closest('.product-card');
+                    if (productCard) {
+                        const productId = productCard.dataset.productId;
+                        const action = this.classList.contains('plus') ? 'increase' : 'decrease';
+                        updateQuantity(productId, action);
+                    }
                 });
             });
 
             document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const productId = parseInt(this.closest('.product-card').dataset.productId);
-                    addToCart(productId);
+                    e.stopPropagation();
+                    const productCard = this.closest('.product-card');
+                    if (productCard) {
+                        const productId = productCard.dataset.productId;
+                        addToCart(productId);
+                    }
                 });
             });
         }
@@ -988,10 +997,10 @@
                             <h4 class="cart-item-title">${item.material} - ${item.color}</h4>
                             <p class="cart-item-price">$${(item.price * item.quantity).toFixed(2)}</p>
                             <div class="cart-item-quantity">
-                                <button onclick="updateCartItemQuantity(${item.id}, 'decrease')">-</button>
+                                <button onclick="updateCartItemQuantity('${item.id}', 'decrease')">-</button>
                                 <span>${item.quantity}</span>
-                                <button onclick="updateCartItemQuantity(${item.id}, 'increase')">+</button>
-                                <button class="remove" onclick="removeFromCart(${item.id})">
+                                <button onclick="updateCartItemQuantity('${item.id}', 'increase')">+</button>
+                                <button class="remove" onclick="removeFromCart('${item.id}')">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
