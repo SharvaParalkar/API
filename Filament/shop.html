@@ -861,7 +861,14 @@
         async function fetchProducts() {
             try {
                 console.log('Fetching products...');
-                const response = await fetch('https://api.filamentbros.com/filament/inventory');
+                const response = await fetch('https://api.filamentbros.com/filament/inventory', {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
                 if (!response.ok) {
                     throw new Error(`Failed to fetch inventory: ${response.status}`);
                 }
@@ -869,16 +876,16 @@
                 const inventory = await response.json();
                 console.log('Received inventory:', inventory);
                 
-                // Filter out items with zero stock (check both stock and allocated_sale)
+                // Filter out items with zero allocated_sale (for sale stock only)
                 products = inventory
-                    .filter(item => (item.stock > 0 || item.allocated_sale > 0))
+                    .filter(item => item.allocated_sale > 0)
                     .map(item => ({
                         id: item.id,
                         material: item.material,
                         color: item.color,
                         weight: `${item.weight_grams/1000}kg`,
                         price: item.price_per_kg * (item.weight_grams/1000),
-                        stock: item.allocated_sale > 0 ? item.allocated_sale : item.stock,
+                        stock: item.allocated_sale,
                         image: item.image_url || null
                     }));
                 

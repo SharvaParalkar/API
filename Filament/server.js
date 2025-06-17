@@ -90,6 +90,12 @@ app.get("/filament/updates", (req, res) => {
 app.get("/filament/inventory", (req, res) => {
   try {
     console.log('📦 Fetching all filament inventory...');
+    
+    // Set cache-busting headers to ensure fresh data
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     const inventory = db.prepare("SELECT * FROM filament_inventory").all();
     console.log(`✅ Successfully fetched ${inventory.length} filament items`);
     res.json(inventory);
