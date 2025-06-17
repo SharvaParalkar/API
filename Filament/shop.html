@@ -779,10 +779,17 @@
             
             evtSource.onmessage = function(event) {
                 console.log('Received update:', event.data);
-                const update = JSON.parse(event.data);
-                if (update.type === 'add' || update.type === 'update' || update.type === 'delete') {
-                    console.log('Processing update type:', update.type);
-                    fetchProducts();
+                try {
+                    const update = JSON.parse(event.data);
+                    if (update.type === 'add' || update.type === 'update' || update.type === 'delete') {
+                        console.log('Processing update type:', update.type);
+                        fetchProducts();
+                    }
+                } catch (e) {
+                    // Fallback for non-json messages
+                    if (event.data.includes('update')) {
+                         fetchProducts();
+                    }
                 }
             };
 
